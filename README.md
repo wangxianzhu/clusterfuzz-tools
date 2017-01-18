@@ -1,6 +1,8 @@
 ClusterFuzz tools
 =================================
 
+Status: Early prototype phase
+
 [![Build Status](https://travis-ci.org/google/clusterfuzz-tools.svg?branch=master)](https://travis-ci.org/google/clusterfuzz-tools)
 [![Coverage Status](https://coveralls.io/repos/github/google/clusterfuzz-tools/badge.svg?branch=master)](https://coveralls.io/github/google/clusterfuzz-tools?branch=master)
 [![Version](https://img.shields.io/pypi/v/clusterfuzz.svg)](https://pypi.python.org/pypi/clusterfuzz)
@@ -38,12 +40,6 @@ Develop
 7. Generate the report with `coverage html -d /tmp/coverage` and see `/tmp/coverage/index.html`.
 
 Please note that we need to run `pip install -e .` before running `clusterfuzz` if the code has been changed.
-
-
-Contribute
------------
-
-Please create a pull request.
 
 
 Publish

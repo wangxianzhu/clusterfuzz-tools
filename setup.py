@@ -1,3 +1,4 @@
+"""Setup for pip"""
 # Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +28,6 @@ setup(
             'clusterfuzz = clusterfuzz.main:execute'
         ]
     },
+    install_requires=['urlfetch==1.0.2'],
     classifiers=[
-       'Programming Language :: Python :: 2.7'
-    ]
-)
-
+        'Programming Language :: Python :: 2.7'])

@@ -1,3 +1,4 @@
+"""The main entry point."""
 # Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +15,6 @@
 
 import argparse
 import importlib
-import inspect
-import sys
 
 
 def execute(argv=None):
@@ -37,4 +36,3 @@ def execute(argv=None):
   del arg_dict['command']
 
   command.execute(**arg_dict)
-

@@ -1,0 +1,11 @@
+dependencies:
+  override:
+    - pip install -r requirements.txt
+
+test:
+  override:
+    - git diff-index --name-only origin/master | grep "\.py$" | xargs --no-run-if-empty pylint
+    - coverage run test.py
+  post:
+    - coveralls
+

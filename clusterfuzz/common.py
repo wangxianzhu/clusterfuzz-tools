@@ -25,3 +25,21 @@ class ClusterfuzzAuthError(Exception):
     super(ClusterfuzzAuthError, self).__init__(message)
 
     self.response = response
+
+class PermissionsTooPermissiveError(Exception):
+  """An exception to deal with file permissions errors.
+
+  Stores the filename and the current permissions.."""
+
+  def __init__(self, filename, current_permissions):
+    message_tuple = (filename,
+                     str(current_permissions),
+                     filename)
+    message = ('File permissions too permissive to open %s\n'
+               'Current permissions: %s\nExpected user access only'
+               '\nYou can run "chmod 600 %s" to fix this issue'
+               % message_tuple)
+
+    super(PermissionsTooPermissiveError, self).__init__(message)
+    self.filename = filename
+    self.current_permissions = current_permissions

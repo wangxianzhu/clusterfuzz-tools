@@ -15,15 +15,23 @@ Locally reproduces a testcase given a Clusterfuzz ID."""
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import json
 import urllib
 import webbrowser
+import stat
 import urlfetch
 
-from clusterfuzz.common import ClusterfuzzAuthError
+from clusterfuzz.common import (ClusterfuzzAuthError,
+                                PermissionsTooPermissiveError)
 
+AUTH_HEADER_FILE = os.path.expanduser(
+    os.path.join('~', '.clusterfuzz', 'auth_header'))
+TOKENINFO_URL = ('https://www.googleapis.com/oauth2/v3/tokeninfo'
+                 '?access_token=%s')
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
-CLUSTERFUZZ_TESTCASE_URL = 'https://cluster-fuzz.appspot.com/v2/testcase-detail/oauth?testcaseId=%s'
+CLUSTERFUZZ_TESTCASE_URL = ('https://cluster-fuzz.appspot.com/v2/'
+                            'testcase-detail/oauth?testcaseId=%s')
 GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
     urllib.urlencode({
         'scope': 'email profile',
@@ -32,8 +40,43 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
         'response_type': 'code',
         'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'}))
 
+def get_stored_auth_header():
+  """Checks whether there is a valid auth key stored locally."""
+  if not os.path.isfile(AUTH_HEADER_FILE):
+    return None
 
-def get_testcase_info(testcase_id, auth):
+  can_group_access = bool(os.stat(AUTH_HEADER_FILE).st_mode & 0070)
+  can_other_access = bool(os.stat(AUTH_HEADER_FILE).st_mode & 0007)
+
+  if can_group_access or can_other_access:
+    raise PermissionsTooPermissiveError(
+        AUTH_HEADER_FILE,
+        oct(os.stat(AUTH_HEADER_FILE).st_mode & 0777))
+
+  with open(AUTH_HEADER_FILE, 'r') as f:
+    return f.read()
+
+
+def get_verification_header():
+  """Prompts the user for & returns a verification token."""
+
+  webbrowser.open(GOOGLE_OAUTH_URL, new=1, autoraise=True)
+  verification = raw_input('Please enter your verification code:')
+  return 'VerificationCode %s' % verification
+
+
+def store_auth_header(auth_header):
+  """Stores 'auth_header' locally for future access."""
+
+  if not os.path.exists(os.path.dirname(AUTH_HEADER_FILE)):
+    os.makedirs(os.path.dirname(AUTH_HEADER_FILE))
+
+  with open(AUTH_HEADER_FILE, 'w') as f:
+    f.write(auth_header)
+  os.chmod(AUTH_HEADER_FILE, stat.S_IWUSR|stat.S_IRUSR)
+
+
+def get_testcase_info(testcase_id):
   """Pulls testcase information from Clusterfuzz.
 
   Returns a dictionary with the JSON response if the
@@ -41,30 +84,32 @@ def get_testcase_info(testcase_id, auth):
   ClusterfuzzAuthError otherwise.
   """
 
-  response = urlfetch.fetch(
-      url=CLUSTERFUZZ_TESTCASE_URL % testcase_id,
-      headers={'Authorization': auth})
+  header = get_stored_auth_header()
+  response = None
+  for _ in range(2):
+    if not header or (response and response.status == 401):
+      header = get_verification_header()
+    response = urlfetch.fetch(
+        url=CLUSTERFUZZ_TESTCASE_URL % testcase_id,
+        headers={'Authorization': header})
+    if response.status == 200:
+      break
 
   body = json.loads(response.body)
-
   if response.status != 200:
     raise ClusterfuzzAuthError(body)
 
+  store_auth_header(response.headers[CLUSTERFUZZ_AUTH_HEADER])
   return body
+
 
 def execute(testcase_id, current):
   """Execute the reproduce command."""
 
   print 'Reproduce %s (current=%s)' % (testcase_id, current)
-
-  webbrowser.open(GOOGLE_OAUTH_URL, new=1, autoraise=True)
-  code = raw_input('Please enter your verification code:')
-
   print 'Downloading testcase information...'
 
-  response = get_testcase_info(
-      testcase_id,
-      'VerificationCode %s' % code)
+  response = get_testcase_info(testcase_id)
 
   print 'Testcase ID: %i' % response['id']
   print 'Crash Type: %s' % response['crash_type']

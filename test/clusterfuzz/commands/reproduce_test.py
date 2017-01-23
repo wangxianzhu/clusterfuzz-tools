@@ -19,61 +19,43 @@ import json
 import stat
 import os
 import mock
-from pyfakefs import fake_filesystem_unittest
 
 from clusterfuzz import common
 from clusterfuzz.commands import reproduce
 from test import helpers
 
-class ExtendedTestCase(fake_filesystem_unittest.TestCase):
-  """An extended version of TestCase with extra methods for fine-grained method
-  call assertions."""
 
-  def setup_fake_filesystem(self):
-    """Sets up PyFakefs and creates aliases for filepaths."""
-
-    self.setUpPyfakefs()
-    self.clusterfuzz_dir = os.path.expanduser(os.path.join(
-        '~', '.clusterfuzz'))
-    self.auth_header_file = os.path.join(self.clusterfuzz_dir,
-                                         'auth_header')
-
-  def assert_file_permissions(self, filename, permissions):
-    """Assert that 'filename' has specific permissions"""
-
-    self.assertEqual(int(oct(os.stat(filename).st_mode)[4:]),
-                     permissions)
-
-  def assert_n_calls(self, n, methods):
-    """Assert that all patched methods in 'methods' have been called n times"""
-
-    for m in methods:
-      self.assertEqual(n, m.call_count)
-
-  def assert_exact_calls(self, method, calls):
-    """Assert that 'method' only has calls defined in 'calls', and no others"""
-
-    method.assert_has_calls(calls)
-    self.assertEqual(len(calls), method.call_count)
-
-
-class ExecuteTest(ExtendedTestCase):
+class ExecuteTest(helpers.ExtendedTestCase):
   """Test execute."""
 
   def setUp(self):
-    helpers.patch(self, ['clusterfuzz.commands.reproduce.get_testcase_info'])
+    environ = {'CHROME_SRC': '/usr/local/google/home/user/repos/chromium/src'}
+    patcher = mock.patch.dict('os.environ', environ)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.get_testcase_info',
+        'clusterfuzz.commands.reproduce.sha_from_revision',
+        'clusterfuzz.commands.reproduce.checkout_chrome_by_sha'])
     self.mock.get_testcase_info.return_value = {
         'id': 1234,
         'crash_type': 'Bad Crash',
-        'crash_state': ['halted']}
+        'crash_state': ['halted'],
+        'crash_revision': '123456'}
 
   def test_grab_data(self):
-    """Asserts that the testcase data is grabbed correctly."""
-
+    """Ensures all method calls are made correctly."""
+    self.mock.sha_from_revision.return_value = '1a2s3d4f'
     reproduce.execute('1234', False)
-    self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
 
-class GetTestcaseInfoTest(ExtendedTestCase):
+    self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
+    self.assert_exact_calls(self.mock.sha_from_revision, [mock.call('123456')])
+    self.assert_exact_calls(
+        self.mock.checkout_chrome_by_sha,
+        [mock.call('1a2s3d4f',
+                   '/usr/local/google/home/user/repos/chromium/src')])
+
+class GetTestcaseInfoTest(helpers.ExtendedTestCase):
   """Test get_testcase_info."""
 
   def setUp(self):
@@ -201,7 +183,7 @@ class GetTestcaseInfoTest(ExtendedTestCase):
             headers={'Authorization': 'VerificationCode 12345'},
             url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345')])
 
-class GetStoredAuthHeaderTest(ExtendedTestCase):
+class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
   """Tests the stored_auth_key method."""
 
   def setUp(self):
@@ -235,7 +217,7 @@ class GetStoredAuthHeaderTest(ExtendedTestCase):
     result = reproduce.get_stored_auth_header()
     self.assertEqual(result, 'Bearer 1234')
 
-class StoreAuthHeaderTest(ExtendedTestCase):
+class StoreAuthHeaderTest(helpers.ExtendedTestCase):
   """Tests the store_auth_header method."""
 
   def setUp(self):
@@ -263,7 +245,7 @@ class StoreAuthHeaderTest(ExtendedTestCase):
       self.assertEqual(f.read(), self.auth_header)
     self.assert_file_permissions(self.auth_header_file, 600)
 
-class GetVerificationHeaderTest(ExtendedTestCase):
+class GetVerificationHeaderTest(helpers.ExtendedTestCase):
   """Tests the get_verification_header method"""
 
   def setUp(self):
@@ -282,3 +264,81 @@ class GetVerificationHeaderTest(ExtendedTestCase):
         new=1,
         autoraise=True)])
     self.assertEqual(response, 'VerificationCode 12345')
+
+
+class BuildRevisionToShaUrlTest(helpers.ExtendedTestCase):
+  """Tests the build_revision_to_sha_url method."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'urlfetch.fetch'])
+
+  def test_correct_url_building(self):
+    """Tests if the SHA url is built correctly"""
+
+    result = reproduce.build_revision_to_sha_url(12345)
+    self.assertEqual(result, ('https://cr-rev.appspot.com/_ah/api/crrev/v1'
+                              '/get_numbering?project=chromium&repo=chromium'
+                              '%2Fsrc&number=12345&numbering_type='
+                              'COMMIT_POSITION&numbering_identifier=refs'
+                              '%2Fheads%2Fmaster'))
+
+
+class ShaFromRevisionTest(helpers.ExtendedTestCase):
+  """Tests the sha_from_revision method."""
+
+  def setUp(self):
+    helpers.patch(self, ['urlfetch.fetch'])
+
+  def test_get_sha_from_response_body(self):
+    """Tests to ensure that the sha is grabbed from the response correctly"""
+
+    self.mock.fetch.return_value = mock.Mock(body=json.dumps({
+        'id': 12345,
+        'git_sha': '1a2s3d4f',
+        'crash_type': 'Bad Crash'}))
+
+    result = reproduce.sha_from_revision(123456)
+    self.assertEqual(result, '1a2s3d4f')
+
+
+class CheckConfirmTest(helpers.ExtendedTestCase):
+  """Tests the check_confirm method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.confirm'])
+
+  def test_answer_yes(self):
+    self.mock.confirm.return_value = True
+    reproduce.check_confirm('Question?')
+    self.assert_exact_calls(self.mock.confirm, [mock.call('Question?')])
+
+  def test_answer_no(self):
+    self.mock.confirm.return_value = False
+    with self.assertRaises(SystemExit):
+      reproduce.check_confirm('Question?')
+    self.assert_exact_calls(self.mock.confirm, [mock.call('Question?')])
+
+
+class CheckoutChromeByShaTest(helpers.ExtendedTestCase):
+  """Tests the checkout_chrome_by_sha method."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.commands.reproduce.check_confirm'])
+    self.chrome_source = '/usr/local/google/home/user/repos/chromium/src'
+    self.command = ('git fetch && git checkout 1a2s3d4f'
+                    ' in %s' % self.chrome_source)
+
+  def test_answer_yes(self):
+    """Tests the scenario in which the user wants to run the command"""
+
+    reproduce.checkout_chrome_by_sha('1a2s3d4f', self.chrome_source)
+    self.assert_exact_calls(
+        self.mock.execute,
+        [mock.call('git fetch && git checkout 1a2s3d4f', self.chrome_source)])
+    self.assert_exact_calls(self.mock.check_confirm,
+                            [mock.call(
+                                'Proceed with the following command:\n%s?' %
+                                self.command)])

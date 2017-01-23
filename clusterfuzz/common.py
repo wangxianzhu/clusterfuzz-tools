@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+import subprocess
+
+
 class ClusterfuzzAuthError(Exception):
   """An exception to deal with Clusterfuzz Authentication errors.
 
@@ -43,3 +47,53 @@ class PermissionsTooPermissiveError(Exception):
     super(PermissionsTooPermissiveError, self).__init__(message)
     self.filename = filename
     self.current_permissions = current_permissions
+
+
+def execute(command,
+            cwd,
+            print_output=True,
+            exit_on_error=True):
+  """Execute a bash command."""
+  def _print(s):
+    if print_output:
+      print s
+
+  _print('Running: %s' % command)
+  lines = []
+
+  proc = subprocess.Popen(
+      command,
+      shell=True,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.STDOUT,
+      cwd=cwd)
+  for line in iter(proc.stdout.readline, b''):
+    _print('| %s' % line.rstrip())
+    lines.append(line)
+
+  proc.wait()
+  if proc.returncode != 0:
+    _print('| Return code is non-zero (%d).' % proc.returncode)
+    if exit_on_error:
+      _print('| Exit.')
+      sys.exit(proc.returncode)
+  return (proc.returncode, ''.join(lines))
+
+def confirm(question, default='y'):
+  """Asks the user a question and returns their answer.
+  default can either be 'y', 'n', or None. Answer
+  is returned as either True or False."""
+
+  accepts = ['y', 'n']
+  defaults = '[y/n]'
+  if default:
+    accepts += ['']
+    defaults = defaults.replace(default, default.upper())
+
+  answer = raw_input('%s %s: ' % (question, defaults)).lower().strip()
+  while not answer in accepts:
+    answer = raw_input('Please type either "y" or "n": ').lower().strip()
+
+  if answer == 'y' or (answer == '' and default == 'y'):
+    return True
+  return False

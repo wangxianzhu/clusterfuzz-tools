@@ -1,3 +1,4 @@
+"""Helper methods and classes to be used by all tests."""
 # Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,13 +13,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import mock
-import time
+from pyfakefs import fake_filesystem_unittest
 
 
 # _Object is needed because we want to add attribute to its instance.
 class _Object(object):
   pass
+
+class ExtendedTestCase(fake_filesystem_unittest.TestCase):
+  """An extended version of TestCase with extra methods for fine-grained method
+  call assertions."""
+
+  def setup_fake_filesystem(self):
+    """Sets up PyFakefs and creates aliases for filepaths."""
+
+    self.setUpPyfakefs()
+    self.clusterfuzz_dir = os.path.expanduser(os.path.join(
+        '~', '.clusterfuzz'))
+    self.auth_header_file = os.path.join(self.clusterfuzz_dir,
+                                         'auth_header')
+
+  def assert_file_permissions(self, filename, permissions):
+    """Assert that 'filename' has specific permissions"""
+
+    self.assertEqual(int(oct(os.stat(filename).st_mode & 0777)[-3:]),
+                     permissions)
+
+  def assert_n_calls(self, n, methods):
+    """Assert that all patched methods in 'methods' have been called n times"""
+
+    for m in methods:
+      self.assertEqual(n, m.call_count)
+
+  def assert_exact_calls(self, method, calls):
+    """Assert that 'method' only has calls defined in 'calls', and no others"""
+
+    method.assert_has_calls(calls)
+    self.assertEqual(len(calls), method.call_count)
 
 
 def patch(testcase_obj, names):
@@ -43,5 +76,3 @@ def patch(testcase_obj, names):
     patcher = mock.patch(full_path, autospec=True, spec_set=True)
     testcase_obj.addCleanup(patcher.stop)
     setattr(testcase_obj.mock, attr_name, patcher.start())
-    setattr(getattr(testcase_obj.mock, attr_name), '__name__', attr_name)
-

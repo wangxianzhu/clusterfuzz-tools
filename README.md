@@ -3,7 +3,7 @@ ClusterFuzz tools
 
 Status: Early prototype phase
 
-[![Build Status](https://travis-ci.org/google/clusterfuzz-tools.svg?branch=master)](https://travis-ci.org/google/clusterfuzz-tools)
+[![CircleCI](https://circleci.com/gh/google/clusterfuzz-tools/tree/master.svg?style=shield)](https://circleci.com/gh/google/clusterfuzz-tools/tree/master)
 [![Coverage Status](https://coveralls.io/repos/github/google/clusterfuzz-tools/badge.svg?branch=master)](https://coveralls.io/github/google/clusterfuzz-tools?branch=master)
 [![Version](https://img.shields.io/pypi/v/clusterfuzz.svg)](https://pypi.python.org/pypi/clusterfuzz)
 [![Python](https://img.shields.io/pypi/pyversions/clusterfuzz.svg)](https://pypi.python.org/pypi/clusterfuzz)

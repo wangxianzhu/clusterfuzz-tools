@@ -18,6 +18,7 @@ from __future__ import print_function
 import json
 import stat
 import os
+import zipfile
 import mock
 
 from clusterfuzz import common
@@ -29,19 +30,20 @@ class ExecuteTest(helpers.ExtendedTestCase):
   """Test execute."""
 
   def setUp(self):
-    environ = {'CHROME_SRC': '/usr/local/google/home/user/repos/chromium/src'}
-    patcher = mock.patch.dict('os.environ', environ)
-    patcher.start()
-    self.addCleanup(patcher.stop)
+    self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
+    self.mock_os_environment({'CHROME_SRC': self.chrome_src})
     helpers.patch(self, [
         'clusterfuzz.commands.reproduce.get_testcase_info',
         'clusterfuzz.commands.reproduce.sha_from_revision',
-        'clusterfuzz.commands.reproduce.checkout_chrome_by_sha'])
+        'clusterfuzz.commands.reproduce.checkout_chrome_by_sha',
+        'clusterfuzz.commands.reproduce.download_build_data',
+        'clusterfuzz.commands.reproduce.build_chrome'])
     self.mock.get_testcase_info.return_value = {
         'id': 1234,
         'crash_type': 'Bad Crash',
         'crash_state': ['halted'],
-        'crash_revision': '123456'}
+        'crash_revision': '123456',
+        'metadata': {'build_url': 'chrome_build_url'}}
 
   def test_grab_data(self):
     """Ensures all method calls are made correctly."""
@@ -52,8 +54,12 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.sha_from_revision, [mock.call('123456')])
     self.assert_exact_calls(
         self.mock.checkout_chrome_by_sha,
-        [mock.call('1a2s3d4f',
-                   '/usr/local/google/home/user/repos/chromium/src')])
+        [mock.call('1a2s3d4f', self.chrome_src)])
+    self.assert_exact_calls(self.mock.download_build_data,
+                            [mock.call('chrome_build_url', 1234)])
+    self.assert_exact_calls(self.mock.build_chrome,
+                            [mock.call('123456', 1234, self.chrome_src)])
+
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):
   """Test get_testcase_info."""
@@ -278,8 +284,8 @@ class BuildRevisionToShaUrlTest(helpers.ExtendedTestCase):
 
     result = reproduce.build_revision_to_sha_url(12345)
     self.assertEqual(result, ('https://cr-rev.appspot.com/_ah/api/crrev/v1'
-                              '/get_numbering?project=chromium&repo=chromium'
-                              '%2Fsrc&number=12345&numbering_type='
+                              '/get_numbering?project=chromium&repo=v8%2Fv8'
+                              '&number=12345&numbering_type='
                               'COMMIT_POSITION&numbering_identifier=refs'
                               '%2Fheads%2Fmaster'))
 
@@ -331,14 +337,179 @@ class CheckoutChromeByShaTest(helpers.ExtendedTestCase):
     self.command = ('git fetch && git checkout 1a2s3d4f'
                     ' in %s' % self.chrome_source)
 
-  def test_answer_yes(self):
-    """Tests the scenario in which the user wants to run the command"""
+  def test_not_already_checked_out(self):
+    """Tests when the correct git sha is not already checked out."""
 
+    self.mock.execute.return_value = [0, 'not_the_same']
     reproduce.checkout_chrome_by_sha('1a2s3d4f', self.chrome_source)
+
     self.assert_exact_calls(
         self.mock.execute,
-        [mock.call('git fetch && git checkout 1a2s3d4f', self.chrome_source)])
+        [mock.call('git rev-parse HEAD',
+                   self.chrome_source,
+                   print_output=False),
+         mock.call('git fetch && git checkout 1a2s3d4f', self.chrome_source)])
     self.assert_exact_calls(self.mock.check_confirm,
                             [mock.call(
                                 'Proceed with the following command:\n%s?' %
                                 self.command)])
+  def test_already_checked_out(self):
+    """Tests when the correct git sha is already checked out."""
+
+    self.mock.execute.return_value = [0, '1a2s3d4f']
+    reproduce.checkout_chrome_by_sha('1a2s3d4f', self.chrome_source)
+
+    self.assert_exact_calls(self.mock.execute,
+                            [mock.call('git rev-parse HEAD',
+                                       self.chrome_source,
+                                       print_output=False)])
+    self.assert_n_calls(0, [self.mock.check_confirm])
+
+
+class DownloadBuildDataTest(helpers.ExtendedTestCase):
+  """Tests the download_build_data test."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.execute'])
+
+    self.setup_fake_filesystem()
+    self.build_url = 'https://storage.cloud.google.com/abc.zip'
+
+  def test_build_data_already_downloaded(self):
+    """Tests the exit when build data is already returned."""
+
+    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '12345_build')
+    os.makedirs(build_dir)
+    result = reproduce.download_build_data(self.build_url, 12345)
+    self.assert_n_calls(0, [self.mock.execute])
+    self.assertEqual(result, build_dir)
+
+  def test_get_build_data(self):
+    """Tests extracting, moving and renaming the build data.."""
+
+    os.makedirs(self.clusterfuzz_dir)
+    cf_builds_dir = os.path.join(self.clusterfuzz_dir, 'builds')
+
+    with open(os.path.join(self.clusterfuzz_dir, 'args.gn'), 'w') as f:
+      f.write('use_goma = True')
+    fakezip = zipfile.ZipFile(
+        os.path.join(self.clusterfuzz_dir, 'abc.zip'), 'w')
+    fakezip.write(os.path.join(self.clusterfuzz_dir, 'args.gn'),\
+                  'abc//args.gn', zipfile.ZIP_DEFLATED)
+    fakezip.close()
+    self.assertTrue(
+        os.path.isfile(os.path.join(self.clusterfuzz_dir, 'abc.zip')))
+
+    reproduce.download_build_data(self.build_url, 12345)
+
+    self.assert_exact_calls(self.mock.execute, [mock.call(
+        'gsutil cp gs://abc.zip .',
+        self.clusterfuzz_dir)])
+    self.assertFalse(
+        os.path.isfile(os.path.join(self.clusterfuzz_dir, 'abc.zip')))
+    self.assertTrue(os.path.isdir(
+        os.path.join(cf_builds_dir, '12345_build')))
+    self.assertTrue(os.path.isfile(os.path.join(
+        cf_builds_dir,
+        '12345_build',
+        'args.gn')))
+    with open(os.path.join(cf_builds_dir, '12345_build', 'args.gn'), 'r') as f:
+      self.assertEqual('use_goma = True', f.read())
+
+
+class EnsureGomaTest(helpers.ExtendedTestCase):
+  """Tests the ensure_goma method."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    self.mock_os_environment(
+        {'GOMA_DIR': os.path.expanduser(os.path.join('~', 'goma'))})
+    helpers.patch(self, ['clusterfuzz.common.execute'])
+
+  def test_goma_not_installed(self):
+    """Tests what happens when GOMA is not installed."""
+
+    with self.assertRaises(common.GomaNotInstalledError) as ex:
+      reproduce.ensure_goma()
+      self.assertTrue('goma is not installed' in ex.message)
+
+  def test_goma_installed(self):
+    """Tests what happens when GOMA is installed."""
+
+    goma_dir = os.path.expanduser(os.path.join('~', 'goma'))
+    os.makedirs(goma_dir)
+    f = open(os.path.join(goma_dir, 'goma_ctl.py'), 'w')
+    f.close()
+
+    result = reproduce.ensure_goma()
+
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('python goma_ctl.py ensure_start', goma_dir)])
+    self.assertEqual(result, goma_dir)
+
+
+class SetupGnArgsTest(helpers.ExtendedTestCase):
+  """Tests the setup_gn_args method."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    helpers.patch(self, [
+        'clusterfuzz.common.execute'])
+    self.testcase_dir = os.path.expanduser(os.path.join('~', 'test_dir'))
+
+  def test_args_setup(self):
+    """Tests to ensure that the args.gn is setup correctly."""
+
+    os.makedirs(self.testcase_dir)
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'w') as f:
+      f.write('Not correct args.gn')
+    build_dir = reproduce.get_build_directory(1234)
+    os.makedirs(build_dir)
+    with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
+      f.write('goma_dir = /not/correct/dir')
+
+    reproduce.setup_gn_args(
+        self.testcase_dir,
+        1234,
+        '/chrome/source/dir',
+        '/goma/dir')
+
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir')])
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
+      self.assertEqual(f.read(), 'goma_dir = /goma/dir\n')
+
+
+class BuildChromeTest(helpers.ExtendedTestCase):
+  """Tests the build_chrome method."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.ensure_goma',
+        'clusterfuzz.commands.reproduce.setup_gn_args',
+        'multiprocessing.cpu_count',
+        'clusterfuzz.common.execute'])
+    self.mock.cpu_count.return_value = 12
+    self.mock.ensure_goma.return_value = '/goma/dir'
+
+  def test_correct_calls(self):
+    """Tests the correct checks and commands are run to build."""
+
+    revision_num = 12345
+    testcase_id = 54321
+    chrome_source = '/chrome/source'
+    reproduce.build_chrome(revision_num, testcase_id, chrome_source)
+
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('GYP_DEFINES=asan=1 gclient runhooks', chrome_source),
+        mock.call('GYP_DEFINES=asan=1 gypfiles/gyp_v8', chrome_source),
+        mock.call(
+            'ninja -C /chrome/source/out/clusterfuzz_54321 -j 120 d8',
+            chrome_source)])
+    self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
+    self.assert_exact_calls(self.mock.setup_gn_args, [
+        mock.call('/chrome/source/out/clusterfuzz_54321',
+                  54321,
+                  chrome_source,
+                  '/goma/dir')])

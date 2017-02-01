@@ -49,6 +49,15 @@ class PermissionsTooPermissiveError(Exception):
     self.current_permissions = current_permissions
 
 
+class GomaNotInstalledError(Exception):
+  """An exception to tell people GOMA isn not installed."""
+
+  def __init__(self):
+    message = ('Either goma is not installed, or $GOMA_DIR is not set.'
+               ' Please set up goma before continuing.'
+               '\nSee go/ma to learn more.')
+    super(GomaNotInstalledError, self).__init__(message)
+
 def execute(command,
             cwd,
             print_output=True,
@@ -59,7 +68,7 @@ def execute(command,
       print s
 
   _print('Running: %s' % command)
-  lines = []
+  output = ''
 
   proc = subprocess.Popen(
       command,
@@ -67,9 +76,11 @@ def execute(command,
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd)
-  for line in iter(proc.stdout.readline, b''):
-    _print('| %s' % line.rstrip())
-    lines.append(line)
+
+  for byte in iter(lambda: proc.stdout.read(1), b''):
+    if print_output:
+      sys.stdout.write(byte)
+    output += byte
 
   proc.wait()
   if proc.returncode != 0:
@@ -77,7 +88,7 @@ def execute(command,
     if exit_on_error:
       _print('| Exit.')
       sys.exit(proc.returncode)
-  return (proc.returncode, ''.join(lines))
+  return proc.returncode, output
 
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.

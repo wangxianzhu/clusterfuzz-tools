@@ -26,6 +26,13 @@ class ExtendedTestCase(fake_filesystem_unittest.TestCase):
   """An extended version of TestCase with extra methods for fine-grained method
   call assertions."""
 
+  def mock_os_environment(self, environ):
+    """Mock the OS environment with a provided dictionary."""
+
+    patcher = mock.patch.dict('os.environ', environ)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+
   def setup_fake_filesystem(self):
     """Sets up PyFakefs and creates aliases for filepaths."""
 

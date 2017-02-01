@@ -21,17 +21,21 @@ import json
 import urllib
 import webbrowser
 import stat
+import zipfile
+import multiprocessing
 import urlfetch
 
 from clusterfuzz import common
 
-AUTH_HEADER_FILE = os.path.expanduser(
-    os.path.join('~', '.clusterfuzz', 'auth_header'))
+CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
+CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_DIR, 'builds')
+AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 TOKENINFO_URL = ('https://www.googleapis.com/oauth2/v3/tokeninfo'
                  '?access_token=%s')
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
 CLUSTERFUZZ_TESTCASE_URL = ('https://cluster-fuzz.appspot.com/v2/'
                             'testcase-detail/oauth?testcaseId=%s')
+GOMA_DIR = os.path.expanduser(os.path.join('~', 'goma'))
 GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
     urllib.urlencode({
         'scope': 'email profile',
@@ -76,31 +80,36 @@ def store_auth_header(auth_header):
   os.chmod(AUTH_HEADER_FILE, stat.S_IWUSR|stat.S_IRUSR)
 
 
-def get_testcase_info(testcase_id):
-  """Pulls testcase information from Clusterfuzz.
+def send_request(url):
+  """Get a clusterfuzz url that requires authentication.
 
-  Returns a dictionary with the JSON response if the
-  authentication is successful, or throws a
-  ClusterfuzzAuthError otherwise.
-  """
+  Attempts to authenticate and is guaranteed to either
+  return a valid, authorized response or throw an exception."""
 
   header = get_stored_auth_header()
   response = None
   for _ in range(2):
     if not header or (response and response.status == 401):
       header = get_verification_header()
-    response = urlfetch.fetch(
-        url=CLUSTERFUZZ_TESTCASE_URL % testcase_id,
-        headers={'Authorization': header})
+    response = urlfetch.fetch(url=url, headers={'Authorization': header})
     if response.status == 200:
       break
 
-  body = json.loads(response.body)
   if response.status != 200:
-    raise common.ClusterfuzzAuthError(body)
-
+    raise common.ClusterfuzzAuthError(response.body)
   store_auth_header(response.headers[CLUSTERFUZZ_AUTH_HEADER])
-  return body
+
+  return response
+
+def get_testcase_info(testcase_id):
+  """Pulls testcase information from Clusterfuzz.
+
+  Returns a dictionary with the JSON response if the
+  authentication is successful.
+  """
+
+  url = CLUSTERFUZZ_TESTCASE_URL % testcase_id
+  return json.loads(send_request(url).body)
 
 
 def build_revision_to_sha_url(revision):
@@ -110,7 +119,7 @@ def build_revision_to_sha_url(revision):
               'numbering_identifier': 'refs/heads/master',
               'numbering_type': 'COMMIT_POSITION',
               'project': 'chromium',
-              'repo': 'chromium/src'}))
+              'repo': 'v8/v8'})) #TODO: Change this based on testcase JSON
 
 
 def sha_from_revision(revision_number):
@@ -130,11 +139,111 @@ def check_confirm(question):
 def checkout_chrome_by_sha(sha, chrome_source):
   """Checks out the correct Chrome revision."""
 
+  _, current_sha = common.execute('git rev-parse HEAD',
+                                  chrome_source,
+                                  print_output=False)
+  if current_sha == sha:
+    return
+
   command = 'git fetch && git checkout %s' % sha
   check_confirm('Proceed with the following command:\n%s in %s?' %
                 (command, chrome_source))
   common.execute(command, chrome_source)
 
+
+def get_build_directory(testcase_id):
+  """Returns a build number's respective directory."""
+
+  return os.path.join(
+      CLUSTERFUZZ_BUILDS_DIR,
+      str(testcase_id) + '_build')
+
+
+def get_out_dir(chrome_source, testcase_id):
+  return os.path.join(chrome_source, 'out', 'clusterfuzz_' + str(testcase_id))
+
+
+def download_build_data(build_url, testcase_id):
+  """Downloads a build and saves it locally."""
+
+  build_dir = get_build_directory(testcase_id)
+  if os.path.exists(build_dir):
+    return build_dir
+
+  print 'Downloading Chrome build data...'
+
+  if not os.path.exists(CLUSTERFUZZ_BUILDS_DIR):
+    os.makedirs(CLUSTERFUZZ_BUILDS_DIR)
+
+  gsutil_path = build_url.replace('https://storage.cloud.google.com/', 'gs://')
+  common.execute('gsutil cp %s .' % gsutil_path, CLUSTERFUZZ_DIR)
+
+  filename = os.path.split(gsutil_path)[1]
+  saved_file = os.path.join(CLUSTERFUZZ_DIR, filename)
+
+  print 'Extracting...'
+  zipped_file = zipfile.ZipFile(saved_file, 'r')
+  zipped_file.extractall(CLUSTERFUZZ_BUILDS_DIR)
+  zipped_file.close()
+
+  print 'Cleaning up...'
+  os.remove(saved_file)
+  os.rename(os.path.join(CLUSTERFUZZ_BUILDS_DIR, os.path.splitext(filename)[0]),
+            build_dir)
+
+
+def ensure_goma():
+  """Ensures GOMA is installed and ready for use, and starts it."""
+
+  goma_dir = os.environ.get('GOMA_DIR', GOMA_DIR)
+  if not os.path.isfile(os.path.join(goma_dir, 'goma_ctl.py')):
+    raise common.GomaNotInstalledError()
+
+  common.execute('python goma_ctl.py ensure_start', goma_dir)
+  return goma_dir
+
+
+def setup_gn_args(testcase_source_dir, testcase_id, chrome_source, goma_dir):
+  """Ensures that args.gn is sety up properly."""
+
+  args_gn_location = os.path.join(testcase_source_dir, 'args.gn')
+  if os.path.isfile(args_gn_location):
+    os.remove(args_gn_location)
+
+  common.execute('gn gen %s' % testcase_source_dir, chrome_source)
+
+  lines = []
+  with open(os.path.join(
+      get_build_directory(testcase_id),
+      'args.gn'), 'r') as f:
+    lines = [l.strip() for l in f.readlines()]
+
+  with open(args_gn_location, 'w') as f:
+    for line in lines:
+      if 'goma_dir' in line:
+        line = 'goma_dir = ' + goma_dir
+      f.write(line)
+      f.write('\n')
+
+
+def build_chrome(revision_number, testcase_id, chrome_source):
+  """Build the correct revision of chrome in the source directory."""
+
+  testcase_source_dir = get_out_dir(chrome_source, testcase_id)
+  print 'Building Chrome revision %i in %s' % (
+      revision_number,
+      testcase_source_dir)
+
+  goma_dir = ensure_goma()
+  setup_gn_args(testcase_source_dir, testcase_id, chrome_source, goma_dir)
+
+  goma_cores = 10 * multiprocessing.cpu_count()
+  common.execute('GYP_DEFINES=asan=1 gclient runhooks', chrome_source)
+  common.execute('GYP_DEFINES=asan=1 gypfiles/gyp_v8', chrome_source)
+  common.execute(
+      ('ninja -C %s -j %i d8'
+       % (testcase_source_dir, goma_cores)),
+      chrome_source)
 
 def execute(testcase_id, current):
   """Execute the reproduce command."""
@@ -144,11 +253,18 @@ def execute(testcase_id, current):
 
   response = get_testcase_info(testcase_id)
   chrome_source = os.environ['CHROME_SRC']
+  crash_revision = response['crash_revision']
+  testcase_id = response['id']
 
   if not current:
-    git_sha = sha_from_revision(response['crash_revision'])
+    git_sha = sha_from_revision(crash_revision)
     checkout_chrome_by_sha(git_sha, chrome_source)
 
-  print 'Testcase ID: %i' % response['id']
+  download_build_data(
+      response['metadata']['build_url'],
+      testcase_id)
+  build_chrome(crash_revision, testcase_id, chrome_source)
+
+  print 'Testcase ID: %i' % testcase_id
   print 'Crash Type: %s' % response['crash_type']
   print 'Crash State: %s' % ', '.join(response['crash_state'])

@@ -37,13 +37,22 @@ class ExecuteTest(helpers.ExtendedTestCase):
         'clusterfuzz.commands.reproduce.sha_from_revision',
         'clusterfuzz.commands.reproduce.checkout_chrome_by_sha',
         'clusterfuzz.commands.reproduce.download_build_data',
-        'clusterfuzz.commands.reproduce.build_chrome'])
+        'clusterfuzz.commands.reproduce.build_chrome',
+        'clusterfuzz.commands.reproduce.get_reproduction_args',
+        'clusterfuzz.commands.reproduce.download_testcase_file',
+        'clusterfuzz.commands.reproduce.set_up_environment',
+        'clusterfuzz.commands.reproduce.reproduce_crash'])
     self.mock.get_testcase_info.return_value = {
         'id': 1234,
         'crash_type': 'Bad Crash',
         'crash_state': ['halted'],
         'crash_revision': '123456',
-        'metadata': {'build_url': 'chrome_build_url'}}
+        'metadata': {'build_url': 'chrome_build_url'},
+        'crash_stacktrace': {'lines': ['Line 1', 'Line 2']}}
+    self.mock.get_reproduction_args.return_value = '--random-seed=1234 --turbo'
+    self.mock.download_testcase_file.return_value = os.path.join(
+        reproduce.CLUSTERFUZZ_TESTCASES_DIR, '1234_testcase', 'testcase.js')
+    self.mock.set_up_environment.return_value = 'NEW_ENV'
 
   def test_grab_data(self):
     """Ensures all method calls are made correctly."""
@@ -92,7 +101,7 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.store_auth_header, [
         mock.call('Bearer 12345')])
     self.assert_exact_calls(self.mock.fetch, [mock.call(
-        url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345',
+        url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345',
         headers={'Authorization': 'Bearer 12345'})])
     self.assertEqual(response, response_dict)
 
@@ -119,11 +128,11 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.get_verification_header, [mock.call()])
     self.assert_exact_calls(self.mock.fetch, [
         mock.call(
-            url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345',
+            url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345',
             headers={'Authorization': 'Bearer 12345'}),
         mock.call(
             headers={'Authorization': 'VerificationCode 12345'},
-            url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345')])
+            url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345')])
     self.assert_exact_calls(self.mock.store_auth_header, [
         mock.call('Bearer 12345')])
     self.assertEqual(response, response_dict)
@@ -153,7 +162,7 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         mock.call('Bearer 12345')])
     self.assert_exact_calls(self.mock.fetch, [mock.call(
         headers={'Authorization': 'VerificationCode 12345'},
-        url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345')])
+        url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345')])
     self.assertEqual(response, response_dict)
 
   def test_incorrect_authorization(self):
@@ -183,11 +192,11 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
     self.assertIn('Invalid verification code (12345)', cm.exception.message)
     self.assert_exact_calls(self.mock.fetch, [
         mock.call(
-            url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345',
+            url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345',
             headers={'Authorization': 'Bearer 12345'}),
         mock.call(
             headers={'Authorization': 'VerificationCode 12345'},
-            url=reproduce.CLUSTERFUZZ_TESTCASE_URL % '12345')])
+            url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345')])
 
 class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
   """Tests the stored_auth_key method."""
@@ -513,3 +522,103 @@ class BuildChromeTest(helpers.ExtendedTestCase):
                   54321,
                   chrome_source,
                   '/goma/dir')])
+
+class GetReproductionArgsTest(helpers.ExtendedTestCase):
+  """Tests the get_reproduction_args method."""
+
+  def test_join_args_strings(self):
+    """Tests that the method joins all args correctly."""
+
+    window_arg = '--random-seed=123456'
+    min_arg = '--turbo --always-opt'
+    args = {
+        'window_argument': window_arg,
+        'minimized_arguments': min_arg}
+    testcase_info = {'testcase': args}
+
+    result = reproduce.get_reproduction_args(testcase_info)
+    self.assertEqual(result, '%s %s' % (window_arg, min_arg))
+
+class DownloadTestcaseFileTest(helpers.ExtendedTestCase):
+  """Tests the download_testcase_file method."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.get_stored_auth_header',
+        'clusterfuzz.common.execute'])
+    self.mock.get_stored_auth_header.return_value = 'Bearer 1a2s3d4f'
+
+  def test_already_downloaded(self):
+    """Tests the scenario in which the testcase is already downloaded."""
+
+    testcase_dir = reproduce.get_testcase_directory(1234567)
+    filename = os.path.join(testcase_dir, 'testcase.js')
+    os.makedirs(testcase_dir)
+    with open(filename, 'w') as f:
+      f.write('testcase exists')
+    self.assertTrue(os.path.isfile(filename))
+
+    result = reproduce.download_testcase_file(1234567)
+    self.assertEqual(result, filename)
+    self.assert_n_calls(0, [self.mock.get_stored_auth_header,
+                            self.mock.execute])
+
+  def test_not_already_downloaded(self):
+    """Tests the creation of folders & downloading of the testcase"""
+    testcase_dir = reproduce.get_testcase_directory(12345)
+    filename = os.path.join(testcase_dir, 'testcase.js')
+    self.assertFalse(os.path.exists(testcase_dir))
+
+    result = reproduce.download_testcase_file(12345)
+
+    self.assertEqual(result, filename)
+    self.assert_exact_calls(self.mock.get_stored_auth_header, [mock.call()])
+    self.assert_exact_calls(self.mock.execute, [mock.call(
+        ('wget --header="Authorization: %s" "%s" -O ./testcase.js' %
+         (self.mock.get_stored_auth_header.return_value,
+          reproduce.CLUSTERFUZZ_TESTCASE_URL % str(12345))),
+        testcase_dir)])
+    self.assertTrue(os.path.exists(testcase_dir))
+
+
+class SetUpEnvironmentTest(helpers.ExtendedTestCase):
+  """Tests the set_up_environment method."""
+
+  def test_get_env_from_stacktrace(self):
+    """Tests grabbing the os environment and adding the new vars from lines."""
+    stacktrace_lines = [
+        {'content': '[Environment] ASAN_OPTIONS = option1=true:option2=false'},
+        {'content': '======== Stacktrace ======'},
+        {'content':
+         '[Environment] GOMA_OPTIONS = goma_dir=/goma/dir:use_goma=true'}]
+    correct_env = {}
+    correct_env['ASAN_OPTIONS'] = 'option1=true:option2=false'
+    correct_env['GOMA_OPTIONS'] = 'goma_dir=/goma/dir:use_goma=true'
+
+    result = reproduce.set_up_environment(stacktrace_lines)
+    self.assertEqual(correct_env, result)
+
+
+class ReproduceCrashTest(helpers.ExtendedTestCase):
+  """Tests the reproduce_crash method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute'])
+
+  def test_reproduce_crash(self):
+    """Ensures that the crash reproduction is called correctly."""
+
+    testcase_id = 123456
+    testcase_file = '%s/testcase.js' % reproduce.get_testcase_directory(
+        testcase_id)
+    args = '--turbo --always-opt --random-seed=12345'
+    source = '/chrome/source/folder'
+    env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
+
+    reproduce.reproduce_crash(testcase_id, testcase_file, args, source, env)
+    self.assert_exact_calls(self.mock.execute, [mock.call(
+        '%s %s %s' % ('/chrome/source/folder/out/clusterfuzz_123456/d8',
+                      args, testcase_file),
+        '/chrome/source/folder/out/clusterfuzz_123456',
+        environment=env)])

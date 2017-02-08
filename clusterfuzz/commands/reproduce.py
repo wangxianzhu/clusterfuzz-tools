@@ -29,12 +29,15 @@ from clusterfuzz import common
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_DIR, 'builds')
+CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_DIR, 'testcases')
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 TOKENINFO_URL = ('https://www.googleapis.com/oauth2/v3/tokeninfo'
                  '?access_token=%s')
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
-CLUSTERFUZZ_TESTCASE_URL = ('https://cluster-fuzz.appspot.com/v2/'
-                            'testcase-detail/oauth?testcaseId=%s')
+CLUSTERFUZZ_TESTCASE_URL = ('https://cluster-fuzz.appspot.com/v2/testcase-'
+                            'detail/download-testcase/oauth?id=%s')
+CLUSTERFUZZ_TESTCASE_INFO_URL = ('https://cluster-fuzz.appspot.com/v2/'
+                                 'testcase-detail/oauth?testcaseId=%s')
 GOMA_DIR = os.path.expanduser(os.path.join('~', 'goma'))
 GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
     urllib.urlencode({
@@ -108,7 +111,7 @@ def get_testcase_info(testcase_id):
   authentication is successful.
   """
 
-  url = CLUSTERFUZZ_TESTCASE_URL % testcase_id
+  url = CLUSTERFUZZ_TESTCASE_INFO_URL % testcase_id
   return json.loads(send_request(url).body)
 
 
@@ -142,7 +145,7 @@ def checkout_chrome_by_sha(sha, chrome_source):
   _, current_sha = common.execute('git rev-parse HEAD',
                                   chrome_source,
                                   print_output=False)
-  if current_sha == sha:
+  if current_sha.strip() == sha:
     return
 
   command = 'git fetch && git checkout %s' % sha
@@ -163,6 +166,14 @@ def get_out_dir(chrome_source, testcase_id):
   return os.path.join(chrome_source, 'out', 'clusterfuzz_' + str(testcase_id))
 
 
+def get_testcase_directory(testcase_id):
+  """Returns a testcases' respective directory."""
+
+  return os.path.join(
+      CLUSTERFUZZ_TESTCASES_DIR,
+      str(testcase_id) + '_testcase')
+
+
 def download_build_data(build_url, testcase_id):
   """Downloads a build and saves it locally."""
 
@@ -170,7 +181,7 @@ def download_build_data(build_url, testcase_id):
   if os.path.exists(build_dir):
     return build_dir
 
-  print 'Downloading Chrome build data...'
+  print 'Downloading build data...'
 
   if not os.path.exists(CLUSTERFUZZ_BUILDS_DIR):
     os.makedirs(CLUSTERFUZZ_BUILDS_DIR)
@@ -245,6 +256,60 @@ def build_chrome(revision_number, testcase_id, chrome_source):
        % (testcase_source_dir, goma_cores)),
       chrome_source)
 
+
+def get_reproduction_args(testcase_info):
+  """Gets all needed args from testcase info and returns a single string"""
+
+  return '%s %s' % (testcase_info['testcase']['window_argument'],
+                    testcase_info['testcase']['minimized_arguments'])
+
+
+def download_testcase_file(testcase_id):
+  """Downloads & saves the correct testcase for reproduction."""
+
+  testcase_dir = get_testcase_directory(testcase_id)
+  filename = os.path.join(testcase_dir, 'testcase.js')
+  if os.path.isfile(filename):
+    return filename
+
+  print 'Downloading testcase data...'
+
+  if not os.path.exists(CLUSTERFUZZ_TESTCASES_DIR):
+    os.makedirs(CLUSTERFUZZ_TESTCASES_DIR)
+  os.makedirs(testcase_dir)
+
+  auth_header = get_stored_auth_header()
+  command = 'wget --header="Authorization: %s" "%s" -O ./testcase.js' % (
+      auth_header, CLUSTERFUZZ_TESTCASE_URL % testcase_id)
+  common.execute(command, testcase_dir)
+
+  return filename
+
+
+def set_up_environment(stacktrace_lines):
+  """Sets up the environment by parsing stacktrace lines."""
+
+  new_env = {}
+  stacktrace_lines = [l['content']  for l in stacktrace_lines]
+  for l in stacktrace_lines:
+    if '[Environment] ' not in l:
+      continue
+    l = l.replace('[Environment] ', '')
+    name, value = l.split(' = ')
+    new_env[name] = value
+
+  return new_env
+
+
+def reproduce_crash(testcase_id, testcase_file, args, source, env):
+  """Reproduces a specific crash."""
+
+  binary_dir = get_out_dir(source, testcase_id)
+  binary = '%s/d8' % binary_dir
+  command = '%s %s %s' % (binary, args, testcase_file)
+
+  common.execute(command, binary_dir, environment=env)
+
 def execute(testcase_id, current):
   """Execute the reproduce command."""
 
@@ -252,10 +317,10 @@ def execute(testcase_id, current):
   print 'Downloading testcase information...'
 
   response = get_testcase_info(testcase_id)
+
   chrome_source = os.environ['CHROME_SRC']
   crash_revision = response['crash_revision']
   testcase_id = response['id']
-
   if not current:
     git_sha = sha_from_revision(crash_revision)
     checkout_chrome_by_sha(git_sha, chrome_source)
@@ -265,6 +330,8 @@ def execute(testcase_id, current):
       testcase_id)
   build_chrome(crash_revision, testcase_id, chrome_source)
 
-  print 'Testcase ID: %i' % testcase_id
-  print 'Crash Type: %s' % response['crash_type']
-  print 'Crash State: %s' % ', '.join(response['crash_state'])
+  reproduction_args = get_reproduction_args(response)
+  testcase_file = download_testcase_file(testcase_id)
+  env = set_up_environment(response['crash_stacktrace']['lines'])
+  reproduce_crash(testcase_id, testcase_file,
+                  reproduction_args, chrome_source, env)

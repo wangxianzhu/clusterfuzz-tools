@@ -108,7 +108,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        cwd='~/working/directory')])
+        cwd='~/working/directory',
+        env=None)])
 
   def test_process_runs_successfully(self):
     """Test execute when the process successfully runs."""

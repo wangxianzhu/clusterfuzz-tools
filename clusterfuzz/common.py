@@ -61,7 +61,8 @@ class GomaNotInstalledError(Exception):
 def execute(command,
             cwd,
             print_output=True,
-            exit_on_error=True):
+            exit_on_error=True,
+            environment=None):
   """Execute a bash command."""
   def _print(s):
     if print_output:
@@ -75,7 +76,8 @@ def execute(command,
       shell=True,
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
-      cwd=cwd)
+      cwd=cwd,
+      env=environment)
 
   for byte in iter(lambda: proc.stdout.read(1), b''):
     if print_output:

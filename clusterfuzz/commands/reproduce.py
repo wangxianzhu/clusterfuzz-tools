@@ -47,6 +47,16 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
         'response_type': 'code',
         'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'}))
 
+def ask(question, error_message, validate_fn):
+  """Asks question, and keeps asking error_message until validate_fn is True"""
+
+  answer = ''
+  while not validate_fn(answer):
+    answer = raw_input('%s: ' % question)
+    question = error_message
+  return answer
+
+
 def get_stored_auth_header():
   """Checks whether there is a valid auth key stored locally."""
   if not os.path.isfile(AUTH_HEADER_FILE):
@@ -68,7 +78,8 @@ def get_verification_header():
   """Prompts the user for & returns a verification token."""
 
   webbrowser.open(GOOGLE_OAUTH_URL, new=1, autoraise=True)
-  verification = raw_input('Please enter your verification code:')
+  verification = ask('Please enter your verification code',
+                     'Please enter a code', lambda x: x)
   return 'VerificationCode %s' % verification
 
 
@@ -318,20 +329,30 @@ def execute(testcase_id, current):
 
   response = get_testcase_info(testcase_id)
 
-  chrome_source = os.environ['CHROME_SRC']
+  # This way of determining source_directory is temporary, as the
+  # tool only supports V8 builds right now. As more build targets are
+  # supported, this will be determined based on job_type.
+  source_directory = os.environ.get('V8_SRC')
+  if not source_directory:
+    message = ('This is a V8 testcase, please define $V8_SRC or enter'
+               ' your V8 source location here')
+    source_directory = os.path.expanduser(
+        ask(message, 'Please enter a valid directory',
+            lambda x: x and os.path.isdir(os.path.expanduser(x))))
+
   crash_revision = response['crash_revision']
   testcase_id = response['id']
   if not current:
     git_sha = sha_from_revision(crash_revision)
-    checkout_chrome_by_sha(git_sha, chrome_source)
+    checkout_chrome_by_sha(git_sha, source_directory)
 
   download_build_data(
       response['metadata']['build_url'],
       testcase_id)
-  build_chrome(crash_revision, testcase_id, chrome_source)
+  build_chrome(crash_revision, testcase_id, source_directory)
 
   reproduction_args = get_reproduction_args(response)
   testcase_file = download_testcase_file(testcase_id)
   env = set_up_environment(response['crash_stacktrace']['lines'])
   reproduce_crash(testcase_id, testcase_file,
-                  reproduction_args, chrome_source, env)
+                  reproduction_args, source_directory, env)

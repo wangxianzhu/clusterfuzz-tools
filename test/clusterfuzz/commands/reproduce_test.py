@@ -31,7 +31,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
-    self.mock_os_environment({'CHROME_SRC': self.chrome_src})
+    self.mock_os_environment({'V8_SRC': ''})
     helpers.patch(self, [
         'clusterfuzz.commands.reproduce.get_testcase_info',
         'clusterfuzz.commands.reproduce.sha_from_revision',
@@ -41,7 +41,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
         'clusterfuzz.commands.reproduce.get_reproduction_args',
         'clusterfuzz.commands.reproduce.download_testcase_file',
         'clusterfuzz.commands.reproduce.set_up_environment',
-        'clusterfuzz.commands.reproduce.reproduce_crash'])
+        'clusterfuzz.commands.reproduce.reproduce_crash',
+        'clusterfuzz.commands.reproduce.ask'])
     self.mock.get_testcase_info.return_value = {
         'id': 1234,
         'crash_type': 'Bad Crash',
@@ -53,6 +54,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.download_testcase_file.return_value = os.path.join(
         reproduce.CLUSTERFUZZ_TESTCASES_DIR, '1234_testcase', 'testcase.js')
     self.mock.set_up_environment.return_value = 'NEW_ENV'
+    self.mock.ask.return_value = self.chrome_src
 
   def test_grab_data(self):
     """Ensures all method calls are made correctly."""
@@ -68,7 +70,6 @@ class ExecuteTest(helpers.ExtendedTestCase):
                             [mock.call('chrome_build_url', 1234)])
     self.assert_exact_calls(self.mock.build_chrome,
                             [mock.call('123456', 1234, self.chrome_src)])
-
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):
   """Test get_testcase_info."""
@@ -266,8 +267,8 @@ class GetVerificationHeaderTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, [
         'webbrowser.open',
-        '__builtin__.raw_input'])
-    self.mock.raw_input.return_value = '12345'
+        'clusterfuzz.commands.reproduce.ask'])
+    self.mock.ask.return_value = '12345'
 
   def test_returns_correct_header(self):
     """Tests that the correct token with header is returned."""
@@ -622,3 +623,26 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                       args, testcase_file),
         '/chrome/source/folder/out/clusterfuzz_123456',
         environment=env)])
+
+
+class AskTest(helpers.ExtendedTestCase):
+  """Tests the ask method."""
+
+  def setUp(self):
+    helpers.patch(self, ['__builtin__.raw_input'])
+    self.mock.raw_input.side_effect = [
+        'wrong', 'still wrong', 'very wrong', 'correct']
+
+  def test_returns_when_correct(self):
+    """Tests that the method only returns when the answer fits validation."""
+
+    question = 'Initial Question'
+    error_message = 'Please answer correctly'
+    validate_fn = lambda x: x == 'correct'
+
+    result = reproduce.ask(question, error_message, validate_fn)
+    self.assert_n_calls(4, [self.mock.raw_input])
+    self.mock.raw_input.assert_has_calls([
+        mock.call('Initial Question: '),
+        mock.call('Please answer correctly: ')])
+    self.assertEqual(result, 'correct')

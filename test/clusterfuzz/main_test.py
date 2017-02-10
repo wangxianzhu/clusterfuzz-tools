@@ -1,3 +1,4 @@
+"""Tests the module that parses and executes commands."""
 # Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
 import unittest
+import mock
 
 from clusterfuzz import main
 from test import helpers
@@ -31,7 +32,9 @@ class MainTest(unittest.TestCase):
     """Test parse reproduce command."""
     main.execute(['reproduce', '1234'])
     main.execute(['reproduce', '1234', '--current'])
+    main.execute(['reproduce', '1234', '--download'])
+    main.execute(['reproduce', '1234', '--current', '--download'])
 
     self.mock.execute.assert_has_calls(
-        [mock.call('1234', False), mock.call('1234', True)])
-
+        [mock.call('1234', False, False), mock.call('1234', True, False),
+         mock.call('1234', False, True), mock.call('1234', True, True)])

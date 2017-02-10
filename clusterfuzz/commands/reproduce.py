@@ -212,6 +212,9 @@ def download_build_data(build_url, testcase_id):
   os.remove(saved_file)
   os.rename(os.path.join(CLUSTERFUZZ_BUILDS_DIR, os.path.splitext(filename)[0]),
             build_dir)
+  binary_location = os.path.join(build_dir, 'd8')
+  stats = os.stat(binary_location)
+  os.chmod(binary_location, stats.st_mode | stat.S_IEXEC)
 
 
 def ensure_goma():
@@ -312,47 +315,48 @@ def set_up_environment(stacktrace_lines):
   return new_env
 
 
-def reproduce_crash(testcase_id, testcase_file, args, source, env):
+def reproduce_crash(testcase_file, args, binary_dir, env):
   """Reproduces a specific crash."""
 
-  binary_dir = get_out_dir(source, testcase_id)
   binary = '%s/d8' % binary_dir
   command = '%s %s %s' % (binary, args, testcase_file)
 
   common.execute(command, binary_dir, environment=env)
 
-def execute(testcase_id, current):
+def execute(testcase_id, current, download):
   """Execute the reproduce command."""
 
   print 'Reproduce %s (current=%s)' % (testcase_id, current)
   print 'Downloading testcase information...'
 
   response = get_testcase_info(testcase_id)
-
-  # This way of determining source_directory is temporary, as the
-  # tool only supports V8 builds right now. As more build targets are
-  # supported, this will be determined based on job_type.
-  source_directory = os.environ.get('V8_SRC')
-  if not source_directory:
-    message = ('This is a V8 testcase, please define $V8_SRC or enter'
-               ' your V8 source location here')
-    source_directory = os.path.expanduser(
-        ask(message, 'Please enter a valid directory',
-            lambda x: x and os.path.isdir(os.path.expanduser(x))))
-
-  crash_revision = response['crash_revision']
   testcase_id = response['id']
-  if not current:
-    git_sha = sha_from_revision(crash_revision)
-    checkout_chrome_by_sha(git_sha, source_directory)
-
   download_build_data(
       response['metadata']['build_url'],
       testcase_id)
-  build_chrome(crash_revision, testcase_id, source_directory)
+  source_directory = get_build_directory(testcase_id)
+
+  if not download:
+    # This way of determining source_directory is temporary, as the
+    # tool only supports V8 builds right now. As more build targets are
+    # supported, this will be determined based on job_type.
+    source_directory = os.environ.get('V8_SRC')
+    if not source_directory:
+      message = ('This is a V8 testcase, please define $V8_SRC or enter'
+                 ' your V8 source location here')
+      source_directory = os.path.expanduser(
+          ask(message, 'Please enter a valid directory',
+              lambda x: x and os.path.isdir(os.path.expanduser(x))))
+
+    crash_revision = response['crash_revision']
+    if not current:
+      git_sha = sha_from_revision(crash_revision)
+      checkout_chrome_by_sha(git_sha, source_directory)
+
+    build_chrome(crash_revision, testcase_id, source_directory)
+    source_directory = get_out_dir(source_directory, testcase_id)
 
   reproduction_args = get_reproduction_args(response)
   testcase_file = download_testcase_file(testcase_id)
   env = set_up_environment(response['crash_stacktrace']['lines'])
-  reproduce_crash(testcase_id, testcase_file,
-                  reproduction_args, source_directory, env)
+  reproduce_crash(testcase_file, reproduction_args, source_directory, env)

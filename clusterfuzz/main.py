@@ -28,6 +28,10 @@ def execute(argv=None):
       '-c', '--current', action='store_true', default=False,
       help=('Use the current tree. Without --current, the Chrome repository is'
             ' switched to the commit specified in the testcase.'))
+  reproduce.add_argument(
+      '-d', '--download', action='store_true', default=False,
+      help=('Run the testcase against a build downloaded from Clusterfuzz '
+            'rather than building locally.'))
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

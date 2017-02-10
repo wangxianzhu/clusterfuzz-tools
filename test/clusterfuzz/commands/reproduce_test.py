@@ -59,7 +59,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
   def test_grab_data(self):
     """Ensures all method calls are made correctly."""
     self.mock.sha_from_revision.return_value = '1a2s3d4f'
-    reproduce.execute('1234', False)
+    reproduce.execute('1234', False, False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.sha_from_revision, [mock.call('123456')])
@@ -403,10 +403,14 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
 
     with open(os.path.join(self.clusterfuzz_dir, 'args.gn'), 'w') as f:
       f.write('use_goma = True')
+    with open(os.path.join(self.clusterfuzz_dir, 'd8'), 'w') as f:
+      f.write('fake d8')
     fakezip = zipfile.ZipFile(
         os.path.join(self.clusterfuzz_dir, 'abc.zip'), 'w')
-    fakezip.write(os.path.join(self.clusterfuzz_dir, 'args.gn'),\
+    fakezip.write(os.path.join(self.clusterfuzz_dir, 'args.gn'),
                   'abc//args.gn', zipfile.ZIP_DEFLATED)
+    fakezip.write(os.path.join(self.clusterfuzz_dir, 'd8'),
+                  'abc//d8', zipfile.ZIP_DEFLATED)
     fakezip.close()
     self.assertTrue(
         os.path.isfile(os.path.join(self.clusterfuzz_dir, 'abc.zip')))
@@ -426,6 +430,8 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
         'args.gn')))
     with open(os.path.join(cf_builds_dir, '12345_build', 'args.gn'), 'r') as f:
       self.assertEqual('use_goma = True', f.read())
+    with open(os.path.join(cf_builds_dir, '12345_build', 'd8'), 'r') as f:
+      self.assertEqual('fake d8', f.read())
 
 
 class EnsureGomaTest(helpers.ExtendedTestCase):
@@ -617,11 +623,11 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     source = '/chrome/source/folder'
     env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
 
-    reproduce.reproduce_crash(testcase_id, testcase_file, args, source, env)
+    reproduce.reproduce_crash(testcase_file, args, source, env)
     self.assert_exact_calls(self.mock.execute, [mock.call(
-        '%s %s %s' % ('/chrome/source/folder/out/clusterfuzz_123456/d8',
+        '%s %s %s' % ('/chrome/source/folder/d8',
                       args, testcase_file),
-        '/chrome/source/folder/out/clusterfuzz_123456',
+        '/chrome/source/folder',
         environment=env)])
 
 

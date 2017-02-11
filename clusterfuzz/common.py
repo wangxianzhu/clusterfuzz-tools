@@ -13,9 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import sys
+import stat
 import subprocess
 
+CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
+AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 
 class ClusterfuzzAuthError(Exception):
   """An exception to deal with Clusterfuzz Authentication errors.
@@ -57,6 +61,35 @@ class GomaNotInstalledError(Exception):
                ' Please set up goma before continuing.'
                '\nSee go/ma to learn more.')
     super(GomaNotInstalledError, self).__init__(message)
+
+
+def store_auth_header(auth_header):
+  """Stores 'auth_header' locally for future access."""
+
+  if not os.path.exists(os.path.dirname(AUTH_HEADER_FILE)):
+    os.makedirs(os.path.dirname(AUTH_HEADER_FILE))
+
+  with open(AUTH_HEADER_FILE, 'w') as f:
+    f.write(auth_header)
+  os.chmod(AUTH_HEADER_FILE, stat.S_IWUSR|stat.S_IRUSR)
+
+
+def get_stored_auth_header():
+  """Checks whether there is a valid auth key stored locally."""
+  if not os.path.isfile(AUTH_HEADER_FILE):
+    return None
+
+  can_group_access = bool(os.stat(AUTH_HEADER_FILE).st_mode & 0070)
+  can_other_access = bool(os.stat(AUTH_HEADER_FILE).st_mode & 0007)
+
+  if can_group_access or can_other_access:
+    raise PermissionsTooPermissiveError(
+        AUTH_HEADER_FILE,
+        oct(os.stat(AUTH_HEADER_FILE).st_mode & 0777))
+
+  with open(AUTH_HEADER_FILE, 'r') as f:
+    return f.read()
+
 
 def execute(command,
             cwd,
@@ -110,3 +143,19 @@ def confirm(question, default='y'):
   if answer == 'y' or (answer == '' and default == 'y'):
     return True
   return False
+
+def check_confirm(question):
+  """Exits the program if the answer is negative, does nothing otherwise."""
+
+  if not confirm(question):
+    sys.exit()
+
+
+def ask(question, error_message, validate_fn):
+  """Asks question, and keeps asking error_message until validate_fn is True"""
+
+  answer = ''
+  while not validate_fn(answer):
+    answer = raw_input('%s: ' % question)
+    question = error_message
+  return answer

@@ -15,6 +15,8 @@
 
 import cStringIO
 import subprocess
+import os
+import stat
 import mock
 
 from clusterfuzz import common
@@ -126,3 +128,108 @@ class ExecuteTest(helpers.ExtendedTestCase):
     for print_out in [True, False]:
       for exit_on_error in [True, False]:
         self.run_popen_assertions(return_code, print_out, exit_on_error)
+
+
+class StoreAuthHeaderTest(helpers.ExtendedTestCase):
+  """Tests the store_auth_header method."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    self.auth_header = 'Bearer 12345'
+
+  def test_folder_absent(self):
+    """Tests storing when the folder has not been created prior."""
+
+    self.assertFalse(os.path.exists(self.clusterfuzz_dir))
+    common.store_auth_header(self.auth_header)
+
+    self.assertTrue(os.path.exists(self.clusterfuzz_dir))
+    with open(self.auth_header_file, 'r') as f:
+      self.assertEqual(f.read(), self.auth_header)
+    self.assert_file_permissions(self.auth_header_file, 600)
+
+  def test_folder_present(self):
+    """Tests storing when the folder has already been created."""
+
+    self.fs.CreateFile(self.auth_header_file)
+    common.store_auth_header(self.auth_header)
+
+    with open(self.auth_header_file, 'r') as f:
+      self.assertEqual(f.read(), self.auth_header)
+    self.assert_file_permissions(self.auth_header_file, 600)
+
+
+class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
+  """Tests the stored_auth_key method."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_file_missing(self):
+    """Tests functionality when auth key file does not exist."""
+
+    result = common.get_stored_auth_header()
+    self.assertEqual(result, None)
+
+  def test_permissions_incorrect(self):
+    """Tests functionality when file exists but permissions wrong."""
+
+    self.fs.CreateFile(self.auth_header_file)
+    os.chmod(self.auth_header_file, stat.S_IWGRP)
+
+    with self.assertRaises(common.PermissionsTooPermissiveError) as ex:
+      result = common.get_stored_auth_header()
+      self.assertEqual(result, None)
+    self.assertIn(
+        'File permissions too permissive to open',
+        ex.exception.message)
+
+  def test_file_valid(self):
+    """Tests when file is accessible and auth key is returned."""
+
+    self.fs.CreateFile(self.auth_header_file, contents='Bearer 1234')
+    os.chmod(self.auth_header_file, stat.S_IWUSR|stat.S_IRUSR)
+
+    result = common.get_stored_auth_header()
+    self.assertEqual(result, 'Bearer 1234')
+
+
+class CheckConfirmTest(helpers.ExtendedTestCase):
+  """Tests the check_confirm method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.confirm'])
+
+  def test_answer_yes(self):
+    self.mock.confirm.return_value = True
+    common.check_confirm('Question?')
+    self.assert_exact_calls(self.mock.confirm, [mock.call('Question?')])
+
+  def test_answer_no(self):
+    self.mock.confirm.return_value = False
+    with self.assertRaises(SystemExit):
+      common.check_confirm('Question?')
+    self.assert_exact_calls(self.mock.confirm, [mock.call('Question?')])
+
+
+class AskTest(helpers.ExtendedTestCase):
+  """Tests the ask method."""
+
+  def setUp(self):
+    helpers.patch(self, ['__builtin__.raw_input'])
+    self.mock.raw_input.side_effect = [
+        'wrong', 'still wrong', 'very wrong', 'correct']
+
+  def test_returns_when_correct(self):
+    """Tests that the method only returns when the answer fits validation."""
+
+    question = 'Initial Question'
+    error_message = 'Please answer correctly'
+    validate_fn = lambda x: x == 'correct'
+
+    result = common.ask(question, error_message, validate_fn)
+    self.assert_n_calls(4, [self.mock.raw_input])
+    self.mock.raw_input.assert_has_calls([
+        mock.call('Initial Question: '),
+        mock.call('Please answer correctly: ')])
+    self.assertEqual(result, 'correct')

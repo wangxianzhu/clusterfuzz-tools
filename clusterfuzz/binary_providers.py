@@ -122,17 +122,32 @@ class V8Builder(BinaryProvider):
     self.revision = revision
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
 
+  def get_current_sha(self):
+    _, current_sha = common.execute('git rev-parse HEAD',
+                                    self.source_directory,
+                                    print_output=False)
+    return current_sha.strip()
+
   def out_dir_name(self):
-    return os.path.join(self.source_directory, 'out',
-                        'clusterfuzz_' + str(self.testcase_id))
+    """Returns the correct out dir in which to build the revision.
+
+    Directory name is of the format clusterfuzz_<testcase_id>_<git_sha>,
+    with a possible '_dirty' on the end. Based on the current git sha, and
+    whether changes have been made to the repo."""
+
+    dir_name = os.path.join(self.source_directory, 'out',
+                            'clusterfuzz_%s_%s' % (str(self.testcase_id),
+                                                   self.get_current_sha()))
+    _, diff_result = common.execute('git diff', self.source_directory,
+                                    print_output=False)
+    if diff_result:
+      dir_name += '_dirty'
+    return dir_name
 
   def checkout_source_by_sha(self):
     """Checks out the correct revision."""
 
-    _, current_sha = common.execute('git rev-parse HEAD',
-                                    self.source_directory,
-                                    print_output=False)
-    if current_sha.strip() == self.git_sha:
+    if self.get_current_sha() == self.git_sha:
       return
 
     command = 'git fetch && git checkout %s' % self.git_sha

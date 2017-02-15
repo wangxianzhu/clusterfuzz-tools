@@ -144,10 +144,14 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.V8Builder.checkout_source_by_sha',
         'clusterfuzz.binary_providers.V8Builder.build_target',
-        'clusterfuzz.common.ask'])
+        'clusterfuzz.common.ask',
+        'clusterfuzz.binary_providers.V8Builder.get_current_sha',
+        'clusterfuzz.common.execute'])
 
     self.setup_fake_filesystem()
     self.build_url = 'https://storage.cloud.google.com/abc.zip'
+    self.mock.get_current_sha.return_value = '1a2s3d4f5g6h'
+    self.mock.execute.return_value = [0, '']
 
   def test_parameter_not_set_valid_source(self):
     """Tests functionality when build has never been downloaded."""
@@ -158,7 +162,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
 
     result = provider.get_build_directory()
     self.assertEqual(result, os.path.join(chrome_source, 'out',
-                                          'clusterfuzz_12345'))
+                                          'clusterfuzz_12345_1a2s3d4f5g6h'))
     self.assert_exact_calls(self.mock.download_build_data,
                             [mock.call(provider)])
     self.assert_exact_calls(self.mock.build_target, [mock.call(provider)])
@@ -176,7 +180,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
 
     result = provider.get_build_directory()
     self.assertEqual(result, os.path.join(chrome_source, 'out',
-                                          'clusterfuzz_12345'))
+                                          'clusterfuzz_12345_1a2s3d4f5g6h'))
     self.assert_exact_calls(self.mock.download_build_data,
                             [mock.call(provider)])
     self.assert_exact_calls(self.mock.build_target, [mock.call(provider)])
@@ -338,3 +342,30 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
                                        self.chrome_source,
                                        print_output=False)])
     self.assert_n_calls(0, [self.mock.check_confirm])
+
+
+class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
+  """Tests the out_dir_name builder method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute',
+                         'clusterfuzz.binary_providers.sha_from_revision'])
+    self.sha = '1a2s3d4f5g6h'
+    self.mock.sha_from_revision.return_value = self.sha
+    self.builder = binary_providers.V8Builder(1234, '', 54321, False, '',
+                                              '/source/dir')
+
+  def test_clean_dir(self):
+    """Tests when no changes have been made to the dir."""
+
+    self.mock.execute.side_effect = [[0, self.sha], [0, '']]
+    result = self.builder.out_dir_name()
+    self.assertEqual(result, '/source/dir/out/clusterfuzz_1234_1a2s3d4f5g6h')
+
+  def test_dirty_dir(self):
+    """Tests when changes have been made to the dir."""
+
+    self.mock.execute.side_effect = [[0, self.sha], [0, 'changes']]
+    result = self.builder.out_dir_name()
+    self.assertEqual(result,
+                     '/source/dir/out/clusterfuzz_1234_1a2s3d4f5g6h_dirty')

@@ -46,6 +46,7 @@ class Testcase(object):
     self.environment = self.get_environment()
     self.revision = testcase_json['crash_revision']
     self.build_url = testcase_json['metadata']['build_url']
+    self.job_type = testcase_json['testcase']['job_type']
     self.reproduction_args = (
         '%s %s' %(testcase_json['testcase']['window_argument'],
                   testcase_json['testcase']['minimized_arguments']))
@@ -60,7 +61,8 @@ class Testcase(object):
 
     testcase_dir = self.testcase_dir_name()
     #TODO: Filename testcase.js is d8-specific
-    filename = os.path.join(testcase_dir, 'testcase.js')
+    file_extension = 'pdf' if 'pdfium' in self.job_type else 'js'
+    filename = os.path.join(testcase_dir, 'testcase.%s' % file_extension)
     if os.path.isfile(filename):
       return filename
 
@@ -71,8 +73,8 @@ class Testcase(object):
     os.makedirs(testcase_dir)
 
     auth_header = common.get_stored_auth_header()
-    command = 'wget --header="Authorization: %s" "%s" -O ./testcase.js' % (
-        auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id)
+    command = 'wget --header="Authorization: %s" "%s" -O ./testcase.%s' % (
+        auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id, file_extension)
     common.execute(command, testcase_dir)
 
     return filename

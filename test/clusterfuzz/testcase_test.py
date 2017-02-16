@@ -30,6 +30,7 @@ def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
       'crash_revision': revision,
       'metadata': {'build_url': build_url},
       'testcase': {'window_argument': window_arg,
+                   'job_type': 'linux_asan_d8_dbg',
                    'minimized_arguments': minimized_args}}
 
   return testcase.Testcase(testcase_json)

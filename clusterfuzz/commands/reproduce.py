@@ -106,13 +106,26 @@ def execute(testcase_id, current, download):
   response = get_testcase_info(testcase_id)
   goma_dir = ensure_goma()
   current_testcase = testcase.Testcase(response)
+  v8_keywords = ('d8', 'v8')
+  if any(s in current_testcase.job_type for s in v8_keywords):
+    target = 'd8'
+  else:
+    target = 'pdfium_test'
 
   if download:
-    binary_provider = binary_providers.V8DownloadedBinary(
-        current_testcase.id, current_testcase.build_url)
+    binary_provider = binary_providers.DownloadedBinary(
+        current_testcase.id, current_testcase.build_url, target)
   else:
-    binary_provider = binary_providers.V8Builder( # pylint: disable=redefined-variable-type
-        current_testcase.id, current_testcase.build_url,
-        current_testcase.revision, current, goma_dir, os.environ.get('V8_SRC'))
+    if target == 'd8':
+      binary_provider = binary_providers.V8Builder( # pylint: disable=redefined-variable-type
+          current_testcase.id, current_testcase.build_url,
+          current_testcase.revision, current, goma_dir,
+          os.environ.get('V8_SRC'))
+    else:
+      binary_provider = binary_providers.PdfiumBuilder( # pylint: disable=redefined-variable-type
+          current_testcase.id, current_testcase.build_url,
+          current_testcase.revision, current, goma_dir, os.environ.get(
+              'PDFIUM_SRC'))
+
 
   reproduce_crash(binary_provider.get_binary_path(), current_testcase)

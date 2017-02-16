@@ -19,6 +19,8 @@ import zipfile
 import multiprocessing
 import urllib
 import json
+import base64
+import string
 import urlfetch
 
 from clusterfuzz import common
@@ -43,14 +45,26 @@ def sha_from_revision(revision, repo):
   return json.loads(response.body)['git_sha']
 
 
+def get_pdfium_sha(chromium_sha):
+  """Gets the correct Pdfium sha using the Chromium sha."""
+  response = urlfetch.fetch(
+      ('https://chromium.googlesource.com/chromium/src.git/+/%s/DEPS?'
+       'format=TEXT' % chromium_sha))
+  body = base64.b64decode(response.body)
+  sha_line = [l for l in body.split('\n') if "'pdfium_revision':" in l][0]
+  sha_line = sha_line.translate(None, string.punctuation).replace(
+      'pdfiumrevision', '')
+  return sha_line.strip()
+
+
 class BinaryProvider(object):
   """Downloads/builds and then provides the location of a binary."""
 
-  def __init__(self, testcase_id, build_url):
+  def __init__(self, testcase_id, build_url, target):
     self.testcase_id = testcase_id
     self.build_url = build_url
     self.build_directory = None
-    self.target = 'd8'
+    self.target = target
 
   def get_build_directory(self):
     """Get build directory. This method must be implemented by a subclass."""
@@ -96,7 +110,7 @@ class BinaryProvider(object):
                         str(self.testcase_id) + '_build')
 
 
-class V8DownloadedBinary(BinaryProvider):
+class DownloadedBinary(BinaryProvider):
   """Uses a downloaded binary."""
 
   def get_build_directory(self):
@@ -110,17 +124,18 @@ class V8DownloadedBinary(BinaryProvider):
     return self.build_directory
 
 
-class V8Builder(BinaryProvider):
-  """Builds a fresh v8 binary."""
+class GenericBuilder(BinaryProvider):
+  """Provides a base for binary builders."""
 
   def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source):
-    super(V8Builder, self).__init__(testcase_id, build_url)
+               source, target):
+    """self.git_sha must be set in a subclass, or some of these
+    instance methods may not work."""
+    super(GenericBuilder, self).__init__(testcase_id, build_url, target)
     self.current = current
     self.goma_dir = goma_dir
     self.source_directory = source
     self.revision = revision
-    self.git_sha = sha_from_revision(self.revision, 'v8/v8')
 
   def get_current_sha(self):
     _, current_sha = common.execute('git rev-parse HEAD',
@@ -155,7 +170,7 @@ class V8Builder(BinaryProvider):
                          (command, self.source_directory))
     common.execute(command, self.source_directory)
 
-  def setup_gn_args(self):
+  def setup_gn_args(self, other_options=None):
     """Ensures that args.gn is sety up properly."""
 
     args_gn_location = os.path.join(self.build_directory, 'args.gn')
@@ -171,25 +186,18 @@ class V8Builder(BinaryProvider):
     with open(args_gn_location, 'w') as f:
       for line in lines:
         if 'goma_dir' in line:
-          line = 'goma_dir = ' + self.goma_dir
+          line = 'goma_dir = "%s"' % self.goma_dir
         f.write(line)
         f.write('\n')
+      if other_options:
+        for k, v in other_options.iteritems():
+          f.write('%s = %s\n' % (k, v))
 
   def build_target(self):
-    """Build the correct revision in the source directory."""
+    """Build the correct revision in the source directory.
 
-    print 'Building revision %i in %s' % (
-        self.revision,
-        self.build_directory)
-
-    self.setup_gn_args()
-    goma_cores = 10 * multiprocessing.cpu_count()
-    common.execute('GYP_DEFINES=asan=1 gclient runhooks', self.source_directory)
-    common.execute('GYP_DEFINES=asan=1 gypfiles/gyp_v8', self.source_directory)
-    common.execute(
-        ('ninja -C %s -j %i %s'
-         % (self.build_directory, goma_cores, self.target)),
-        self.source_directory)
+    Must be implemented in a subclass."""
+    raise NotImplementedError
 
   def get_build_directory(self):
     """Returns the location of the correct build to use for reproduction."""
@@ -200,8 +208,9 @@ class V8Builder(BinaryProvider):
     self.download_build_data()
     self.build_directory = self.build_dir_name()
     if not self.source_directory:
-      message = ('This is a V8 testcase, please define $V8_SRC or enter'
-                 ' your V8 source location here')
+      message = ('This is a %(name)s testcase, please define $%(env_name)s_SRC'
+                 ' or enter your %(name)s source location here' %
+                 {'name': self.name, 'env_name': self.name.upper()})
       self.source_directory = os.path.expanduser(
           common.ask(message, 'Please enter a valid directory',
                      lambda x: x and os.path.isdir(os.path.expanduser(x))))
@@ -211,3 +220,57 @@ class V8Builder(BinaryProvider):
     self.build_target()
 
     return self.build_directory
+
+
+class PdfiumBuilder(GenericBuilder):
+  """Build a fresh Pdfium binary."""
+
+  def __init__(self, testcase_id, build_url, revision, current, goma_dir,
+               source):
+    super(PdfiumBuilder, self).__init__(testcase_id, build_url, revision,
+                                        current, goma_dir, source,
+                                        'pdfium_test')
+    self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
+    self.name = 'Pdfium'
+    self.git_sha = get_pdfium_sha(self.chromium_sha)
+
+  def setup_gn_args(self, other_options=None):
+    other_options = {'pdf_is_standalone': 'true'}
+    super(PdfiumBuilder, self).setup_gn_args(other_options)
+    common.execute('gn gen %s' % self.build_directory, self.source_directory)
+
+  def build_target(self):
+    """Build the correct revision in the source directory."""
+
+    self.setup_gn_args()
+    goma_cores = 10 * multiprocessing.cpu_count()
+    common.execute(
+        ('ninja -C %s -j %i %s' % (self.build_directory, goma_cores,
+                                   self.target)),
+        self.source_directory)
+
+class V8Builder(GenericBuilder):
+  """Builds a fresh v8 binary."""
+
+  def __init__(self, testcase_id, build_url, revision, current,
+               goma_dir, source):
+
+    super(V8Builder, self).__init__(testcase_id, build_url, revision, current,
+                                    goma_dir, source, 'd8')
+    self.git_sha = sha_from_revision(self.revision, 'v8/v8')
+    self.name = 'V8'
+
+  def build_target(self):
+    """Build the correct revision in the source directory."""
+
+    print 'Building %s revision %i in %s' % (
+        self.name, self.revision, self.build_directory)
+
+    self.setup_gn_args()
+    goma_cores = 10 * multiprocessing.cpu_count()
+    common.execute('GYP_DEFINES=asan=1 gclient runhooks', self.source_directory)
+    common.execute('GYP_DEFINES=asan=1 gypfiles/gyp_v8', self.source_directory)
+    common.execute(
+        ('ninja -C %s -j %i %s'
+         % (self.build_directory, goma_cores, self.target)),
+        self.source_directory)

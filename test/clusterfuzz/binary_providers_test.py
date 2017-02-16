@@ -57,6 +57,25 @@ class ShaFromRevisionTest(helpers.ExtendedTestCase):
     self.assertEqual(result, '1a2s3d4f')
 
 
+class GetPdfiumShaTest(helpers.ExtendedTestCase):
+  """Tests the get_pdfium_sha method."""
+
+  def setUp(self):
+    helpers.patch(self, ['urlfetch.fetch'])
+    self.mock.fetch.return_value = mock.Mock(
+        body=('dmFycyA9IHsNCiAgJ3BkZml1bV9naXQnOiAnaHR0cHM6Ly9wZGZpdW0uZ29vZ'
+              '2xlc291cmNlLmNvbScsDQogICdwZGZpdW1fcmV2aXNpb24nOiAnNDA5MzAzOW'
+              'QxOWY4MzIxNzNlYzU4Y2ZkOWYyZThhYzM5M2E3NjA5MScsDQp9DQo='))
+
+  def test_decode_pdfium_sha(self):
+    """Tests if the method correctly grabs the sha from the b64 download."""
+
+    result = binary_providers.get_pdfium_sha('chrome_sha')
+    self.assert_exact_calls(self.mock.fetch, [mock.call(
+        ('https://chromium.googlesource.com/chromium/src.git/+/chrome_sha'
+         '/DEPS?format=TEXT'))])
+    self.assertEqual(result, '4093039d19f832173ec58cfd9f2e8ac393a76091')
+
 class DownloadBuildDataTest(helpers.ExtendedTestCase):
   """Tests the download_build_data test."""
 
@@ -65,7 +84,7 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
 
     self.setup_fake_filesystem()
     self.build_url = 'https://storage.cloud.google.com/abc.zip'
-    self.provider = binary_providers.BinaryProvider(1234, self.build_url)
+    self.provider = binary_providers.BinaryProvider(1234, self.build_url, 'd8')
 
   def test_build_data_already_downloaded(self):
     """Tests the exit when build data is already returned."""
@@ -121,7 +140,7 @@ class GetBinaryPathTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.binary_providers.V8DownloadedBinary.get_build_directory'])
+        'clusterfuzz.binary_providers.DownloadedBinary.get_build_directory'])
 
   def test_call(self):
     """Tests calling the method."""
@@ -130,7 +149,7 @@ class GetBinaryPathTest(helpers.ExtendedTestCase):
                                                 'out', '12345_build'))
     self.mock.get_build_directory.return_value = build_dir
 
-    provider = binary_providers.V8DownloadedBinary(12345, 'build_url')
+    provider = binary_providers.DownloadedBinary(12345, 'build_url', 'd8')
     result = provider.get_binary_path()
     self.assertEqual(result, os.path.join(build_dir, 'd8'))
 
@@ -203,12 +222,12 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
     self.assertEqual(result, 'dir/already/set')
     self.assert_n_calls(0, [self.mock.download_build_data])
 
-class V8DownloadedBuildGetBinaryDirectoryTest(helpers.ExtendedTestCase):
+class DownloadedBuildGetBinaryDirectoryTest(helpers.ExtendedTestCase):
   """Test get_build_directory inside the V8DownloadedBuild class."""
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.binary_providers.V8DownloadedBinary.download_build_data'])
+        'clusterfuzz.binary_providers.DownloadedBinary.download_build_data'])
 
     self.setup_fake_filesystem()
     self.build_url = 'https://storage.cloud.google.com/abc.zip'
@@ -216,7 +235,7 @@ class V8DownloadedBuildGetBinaryDirectoryTest(helpers.ExtendedTestCase):
   def test_parameter_not_set(self):
     """Tests functionality when build has never been downloaded."""
 
-    provider = binary_providers.V8DownloadedBinary(12345, self.build_url)
+    provider = binary_providers.DownloadedBinary(12345, self.build_url, 'd8')
     build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '12345_build')
 
     result = provider.get_build_directory()
@@ -227,7 +246,7 @@ class V8DownloadedBuildGetBinaryDirectoryTest(helpers.ExtendedTestCase):
   def test_parameter_already_set(self):
     """Tests functionality when the build_directory parameter is already set."""
 
-    provider = binary_providers.V8DownloadedBinary(12345, self.build_url)
+    provider = binary_providers.DownloadedBinary(12345, self.build_url, 'd8')
     provider.build_directory = 'dir/already/set'
 
     result = provider.get_build_directory()
@@ -264,6 +283,7 @@ class BuildTargetTest(helpers.ExtendedTestCase):
         mock.call(
             'ninja -C /chrome/source/out/clusterfuzz_54321 -j 120 d8',
             chrome_source)])
+
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
 
@@ -296,7 +316,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), 'goma_dir = /goma/dir\n')
+      self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\n')
 
 
 
@@ -369,3 +389,67 @@ class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
     result = self.builder.out_dir_name()
     self.assertEqual(result,
                      '/source/dir/out/clusterfuzz_1234_1a2s3d4f5g6h_dirty')
+
+
+class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
+  """Tests the setup_gn_args method inside PdfiumBuilder."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    helpers.patch(self, ['clusterfuzz.common.execute',
+                         'clusterfuzz.binary_providers.sha_from_revision',
+                         'clusterfuzz.binary_providers.get_pdfium_sha'])
+    self.sha = '1a2s3d4f5g'
+    self.mock.sha_from_revision.return_value = 'chrome_sha'
+    self.mock.get_pdfium_sha = self.sha
+    self.builder = binary_providers.PdfiumBuilder(
+        1234, '', 54321, False, '/goma/dir', '/chrome/source/dir')
+    self.testcase_dir = os.path.expanduser(os.path.join('~', 'test_dir'))
+    self.mock.execute.return_value = (0, '12345')
+
+  def test_gn_args(self):
+    """Tests the args.gn parsing of extra values."""
+
+    os.makedirs(self.testcase_dir)
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'w') as f:
+      f.write('Not correct args.gn')
+    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    os.makedirs(build_dir)
+    with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
+      f.write('goma_dir = /not/correct/dir')
+
+    self.builder.build_directory = self.testcase_dir
+    self.builder.setup_gn_args()
+
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir'),
+        mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir')])
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
+      self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
+                                  'pdf_is_standalone = true\n'))
+
+
+class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
+  """Tests the build_target method in PdfiumBuilder."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.binary_providers.PdfiumBuilder.setup_gn_args',
+        'clusterfuzz.common.execute',
+        'multiprocessing.cpu_count',
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.get_pdfium_sha'])
+    self.mock.cpu_count.return_value = 12
+    self.mock.sha_from_revision = 'chrome_sha'
+    self.builder = binary_providers.PdfiumBuilder(
+        1234, '', 54321, False, '/goma/dir', '/chrome/source/dir')
+
+  def test_build_target(self):
+    """Ensures that all build calls are made correctly."""
+    self.builder.build_directory = '/build/dir'
+    self.builder.source_directory = '/source/dir'
+
+    self.builder.build_target()
+    self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
+    self.assert_exact_calls(self.mock.execute, [mock.call(
+        'ninja -C /build/dir -j 120 pdfium_test', '/source/dir')])

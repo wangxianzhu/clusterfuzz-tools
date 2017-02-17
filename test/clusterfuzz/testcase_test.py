@@ -20,7 +20,7 @@ from test import helpers
 from clusterfuzz import testcase
 
 def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
-                        window_arg='', minimized_args=''):
+                        window_arg='', minimized_args='', extension='js'):
   """Builds a testcase instance that can be used for testing."""
   if stacktrace_lines is None:
     stacktrace_lines = []
@@ -31,7 +31,8 @@ def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
       'metadata': {'build_url': build_url},
       'testcase': {'window_argument': window_arg,
                    'job_type': 'linux_asan_d8_dbg',
-                   'minimized_arguments': minimized_args}}
+                   'minimized_arguments': minimized_args,
+                   'absolute_path': '/absolute/path.%s' % extension}}
 
   return testcase.Testcase(testcase_json)
 

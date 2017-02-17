@@ -47,6 +47,8 @@ class Testcase(object):
     self.revision = testcase_json['crash_revision']
     self.build_url = testcase_json['metadata']['build_url']
     self.job_type = testcase_json['testcase']['job_type']
+    self.file_extension = testcase_json['testcase']['absolute_path'].split(
+        '.')[1]
     self.reproduction_args = (
         '%s %s' %(testcase_json['testcase']['window_argument'],
                   testcase_json['testcase']['minimized_arguments']))
@@ -60,9 +62,7 @@ class Testcase(object):
     """Downloads & returns the location of the testcase file."""
 
     testcase_dir = self.testcase_dir_name()
-    #TODO: Filename testcase.js is d8-specific
-    file_extension = 'pdf' if 'pdfium' in self.job_type else 'js'
-    filename = os.path.join(testcase_dir, 'testcase.%s' % file_extension)
+    filename = os.path.join(testcase_dir, 'testcase.%s' % self.file_extension)
     if os.path.isfile(filename):
       return filename
 
@@ -74,7 +74,7 @@ class Testcase(object):
 
     auth_header = common.get_stored_auth_header()
     command = 'wget --header="Authorization: %s" "%s" -O ./testcase.%s' % (
-        auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id, file_extension)
+        auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id, self.file_extension)
     common.execute(command, testcase_dir)
 
     return filename

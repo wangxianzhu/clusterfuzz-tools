@@ -297,6 +297,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
   def test_reproduce_crash(self):
     """Ensures that the crash reproduction is called correctly."""
 
+    self.mock_os_environment({'ASAN_SYMBOLIZER_PATH': '/llvm/sym/path'})
     testcase_id = 123456
     testcase_file = os.path.expanduser(
         os.path.join('~', '.clusterfuzz', '%s_testcase' % testcase_id,
@@ -313,4 +314,23 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         '%s %s %s' % ('/chrome/source/folder/d8',
                       args, testcase_file),
         '/chrome/source/folder',
-        environment=env)])
+        environment={'ASAN_SYMBOLIZER_PATH': '/llvm/sym/path', 'ASAN_OPTIONS':
+                     'option1=true:option2=false:symbolize=1'})])
+
+  def test_symbolizer_path_not_set(self):
+    """Tests throwing an exception when no symbolizer path is found."""
+
+    self.mock_os_environment({'ASAN_SYMBOLIZER_PATH': ''})
+    testcase_id = 123456
+    testcase_file = os.path.expanduser(
+        os.path.join('~', '.clusterfuzz', '%s_testcase' % testcase_id,
+                     'testcase.js'))
+    args = '--turbo --always-opt --random-seed=12345'
+    source = '/chrome/source/folder/d8'
+    env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
+    mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
+                                environment=env)
+    mocked_testcase.get_testcase_path.return_value = testcase_file
+
+    with self.assertRaises(common.SymbolizerPathError):
+      reproduce.reproduce_crash(source, mocked_testcase)

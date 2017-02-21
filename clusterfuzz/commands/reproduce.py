@@ -91,10 +91,22 @@ def ensure_goma():
 def reproduce_crash(binary_path, current_testcase):
   """Reproduces a crash by running the downloaded testcase against a binary."""
 
+  env = current_testcase.environment
+  #This will need to be dynamic as more jobs are added:
+  symbolizer_variable = 'ASAN_SYMBOLIZER_PATH'
+  if not os.environ.get(symbolizer_variable):
+    raise common.SymbolizerPathError(symbolizer_variable)
+
+  env[symbolizer_variable] = os.environ[symbolizer_variable]
+  env['ASAN_OPTIONS'] = env['ASAN_OPTIONS'].replace(
+      'symbolize=0', 'symbolize=1')
+  if 'symbolize=1' not in env['ASAN_OPTIONS']:
+    env['ASAN_OPTIONS'] += ':symbolize=1'
+
   command = '%s %s %s' % (binary_path, current_testcase.reproduction_args,
                           current_testcase.get_testcase_path())
   common.execute(command, os.path.dirname(binary_path),
-                 environment=current_testcase.environment)
+                 environment=env)
 
 
 def execute(testcase_id, current, download):

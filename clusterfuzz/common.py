@@ -102,6 +102,7 @@ def get_stored_auth_header():
 def execute(command,
             cwd,
             print_output=True,
+            capture_output=True,
             exit_on_error=True,
             environment=None):
   """Execute a bash command."""
@@ -110,7 +111,7 @@ def execute(command,
       print s
 
   _print('Running: %s' % command)
-  output = ''
+  output_chunks = []
 
   proc = subprocess.Popen(
       command,
@@ -120,10 +121,13 @@ def execute(command,
       cwd=cwd,
       env=environment)
 
-  for byte in iter(lambda: proc.stdout.read(1), b''):
+  for chunk in iter(lambda: proc.stdout.read(100), b''):
     if print_output:
-      sys.stdout.write(byte)
-    output += byte
+      sys.stdout.write(chunk)
+    if capture_output:
+      # According to: http://stackoverflow.com/questions/19926089, this is the
+      # fastest way to build strings.
+      output_chunks.append(chunk)
 
   proc.wait()
   if proc.returncode != 0:
@@ -131,7 +135,7 @@ def execute(command,
     if exit_on_error:
       _print('| Exit.')
       sys.exit(proc.returncode)
-  return proc.returncode, output
+  return proc.returncode, ''.join(output_chunks)
 
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.

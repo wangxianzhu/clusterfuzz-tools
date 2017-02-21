@@ -286,6 +286,7 @@ class ChromiumBuilder(GenericBuilder):
                                           current, goma_dir, source,
                                           binary_name, 'chromium_builder_asan')
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
+    self.name = 'chromium'
 
   def out_dir_name(self):
     """Returns the correct out dir in which to build the revision.
@@ -298,12 +299,13 @@ class ChromiumBuilder(GenericBuilder):
   def build_target(self):
     """Build the correct revision in the source directory."""
 
+    common.execute('gclient runhooks', self.source_directory)
     self.setup_gn_args()
-    common.execute('gclient sync', self.source_directory)
     goma_cores = 10 * multiprocessing.cpu_count()
     common.execute(
-        ('ninja -C %s -j %i chromium_builder_asan'
-         % (self.build_directory, goma_cores)), self.source_directory)
+        ('ninja -C %s -j %i -l %i chromium_builder_asan' % (
+            self.build_directory, goma_cores, goma_cores)),
+        self.source_directory, capture_output=False)
 
   def get_binary_path(self):
     return '%s/%s' % (self.get_build_directory(), self.binary_name)

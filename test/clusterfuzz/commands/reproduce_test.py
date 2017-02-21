@@ -17,6 +17,7 @@ from __future__ import print_function
 
 import json
 import os
+import multiprocessing
 import mock
 
 from clusterfuzz import common
@@ -283,8 +284,18 @@ class EnsureGomaTest(helpers.ExtendedTestCase):
 
     result = reproduce.ensure_goma()
 
+    cpu_count = multiprocessing.cpu_count()
+    cpu_count -= int(cpu_count / 4)
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('python goma_ctl.py ensure_start', goma_dir)])
+        mock.call(
+            'python goma_ctl.py restart', goma_dir,
+            environment=dict(
+                os.environ,
+                GOMA_MAX_SUBPROCS_HEAVY=str(int(cpu_count / 2)),
+                GOMA_MAX_SUBPROCS=str(cpu_count),
+                GOMA_MAX_SUBPROCS_LOW=str(cpu_count),
+            ))
+    ])
     self.assertEqual(result, goma_dir)
 
 

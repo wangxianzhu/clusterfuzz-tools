@@ -484,9 +484,10 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gclient sync', '/chrome/src'),
-        mock.call(('ninja -C /chrome/src/out/clusterfuzz_builds -j 120'
-                   ' chromium_builder_asan'), '/chrome/src')])
+        mock.call('gclient runhooks', '/chrome/src'),
+        mock.call(
+            ('ninja -C /chrome/src/out/clusterfuzz_builds -j 120 -l 120'
+             ' chromium_builder_asan'), '/chrome/src', capture_output=False)])
 
   def test_get_binary_path(self):
     """Tests the get_binary_path method."""

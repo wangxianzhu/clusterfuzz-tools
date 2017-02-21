@@ -17,6 +17,7 @@ Locally reproduces a testcase given a Clusterfuzz ID."""
 
 import os
 import json
+import multiprocessing
 import urllib
 import webbrowser
 import urlfetch
@@ -84,7 +85,20 @@ def ensure_goma():
   if not os.path.isfile(os.path.join(goma_dir, 'goma_ctl.py')):
     raise common.GomaNotInstalledError()
 
-  common.execute('python goma_ctl.py ensure_start', goma_dir)
+  cpu_count = multiprocessing.cpu_count()
+  # We need to discount cpu_count, otherwise the whole machine would lag because
+  # goma would be using all cpus.
+  cpu_count -= int(cpu_count / 4)
+  common.execute(
+      'python goma_ctl.py restart', goma_dir,
+      # According to: https://groups.google.com/a/google.com/forum/#!topic/chrome-security-bugs--/iYlumEXRWto  # pylint: disable=line-too-long
+      environment=dict(
+          os.environ,
+          GOMA_MAX_SUBPROCS_HEAVY=str(int(cpu_count / 2)),
+          GOMA_MAX_SUBPROCS=str(cpu_count),
+          GOMA_MAX_SUBPROCS_LOW=str(cpu_count),
+      ))
+
   return goma_dir
 
 

@@ -440,7 +440,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.get_pdfium_sha'])
     self.mock.cpu_count.return_value = 12
-    self.mock.sha_from_revision = 'chrome_sha'
+    self.mock.sha_from_revision.return_value = 'chrome_sha'
     self.builder = binary_providers.PdfiumBuilder(
         1234, '', 54321, False, '/goma/dir', '/chrome/source/dir')
 
@@ -453,3 +453,43 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [mock.call(
         'ninja -C /build/dir -j 120 pdfium_test', '/source/dir')])
+
+class ChromiumBuilderTest(helpers.ExtendedTestCase):
+  """Tests the methods in ChromiumBuilder."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.ChromiumBuilder.setup_gn_args',
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_build_directory',
+        'multiprocessing.cpu_count'])
+    self.mock.cpu_count.return_value = 12
+    self.mock.sha_from_revision.return_value = '1a2s3d4f5g'
+    self.mock.get_build_directory.return_value = '/chromium/build/dir'
+    self.builder = binary_providers.ChromiumBuilder(12345, 'build_url', 4567,
+                                                    False, '/goma/dir',
+                                                    '/chrome/src', 'binary')
+    self.builder.build_directory = '/chrome/src/out/clusterfuzz_builds'
+
+  def test_out_dir_name(self):
+    """Tests the out_dir_name method."""
+
+    result = self.builder.out_dir_name()
+    self.assertEqual(result, '/chrome/src/out/clusterfuzz_builds')
+
+  def test_build_target(self):
+    """Tests the build_target method."""
+    self.builder.build_target()
+
+    self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gclient sync', '/chrome/src'),
+        mock.call(('ninja -C /chrome/src/out/clusterfuzz_builds -j 120'
+                   ' chromium_builder_asan'), '/chrome/src')])
+
+  def test_get_binary_path(self):
+    """Tests the get_binary_path method."""
+
+    result = self.builder.get_binary_path()
+    self.assertEqual(result, '/chromium/build/dir/binary')

@@ -122,10 +122,10 @@ def execute(testcase_id, current, download):
           current_testcase.revision, current, goma_dir,
           os.environ.get('V8_SRC'))
     else:
-      binary_provider = binary_providers.PdfiumBuilder( # pylint: disable=redefined-variable-type
+      binary_provider = binary_providers.ChromiumBuilder( # pylint: disable=redefined-variable-type
           current_testcase.id, current_testcase.build_url,
           current_testcase.revision, current, goma_dir, os.environ.get(
-              'PDFIUM_SRC'))
+              'CHROME_SRC'), 'pdfium_test')
 
 
   reproduce_crash(binary_provider.get_binary_path(), current_testcase)

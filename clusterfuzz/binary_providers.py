@@ -60,11 +60,11 @@ def get_pdfium_sha(chromium_sha):
 class BinaryProvider(object):
   """Downloads/builds and then provides the location of a binary."""
 
-  def __init__(self, testcase_id, build_url, target):
+  def __init__(self, testcase_id, build_url, binary_name):
     self.testcase_id = testcase_id
     self.build_url = build_url
     self.build_directory = None
-    self.target = target
+    self.binary_name = binary_name
 
   def get_build_directory(self):
     """Get build directory. This method must be implemented by a subclass."""
@@ -97,12 +97,12 @@ class BinaryProvider(object):
     os.remove(saved_file)
     os.rename(os.path.join(CLUSTERFUZZ_BUILDS_DIR,
                            os.path.splitext(filename)[0]), build_dir)
-    binary_location = os.path.join(build_dir, self.target)
+    binary_location = os.path.join(build_dir, self.binary_name)
     stats = os.stat(binary_location)
     os.chmod(binary_location, stats.st_mode | stat.S_IEXEC)
 
   def get_binary_path(self):
-    return '%s/%s' % (self.get_build_directory(), self.target)
+    return '%s/%s' % (self.get_build_directory(), self.binary_name)
 
   def build_dir_name(self):
     """Returns a build number's respective directory."""
@@ -128,10 +128,11 @@ class GenericBuilder(BinaryProvider):
   """Provides a base for binary builders."""
 
   def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source, target):
+               source, binary_name, target=None):
     """self.git_sha must be set in a subclass, or some of these
     instance methods may not work."""
-    super(GenericBuilder, self).__init__(testcase_id, build_url, target)
+    super(GenericBuilder, self).__init__(testcase_id, build_url, binary_name)
+    self.target = target if target else binary_name
     self.current = current
     self.goma_dir = goma_dir
     self.source_directory = source
@@ -274,3 +275,35 @@ class V8Builder(GenericBuilder):
         ('ninja -C %s -j %i %s'
          % (self.build_directory, goma_cores, self.target)),
         self.source_directory)
+
+class ChromiumBuilder(GenericBuilder):
+  """Builds a specific target from inside a Chromium source repository."""
+
+  def __init__(self, testcase_id, build_url, revision, current,
+               goma_dir, source, binary_name):
+
+    super(ChromiumBuilder, self).__init__(testcase_id, build_url, revision,
+                                          current, goma_dir, source,
+                                          binary_name, 'chromium_builder_asan')
+    self.git_sha = sha_from_revision(self.revision, 'chromium/src')
+
+  def out_dir_name(self):
+    """Returns the correct out dir in which to build the revision.
+
+    Overridden in this class to build to the same folder until builds
+    stop taking so long."""
+
+    return os.path.join(self.source_directory, 'out', 'clusterfuzz_builds')
+
+  def build_target(self):
+    """Build the correct revision in the source directory."""
+
+    self.setup_gn_args()
+    common.execute('gclient sync', self.source_directory)
+    goma_cores = 10 * multiprocessing.cpu_count()
+    common.execute(
+        ('ninja -C %s -j %i chromium_builder_asan'
+         % (self.build_directory, goma_cores)), self.source_directory)
+
+  def get_binary_path(self):
+    return '%s/%s' % (self.get_build_directory(), self.binary_name)

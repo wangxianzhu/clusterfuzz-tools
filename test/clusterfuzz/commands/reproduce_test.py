@@ -29,14 +29,14 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
-    self.mock_os_environment({'V8_SRC': '/v8/src', 'PDFIUM_SRC': '/pdf/src'})
+    self.mock_os_environment({'V8_SRC': '/v8/src', 'CHROME_SRC': '/pdf/src'})
     helpers.patch(self, [
         'clusterfuzz.commands.reproduce.get_testcase_info',
         'clusterfuzz.testcase.Testcase',
         'clusterfuzz.commands.reproduce.ensure_goma',
         'clusterfuzz.binary_providers.DownloadedBinary',
         'clusterfuzz.binary_providers.V8Builder',
-        'clusterfuzz.binary_providers.PdfiumBuilder',
+        'clusterfuzz.binary_providers.ChromiumBuilder',
         'clusterfuzz.commands.reproduce.reproduce_crash'])
     self.response = {
         'id': 1234,
@@ -89,7 +89,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                             [mock.call('/path/to/binary', testcase)])
   def test_grab_data_no_download_pdfium(self):
     """Ensures all method calls are made correctly when building locally."""
-    self.mock.PdfiumBuilder.return_value.get_binary_path.return_value = (
+    self.mock.ChromiumBuilder.return_value.get_binary_path.return_value = (
         '/path/to/binary')
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_pdfium')
@@ -100,10 +100,10 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(
-        self.mock.PdfiumBuilder.return_value.get_binary_path, [mock.call()])
-    self.assert_exact_calls(self.mock.PdfiumBuilder,
-                            [mock.call(1234, 'chrome_build_url', 123456,
-                                       False, '/goma/dir', '/pdf/src')])
+        self.mock.ChromiumBuilder.return_value.get_binary_path, [mock.call()])
+    self.assert_exact_calls(self.mock.ChromiumBuilder, [
+        mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
+                  '/pdf/src', 'pdfium_test')])
     self.assert_exact_calls(self.mock.reproduce_crash,
                             [mock.call('/path/to/binary', testcase)])
 

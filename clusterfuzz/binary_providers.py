@@ -142,6 +142,8 @@ class GenericBuilder(BinaryProvider):
     self.goma_dir = goma_dir
     self.source_directory = source
     self.revision = revision
+    self.gn_args_options = None
+    self.gn_flags = '--check'
 
   def get_current_sha(self):
     _, current_sha = common.execute('git rev-parse HEAD',
@@ -176,7 +178,7 @@ class GenericBuilder(BinaryProvider):
                          (command, self.source_directory))
     common.execute(command, self.source_directory)
 
-  def setup_gn_args(self, other_options=None):
+  def setup_gn_args(self):
     """Ensures that args.gn is set up properly."""
 
     args_gn_location = os.path.join(self.build_directory, 'args.gn')
@@ -196,18 +198,30 @@ class GenericBuilder(BinaryProvider):
           line = 'goma_dir = "%s"' % self.goma_dir
         f.write(line)
         f.write('\n')
-      if other_options:
-        for k, v in other_options.iteritems():
+      if self.gn_args_options:
+        for k, v in self.gn_args_options.iteritems():
           f.write('%s = %s\n' % (k, v))
 
-    common.execute('gn gen --check %s' % self.build_directory,
+    common.execute('gn gen %s %s' % (self.gn_flags, self.build_directory),
                    self.source_directory)
 
-  def build_target(self):
-    """Build the correct revision in the source directory.
+  def pre_build_steps(self):
+    """Steps to be run before the target is built."""
 
-    Must be implemented in a subclass."""
-    raise NotImplementedError
+    pass
+
+  def build_target(self):
+    """Build the correct revision in the source directory."""
+
+    self.pre_build_steps()
+    common.execute('gclient sync', self.source_directory)
+    #Note: gclient sync must be run before setting up the gn args
+    self.setup_gn_args()
+    goma_cores = 10 * multiprocessing.cpu_count()
+    common.execute(
+        ("ninja -w 'dupbuild=err' -C %s -j %i -l %i %s" % (
+            self.build_directory, goma_cores, goma_cores, self.target)),
+        self.source_directory, capture_output=False)
 
   def get_build_directory(self):
     """Returns the location of the correct build to use for reproduction."""
@@ -243,21 +257,9 @@ class PdfiumBuilder(GenericBuilder):
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
+    self.gn_args_options = {'pdf_is_standalone': 'true'}
+    self.gn_flags = ''
 
-  def setup_gn_args(self, other_options=None):
-    other_options = {'pdf_is_standalone': 'true'}
-    super(PdfiumBuilder, self).setup_gn_args(other_options)
-
-  def build_target(self):
-    """Build the correct revision in the source directory."""
-
-    self.setup_gn_args()
-    common.execute('gclient sync', self.source_directory)
-    goma_cores = 10 * multiprocessing.cpu_count()
-    common.execute(
-        ("ninja -w 'dupbuild=err' -C %s -j %i -l %i %s" %
-         (self.build_directory, goma_cores, goma_cores, self.target)),
-        self.source_directory)
 
 class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
@@ -270,21 +272,10 @@ class V8Builder(GenericBuilder):
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
     self.name = 'V8'
 
-  def build_target(self):
-    """Build the correct revision in the source directory."""
-
-    print 'Building %s revision %i in %s' % (
-        self.name, self.revision, self.build_directory)
-
-    goma_cores = 10 * multiprocessing.cpu_count()
+  def pre_build_steps(self):
     common.execute('GYP_DEFINES=asan=1 gclient runhooks', self.source_directory)
-    common.execute('gclient sync', self.source_directory)
     common.execute('GYP_DEFINES=asan=1 gypfiles/gyp_v8', self.source_directory)
-    self.setup_gn_args()
-    common.execute(
-        ("ninja -w 'dupbuild=err' -C %s -j %i -l %i %s"
-         % (self.build_directory, goma_cores, goma_cores, self.target)),
-        self.source_directory)
+
 
 class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
@@ -306,18 +297,5 @@ class ChromiumBuilder(GenericBuilder):
 
     return os.path.join(self.source_directory, 'out', 'clusterfuzz_builds')
 
-  def build_target(self):
-    """Build the correct revision in the source directory."""
-
+  def pre_build_steps(self):
     common.execute('gclient runhooks', self.source_directory)
-    common.execute('gclient sync', self.source_directory)
-    #Note: gclient sync and runhooks must be run before setting up the gn args
-    self.setup_gn_args()
-    goma_cores = 10 * multiprocessing.cpu_count()
-    common.execute(
-        ("ninja -w 'dupbuild=err' -C %s -j %i -l %i chromium_builder_asan" % (
-            self.build_directory, goma_cores, goma_cores)),
-        self.source_directory, capture_output=False)
-
-  def get_binary_path(self):
-    return '%s/%s' % (self.get_build_directory(), self.binary_name)

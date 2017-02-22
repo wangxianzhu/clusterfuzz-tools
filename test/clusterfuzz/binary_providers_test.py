@@ -304,11 +304,11 @@ class BuildTargetTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.execute, [
         mock.call('GYP_DEFINES=asan=1 gclient runhooks', chrome_source),
-        mock.call('gclient sync', chrome_source),
         mock.call('GYP_DEFINES=asan=1 gypfiles/gyp_v8', chrome_source),
+        mock.call('gclient sync', chrome_source),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
-             "-j 120 -l 120 d8"), chrome_source)])
+             "-j 120 -l 120 d8"), chrome_source, capture_output=False)])
 
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
@@ -466,7 +466,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.setup_gn_args()
 
     self.assert_exact_calls(self.mock.execute, [mock.call(
-        'gn gen --check %s' % self.testcase_dir, '/chrome/source/dir')])
+        'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
                                   'pdf_is_standalone = true\n'))
@@ -497,7 +497,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient sync', '/source/dir'),
         mock.call(("ninja -w 'dupbuild=err' -C /build/dir -j 120 -l 120"
-                   " pdfium_test"), '/source/dir'),])
+                   " pdfium_test"), '/source/dir', capture_output=False),])
 
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the methods in ChromiumBuilder."""

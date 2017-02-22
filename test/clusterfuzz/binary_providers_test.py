@@ -106,12 +106,16 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
       f.write('use_goma = True')
     with open(os.path.join(self.clusterfuzz_dir, 'd8'), 'w') as f:
       f.write('fake d8')
+    with open(os.path.join(self.clusterfuzz_dir, 'llvm-symbolizer'), 'w') as f:
+      f.write('fake llvm-symbolizer')
     fakezip = zipfile.ZipFile(
         os.path.join(self.clusterfuzz_dir, 'abc.zip'), 'w')
     fakezip.write(os.path.join(self.clusterfuzz_dir, 'args.gn'),
                   'abc//args.gn', zipfile.ZIP_DEFLATED)
     fakezip.write(os.path.join(self.clusterfuzz_dir, 'd8'),
                   'abc//d8', zipfile.ZIP_DEFLATED)
+    fakezip.write(os.path.join(self.clusterfuzz_dir, 'llvm-symbolizer'),
+                  'abc//llvm-symbolizer', zipfile.ZIP_DEFLATED)
     fakezip.close()
     self.assertTrue(
         os.path.isfile(os.path.join(self.clusterfuzz_dir, 'abc.zip')))
@@ -133,6 +137,27 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
       self.assertEqual('use_goma = True', f.read())
     with open(os.path.join(cf_builds_dir, '1234_build', 'd8'), 'r') as f:
       self.assertEqual('fake d8', f.read())
+
+
+class GetSymbolizerPathTest(helpers.ExtendedTestCase):
+  """Tests the get_symbolizer_path method."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.binary_providers.DownloadedBinary.get_build_directory'])
+
+  def test_call(self):
+    """Tests calling the method."""
+
+    build_dir = os.path.expanduser(os.path.join('~', 'chrome_src',
+                                                'out', '12345_build'))
+    self.mock.get_build_directory.return_value = build_dir
+
+    provider = binary_providers.DownloadedBinary(12345, 'build_url', 'd8')
+    result = provider.get_symbolizer_path()
+    self.assertEqual(result, os.path.join(build_dir, 'llvm_symbolizer'))
+
+
 
 
 class GetBinaryPathTest(helpers.ExtendedTestCase):
@@ -279,10 +304,11 @@ class BuildTargetTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.execute, [
         mock.call('GYP_DEFINES=asan=1 gclient runhooks', chrome_source),
+        mock.call('gclient sync', chrome_source),
         mock.call('GYP_DEFINES=asan=1 gypfiles/gyp_v8', chrome_source),
         mock.call(
-            'ninja -C /chrome/source/out/clusterfuzz_54321 -j 120 d8',
-            chrome_source)])
+            ("ninja -w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
+             "-j 120 -l 120 d8"), chrome_source)])
 
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
@@ -299,6 +325,23 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder = binary_providers.V8Builder(
         1234, '', '', False, '/goma/dir', '/chrome/source/dir')
 
+  def test_create_build_dir(self):
+    """Tests setting up the args when the build dir does not exist."""
+
+    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    os.makedirs(build_dir)
+    with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
+      f.write('goma_dir = /not/correct/dir')
+
+    self.builder.build_directory = self.testcase_dir
+    self.builder.setup_gn_args()
+
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gn gen --check %s' % self.testcase_dir,
+                  '/chrome/source/dir')])
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
+      self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\n')
+
   def test_args_setup(self):
     """Tests to ensure that the args.gn is setup correctly."""
 
@@ -314,7 +357,8 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.setup_gn_args()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir')])
+        mock.call('gn gen --check %s' % self.testcase_dir,
+                  '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\n')
 
@@ -421,9 +465,8 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.build_directory = self.testcase_dir
     self.builder.setup_gn_args()
 
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir'),
-        mock.call('gn gen %s' % self.testcase_dir, '/chrome/source/dir')])
+    self.assert_exact_calls(self.mock.execute, [mock.call(
+        'gn gen --check %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
                                   'pdf_is_standalone = true\n'))
@@ -451,8 +494,10 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
 
     self.builder.build_target()
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
-    self.assert_exact_calls(self.mock.execute, [mock.call(
-        'ninja -C /build/dir -j 120 pdfium_test', '/source/dir')])
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gclient sync', '/source/dir'),
+        mock.call(("ninja -w 'dupbuild=err' -C /build/dir -j 120 -l 120"
+                   " pdfium_test"), '/source/dir'),])
 
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the methods in ChromiumBuilder."""
@@ -485,9 +530,11 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient runhooks', '/chrome/src'),
+        mock.call('gclient sync', '/chrome/src'),
         mock.call(
-            ('ninja -C /chrome/src/out/clusterfuzz_builds -j 120 -l 120'
-             ' chromium_builder_asan'), '/chrome/src', capture_output=False)])
+            ("ninja -w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
+             "-j 120 -l 120 chromium_builder_asan"), '/chrome/src',
+            capture_output=False)])
 
   def test_get_binary_path(self):
     """Tests the get_binary_path method."""

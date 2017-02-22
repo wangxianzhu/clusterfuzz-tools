@@ -53,6 +53,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     """Ensures all method calls are made correctly when downloading."""
     self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
         '/path/to/binary')
+    self.mock.DownloadedBinary.return_value.get_symbolizer_path.return_value = (
+        '/path/to/symbolizer')
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8')
     self.mock.Testcase.return_value = testcase
@@ -67,12 +69,16 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.DownloadedBinary,
                             [mock.call(1234, 'chrome_build_url', 'd8')])
     self.assert_exact_calls(self.mock.reproduce_crash,
-                            [mock.call('/path/to/binary', testcase)])
+                            [mock.call('/path/to/binary', '/path/to/symbolizer',
+                                       testcase)])
 
   def test_grab_data_no_download_v8(self):
     """Ensures all method calls are made correctly when building locally."""
     self.mock.V8Builder.return_value.get_binary_path.return_value = (
         '/path/to/binary')
+    self.mock.V8Builder.return_value.get_symbolizer_path.return_value = (
+        '/path/to/symbolizer')
+
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8')
     self.mock.Testcase.return_value = testcase
@@ -86,12 +92,16 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.V8Builder,
                             [mock.call(1234, 'chrome_build_url', 123456,
                                        False, '/goma/dir', '/v8/src')])
-    self.assert_exact_calls(self.mock.reproduce_crash,
-                            [mock.call('/path/to/binary', testcase)])
+    self.assert_exact_calls(self.mock.reproduce_crash, [
+        mock.call('/path/to/binary', '/path/to/symbolizer', testcase)])
+
   def test_grab_data_no_download_pdfium(self):
     """Ensures all method calls are made correctly when building locally."""
     self.mock.ChromiumBuilder.return_value.get_binary_path.return_value = (
         '/path/to/binary')
+    self.mock.ChromiumBuilder.return_value.get_symbolizer_path.return_value = (
+        '/path/to/symbolizer')
+
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_pdfium')
     self.mock.Testcase.return_value = testcase
@@ -105,8 +115,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.ChromiumBuilder, [
         mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
                   '/pdf/src', 'pdfium_test')])
-    self.assert_exact_calls(self.mock.reproduce_crash,
-                            [mock.call('/path/to/binary', testcase)])
+    self.assert_exact_calls(self.mock.reproduce_crash, [
+        mock.call('/path/to/binary', '/path/to/symbolizer', testcase)])
 
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):
@@ -320,32 +330,15 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                                 environment=env)
     mocked_testcase.get_testcase_path.return_value = testcase_file
 
-    reproduce.reproduce_crash(source, mocked_testcase)
+    reproduce.reproduce_crash(source, '/chrome/source/folder/llvm-symbolizer',
+                              mocked_testcase)
     self.assert_exact_calls(self.mock.execute, [mock.call(
         '%s %s %s' % ('/chrome/source/folder/d8',
                       args, testcase_file),
-        '/chrome/source/folder',
-        environment={'ASAN_SYMBOLIZER_PATH': '/llvm/sym/path', 'ASAN_OPTIONS':
-                     'option1=true:option2=false:symbolize=1'})])
-
-  def test_symbolizer_path_not_set(self):
-    """Tests throwing an exception when no symbolizer path is found."""
-
-    self.mock_os_environment({'ASAN_SYMBOLIZER_PATH': ''})
-    testcase_id = 123456
-    testcase_file = os.path.expanduser(
-        os.path.join('~', '.clusterfuzz', '%s_testcase' % testcase_id,
-                     'testcase.js'))
-    args = '--turbo --always-opt --random-seed=12345'
-    source = '/chrome/source/folder/d8'
-    env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
-    mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
-                                environment=env)
-    mocked_testcase.get_testcase_path.return_value = testcase_file
-
-    with self.assertRaises(common.SymbolizerPathError):
-      reproduce.reproduce_crash(source, mocked_testcase)
-
+        '/chrome/source/folder', environment={
+            'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
+            'ASAN_OPTIONS': 'option1=true:option2=false:symbolize=1',
+            'LSAN_OPTIONS': ''})])
 
 class SuppressOutputTest(helpers.ExtendedTestCase):
   """Test SuppressOutput."""

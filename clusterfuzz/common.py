@@ -63,14 +63,6 @@ class GomaNotInstalledError(Exception):
     super(GomaNotInstalledError, self).__init__(message)
 
 
-class SymbolizerPathError(Exception):
-  """An exception to notify the user that a symbolizer cannot be found."""
-
-  def __init__(self, symbolizer_path):
-    message = ('Could not find llvm-symbolizer. Please set %s in your '
-               'environment' % (symbolizer_path))
-    super(SymbolizerPathError, self).__init__(message)
-
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 

@@ -38,12 +38,38 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
         'response_type': 'code',
         'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'}))
 
+
+class SuppressOutput(object):
+  """Suppress stdout and stderr. We need this because there's no way to suppress
+    webbrowser's stdout and stderr."""
+
+  def __enter__(self):
+    self.stdout = os.dup(1)
+    self.stderr = os.dup(2)
+    os.close(1)
+    os.close(2)
+    os.open(os.devnull, os.O_RDWR)
+
+  def __exit__(self, unused_type, unused_value, unused_traceback):
+    os.dup2(self.stdout, 1)
+    os.dup2(self.stderr, 2)
+
+
 def get_verification_header():
   """Prompts the user for & returns a verification token."""
+  print
+  print ('We need to authenticate you in order to get information from '
+         'ClusterFuzz.')
+  print
 
-  webbrowser.open(GOOGLE_OAUTH_URL, new=1, autoraise=True)
-  verification = common.ask('Please enter your verification code',
-                            'Please enter a code', bool)
+  print 'Open: %s' % GOOGLE_OAUTH_URL
+  with SuppressOutput():
+    webbrowser.open(GOOGLE_OAUTH_URL, new=1, autoraise=True)
+  print
+
+  verification = common.ask(
+      'Please login on the opened webpage and enter your verification code',
+      'Please enter a code', bool)
   return 'VerificationCode %s' % verification
 
 

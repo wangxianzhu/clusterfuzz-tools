@@ -345,3 +345,42 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
 
     with self.assertRaises(common.SymbolizerPathError):
       reproduce.reproduce_crash(source, mocked_testcase)
+
+
+class SuppressOutputTest(helpers.ExtendedTestCase):
+  """Test SuppressOutput."""
+
+  def setUp(self):
+    helpers.patch(self, ['os.dup', 'os.open', 'os.close', 'os.dup2'])
+
+    def dup(number):
+      if number == 1:
+        return 'out'
+      elif number == 2:
+        return 'err'
+    self.mock.dup.side_effect = dup
+
+  def test_suppress(self):
+    """Test suppressing output."""
+    with reproduce.SuppressOutput():
+      pass
+
+    self.assert_exact_calls(self.mock.dup, [mock.call(1), mock.call(2)])
+    self.assert_exact_calls(self.mock.close, [mock.call(1), mock.call(2)])
+    self.mock.open.assert_called_once_with(os.devnull, os.O_RDWR)
+    self.assert_exact_calls(
+        self.mock.dup2, [mock.call('out', 1), mock.call('err', 2)])
+
+  def test_exception(self):
+    """Test propagate exception."""
+    with self.assertRaises(Exception) as cm:
+      with reproduce.SuppressOutput():
+        raise Exception('test_exc')
+
+    self.assertEqual('test_exc', cm.exception.message)
+
+    self.assert_exact_calls(self.mock.dup, [mock.call(1), mock.call(2)])
+    self.assert_exact_calls(self.mock.close, [mock.call(1), mock.call(2)])
+    self.mock.open.assert_called_once_with(os.devnull, os.O_RDWR)
+    self.assert_exact_calls(
+        self.mock.dup2, [mock.call('out', 1), mock.call('err', 2)])

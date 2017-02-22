@@ -104,7 +104,7 @@ class BinaryProvider(object):
              stats.st_mode | stat.S_IEXEC)
 
   def get_symbolizer_path(self):
-    return '%s/%s' % (self.get_build_directory(), 'llvm_symbolizer')
+    return '%s/%s' % (self.get_build_directory(), 'llvm-symbolizer')
 
   def get_binary_path(self):
     return '%s/%s' % (self.get_build_directory(), self.binary_name)

@@ -155,7 +155,7 @@ class GetSymbolizerPathTest(helpers.ExtendedTestCase):
 
     provider = binary_providers.DownloadedBinary(12345, 'build_url', 'd8')
     result = provider.get_symbolizer_path()
-    self.assertEqual(result, os.path.join(build_dir, 'llvm_symbolizer'))
+    self.assertEqual(result, os.path.join(build_dir, 'llvm-symbolizer'))
 
 
 

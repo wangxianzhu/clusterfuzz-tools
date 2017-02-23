@@ -197,4 +197,4 @@ def execute(testcase_id, current, build):
             'CHROME_SRC'), definition.binary_name)
 
   reproduce_crash(binary_provider.get_binary_path(),
-                  binary_provider.get_symbolizer_path(), current_testcase)
+                  binary_provider.symbolizer_path, current_testcase)

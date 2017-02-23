@@ -60,10 +60,10 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
+    self.mock.DownloadedBinary.return_value = mock.Mock(symbolizer_path=(
+        '/path/to/symbolizer'))
     self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
         '/path/to/binary')
-    self.mock.DownloadedBinary.return_value.get_symbolizer_path.return_value = (
-        '/path/to/symbolizer')
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8')
     self.mock.Testcase.return_value = testcase
@@ -91,7 +91,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     (self.mock.get_binary_definition.return_value.builder.return_value
      .get_binary_path.return_value) = '/path/to/binary'
     (self.mock.get_binary_definition.return_value.builder.return_value
-     .get_symbolizer_path.return_value) = '/path/to/symbolizer'
+     .symbolizer_path) = '/path/to/symbolizer'
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8')
     self.mock.Testcase.return_value = testcase
@@ -104,9 +104,6 @@ class ExecuteTest(helpers.ExtendedTestCase):
         (self.mock.get_binary_definition.return_value.builder.return_value
          .get_binary_path), [mock.call()])
     self.assert_exact_calls(
-        (self.mock.get_binary_definition.return_value.builder.return_value
-         .get_symbolizer_path), [mock.call()])
-    self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.builder, [
             mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
                       '/v8/src')])
@@ -115,10 +112,10 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
   def test_grab_data_chromium(self):
     """Ensures all method calls are made correctly when building locally."""
+    self.mock.ChromiumBuilder.return_value = mock.Mock(symbolizer_path=(
+        '/path/to/symbolizer'))
     self.mock.ChromiumBuilder.return_value.get_binary_path.return_value = (
         '/path/to/binary')
-    self.mock.ChromiumBuilder.return_value.get_symbolizer_path.return_value = (
-        '/path/to/symbolizer')
 
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_pdfium')

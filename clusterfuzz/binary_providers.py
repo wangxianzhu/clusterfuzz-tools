@@ -100,11 +100,10 @@ class BinaryProvider(object):
     binary_location = os.path.join(build_dir, self.binary_name)
     stats = os.stat(binary_location)
     os.chmod(binary_location, stats.st_mode | stat.S_IEXEC)
-    os.chmod(os.path.join(os.path.dirname(binary_location), 'llvm-symbolizer'),
-             stats.st_mode | stat.S_IEXEC)
-
-  def get_symbolizer_path(self):
-    return '%s/%s' % (self.get_build_directory(), 'llvm-symbolizer')
+    symbolizer_location = os.path.join(os.path.dirname(binary_location),
+                                       'llvm-symbolizer')
+    os.chmod(symbolizer_location, stats.st_mode | stat.S_IEXEC)
+    self.symbolizer_path = symbolizer_location
 
   def get_binary_path(self):
     return '%s/%s' % (self.get_build_directory(), self.binary_name)

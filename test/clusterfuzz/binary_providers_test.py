@@ -139,27 +139,6 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
       self.assertEqual('fake d8', f.read())
 
 
-class GetSymbolizerPathTest(helpers.ExtendedTestCase):
-  """Tests the get_symbolizer_path method."""
-
-  def setUp(self):
-    helpers.patch(self, [
-        'clusterfuzz.binary_providers.DownloadedBinary.get_build_directory'])
-
-  def test_call(self):
-    """Tests calling the method."""
-
-    build_dir = os.path.expanduser(os.path.join('~', 'chrome_src',
-                                                'out', '12345_build'))
-    self.mock.get_build_directory.return_value = build_dir
-
-    provider = binary_providers.DownloadedBinary(12345, 'build_url', 'd8')
-    result = provider.get_symbolizer_path()
-    self.assertEqual(result, os.path.join(build_dir, 'llvm-symbolizer'))
-
-
-
-
 class GetBinaryPathTest(helpers.ExtendedTestCase):
   """Tests the get_binary_path method."""
 

@@ -32,9 +32,13 @@ class MainTest(unittest.TestCase):
     """Test parse reproduce command."""
     main.execute(['reproduce', '1234'])
     main.execute(['reproduce', '1234', '--current'])
-    main.execute(['reproduce', '1234', '--download'])
-    main.execute(['reproduce', '1234', '--current', '--download'])
+    main.execute(['reproduce', '1234', '--build', 'download'])
+    main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
+    main.execute(['reproduce', '1234', '--build', 'chromium'])
 
     self.mock.execute.assert_has_calls(
-        [mock.call('1234', False, False), mock.call('1234', True, False),
-         mock.call('1234', False, True), mock.call('1234', True, True)])
+        [mock.call('1234', False, 'standalone'),
+         mock.call('1234', True, 'standalone'),
+         mock.call('1234', False, 'download'),
+         mock.call('1234', True, 'standalone'),
+         mock.call('1234', False, 'chromium')])

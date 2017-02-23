@@ -37,6 +37,21 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
                       'c7bn50f.apps.googleusercontent.com'),
         'response_type': 'code',
         'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'}))
+STANDALONE_SUPPORTED_JOBS = {
+    'linux_asan_pdfium': common.BinaryDefinition(binary_providers.PdfiumBuilder,
+                                                 'PDFIUM_SRC', 'pdfium_test'),
+    'linux_asan_d8_dbg': common.BinaryDefinition(binary_providers.V8Builder,
+                                                 'V8_SRC', 'd8'),
+    'linux_asan_d8': common.BinaryDefinition(binary_providers.V8Builder,
+                                             'V8_SRC', 'd8'),
+    'linux_asan_d8_v8_mipsel_db': common.BinaryDefinition(
+        binary_providers.V8Builder, 'V8_SRC', 'd8'),
+    'linux_v8_d8_tot': common.BinaryDefinition(binary_providers.V8Builder,
+                                               'V8_SRC', 'd8')}
+
+CHROMIUM_SUPPORTED_JOBS = {
+    'linux_asan_pdfium': common.BinaryDefinition(binary_providers.PdfiumBuilder,
+                                                 'PDFIUM_SRC', 'pdfium_test')}
 
 
 class SuppressOutput(object):
@@ -145,7 +160,13 @@ def reproduce_crash(binary_path, symbolizer_path, current_testcase):
                  environment=env)
 
 
-def execute(testcase_id, current, download):
+def get_binary_definition(job_type, supported_dict):
+  if job_type not in supported_dict:
+    raise common.JobTypeNotSupportedError(job_type)
+  return supported_dict[job_type]
+
+
+def execute(testcase_id, current, build):
   """Execute the reproduce command."""
 
   print 'Reproduce %s (current=%s)' % (testcase_id, current)
@@ -154,27 +175,26 @@ def execute(testcase_id, current, download):
   response = get_testcase_info(testcase_id)
   goma_dir = ensure_goma()
   current_testcase = testcase.Testcase(response)
-  v8_keywords = ('d8', 'v8')
-  if any(s in current_testcase.job_type for s in v8_keywords):
-    target = 'd8'
-  else:
-    target = 'pdfium_test'
 
-  if download:
+  if build == 'download':
+    definition = get_binary_definition(current_testcase.job_type,
+                                       STANDALONE_SUPPORTED_JOBS)
     binary_provider = binary_providers.DownloadedBinary(
-        current_testcase.id, current_testcase.build_url, target)
+        current_testcase.id, current_testcase.build_url, definition.binary_name)
+  elif build == 'standalone':
+    definition = get_binary_definition(current_testcase.job_type,
+                                       STANDALONE_SUPPORTED_JOBS)
+    binary_provider = definition.builder( # pylint: disable=redefined-variable-type
+        current_testcase.id, current_testcase.build_url,
+        current_testcase.revision, current, goma_dir,
+        os.environ.get(definition.source_var), **definition.kwargs)
   else:
-    if target == 'd8':
-      binary_provider = binary_providers.V8Builder( # pylint: disable=redefined-variable-type
-          current_testcase.id, current_testcase.build_url,
-          current_testcase.revision, current, goma_dir,
-          os.environ.get('V8_SRC'))
-    else:
-      binary_provider = binary_providers.ChromiumBuilder( # pylint: disable=redefined-variable-type
-          current_testcase.id, current_testcase.build_url,
-          current_testcase.revision, current, goma_dir, os.environ.get(
-              'CHROME_SRC'), 'pdfium_test')
-
+    definition = get_binary_definition(current_testcase.job_type,
+                                       CHROMIUM_SUPPORTED_JOBS)
+    binary_provider = binary_providers.ChromiumBuilder( # pylint: disable=redefined-variable-type
+        current_testcase.id, current_testcase.build_url,
+        current_testcase.revision, current, goma_dir, os.environ.get(
+            'CHROME_SRC'), definition.binary_name)
 
   reproduce_crash(binary_provider.get_binary_path(),
                   binary_provider.get_symbolizer_path(), current_testcase)

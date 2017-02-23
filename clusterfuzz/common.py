@@ -21,6 +21,17 @@ import subprocess
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 
+
+class BinaryDefinition(object):
+  """Holds all the necessary information to initialize a job's builder."""
+
+  def __init__(self, builder, source_var, binary_name, kwargs=None):
+    self.builder = builder
+    self.source_var = source_var
+    self.binary_name = binary_name
+    self.kwargs = kwargs if kwargs else {}
+
+
 class ClusterfuzzAuthError(Exception):
   """An exception to deal with Clusterfuzz Authentication errors.
 
@@ -61,6 +72,14 @@ class GomaNotInstalledError(Exception):
                ' Please set up goma before continuing.'
                '\nSee go/ma to learn more.')
     super(GomaNotInstalledError, self).__init__(message)
+
+
+class JobTypeNotSupportedError(Exception):
+  """An exception raised when user tries to run an unsupported build type."""
+
+  def __init__(self, job_type):
+    message = 'The job %s is not yet supported by clusterfuzz tools.' % job_type
+    super(JobTypeNotSupportedError, self).__init__(message)
 
 
 def store_auth_header(auth_header):

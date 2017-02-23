@@ -49,6 +49,15 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.get_testcase_info.return_value = self.response
     self.mock.ensure_goma.return_value = '/goma/dir'
 
+  def test_unsupported_job(self):
+    """Tests to ensure an exception is thrown with an unsupported job type."""
+
+    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
+                         revision=123456, job_type='fuzzlibber_xunil')
+    self.mock.Testcase.return_value = testcase
+    with self.assertRaises(common.JobTypeNotSupportedError):
+      reproduce.execute('1234', False, 'standalone')
+
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
     self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
@@ -58,7 +67,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8')
     self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, True)
+    reproduce.execute('1234', False, 'download')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
@@ -72,30 +81,39 @@ class ExecuteTest(helpers.ExtendedTestCase):
                             [mock.call('/path/to/binary', '/path/to/symbolizer',
                                        testcase)])
 
-  def test_grab_data_no_download_v8(self):
+  def test_grab_data_standalone(self):
     """Ensures all method calls are made correctly when building locally."""
-    self.mock.V8Builder.return_value.get_binary_path.return_value = (
-        '/path/to/binary')
-    self.mock.V8Builder.return_value.get_symbolizer_path.return_value = (
-        '/path/to/symbolizer')
 
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.get_binary_definition'])
+    self.mock.get_binary_definition.return_value = mock.Mock(
+        kwargs={}, source_var='V8_SRC')
+    (self.mock.get_binary_definition.return_value.builder.return_value
+     .get_binary_path.return_value) = '/path/to/binary'
+    (self.mock.get_binary_definition.return_value.builder.return_value
+     .get_symbolizer_path.return_value) = '/path/to/symbolizer'
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8')
     self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, False)
+    reproduce.execute('1234', False, 'standalone')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(
-        self.mock.V8Builder.return_value.get_binary_path, [mock.call()])
-    self.assert_exact_calls(self.mock.V8Builder,
-                            [mock.call(1234, 'chrome_build_url', 123456,
-                                       False, '/goma/dir', '/v8/src')])
+        (self.mock.get_binary_definition.return_value.builder.return_value
+         .get_binary_path), [mock.call()])
+    self.assert_exact_calls(
+        (self.mock.get_binary_definition.return_value.builder.return_value
+         .get_symbolizer_path), [mock.call()])
+    self.assert_exact_calls(
+        self.mock.get_binary_definition.return_value.builder, [
+            mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
+                      '/v8/src')])
     self.assert_exact_calls(self.mock.reproduce_crash, [
         mock.call('/path/to/binary', '/path/to/symbolizer', testcase)])
 
-  def test_grab_data_no_download_pdfium(self):
+  def test_grab_data_chromium(self):
     """Ensures all method calls are made correctly when building locally."""
     self.mock.ChromiumBuilder.return_value.get_binary_path.return_value = (
         '/path/to/binary')
@@ -105,7 +123,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_pdfium')
     self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, False)
+    reproduce.execute('1234', False, 'chromium')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])

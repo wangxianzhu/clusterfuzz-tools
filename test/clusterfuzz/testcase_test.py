@@ -22,6 +22,10 @@ from clusterfuzz import testcase
 def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
                         window_arg='', minimized_args='', extension='js'):
   """Builds a testcase instance that can be used for testing."""
+  if extension is not None:
+    extension = '.%s' % extension
+  else:
+    extension = ''
   if stacktrace_lines is None:
     stacktrace_lines = []
   testcase_json = {
@@ -32,9 +36,26 @@ def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
       'testcase': {'window_argument': window_arg,
                    'job_type': 'linux_asan_d8_dbg',
                    'minimized_arguments': minimized_args,
-                   'absolute_path': '/absolute/path.%s' % extension}}
+                   'absolute_path': '/absolute/path%s' % extension}}
 
   return testcase.Testcase(testcase_json)
+
+
+class TestcaseFileExtensionTest(helpers.ExtendedTestCase):
+  """Tests the file extension parsing."""
+
+  def test_no_extension(self):
+    """Tests functionality when the testcase has no extension."""
+
+    test = build_base_testcase(extension=None)
+    self.assertEqual(test.file_extension, '')
+
+  def test_with_extension(self):
+    """Tests functionality when the testcase has an extension."""
+
+    test = build_base_testcase(extension='py')
+    self.assertEqual(test.file_extension, 'py')
+
 
 
 class TestcaseSetupTest(helpers.ExtendedTestCase):
@@ -46,11 +67,11 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     stacktrace_lines = [
         {'content': '[Environment] TEST_ARGS = first=1:second=2'},
         {'content': 'Not an env line'},
+        {'content': ('Running command: /path/to/binary --random-seed=23 '
+                     '--turbo /path/to/testcase')},
         {'content': '[Environment] TEST_TWO = third=3:fourth=4'}]
     result = build_base_testcase(
-        stacktrace_lines=stacktrace_lines, revision=5,
-        window_arg='--random-seed=23', minimized_args='--turbo',
-        build_url='build_url')
+        stacktrace_lines=stacktrace_lines, revision=5, build_url='build_url')
     self.assertEqual(result.id, '12345')
     self.assertEqual(result.revision, 5)
     self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second=2',

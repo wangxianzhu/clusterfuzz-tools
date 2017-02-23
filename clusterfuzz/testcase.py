@@ -25,33 +25,44 @@ CLUSTERFUZZ_TESTCASE_URL = ('https://cluster-fuzz.appspot.com/v2/testcase-'
 class Testcase(object):
   """The Testase module, to abstract away logic using the testcase JSON."""
 
-  def get_environment(self):
+  def get_file_extension(self, absolute_path):
+    """Pulls the file extension from the path, returns '' if no extension."""
+
+    split_filename = absolute_path.split('.')
+    if len(split_filename) != 2:
+      return ''
+    else:
+      return split_filename[1]
+
+
+  def get_environment_and_args(self):
     """Sets up the environment by parsing stacktrace lines."""
 
     new_env = {}
+    args = ''
     stacktrace_lines = [l['content']  for l in self.stacktrace_lines]
     for l in stacktrace_lines:
-      if '[Environment] ' not in l:
-        continue
-      l = l.replace('[Environment] ', '')
-      name, value = l.split(' = ')
-      new_env[name] = value
+      if '[Environment] ' in l:
+        l = l.replace('[Environment] ', '')
+        name, value = l.split(' = ')
+        new_env[name] = value
+      elif 'Running command: ' in l:
+        l = l.replace('Running command: ', '').split(' ')
+        l = l[1:len(l)-1] #Strip off the binary & testcase paths
+        args = " ".join(l)
 
-    return new_env
+    return new_env, args
 
   def __init__(self, testcase_json):
 
     self.id = testcase_json['id']
     self.stacktrace_lines = testcase_json['crash_stacktrace']['lines']
-    self.environment = self.get_environment()
+    self.environment, self.reproduction_args = self.get_environment_and_args()
     self.revision = testcase_json['crash_revision']
     self.build_url = testcase_json['metadata']['build_url']
     self.job_type = testcase_json['testcase']['job_type']
-    self.file_extension = testcase_json['testcase']['absolute_path'].split(
-        '.')[1]
-    self.reproduction_args = (
-        '%s %s' %(testcase_json['testcase']['window_argument'],
-                  testcase_json['testcase']['minimized_arguments']))
+    self.file_extension = self.get_file_extension(
+        testcase_json['testcase']['absolute_path'])
 
   def testcase_dir_name(self):
     """Returns a testcases' respective directory."""

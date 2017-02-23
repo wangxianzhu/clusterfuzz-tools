@@ -74,6 +74,10 @@ class BinaryProvider(object):
     """Downloads a build and saves it locally."""
 
     build_dir = self.build_dir_name()
+    binary_location = os.path.join(build_dir, self.binary_name)
+    symbolizer_location = os.path.join(os.path.dirname(binary_location),
+                                       'llvm-symbolizer')
+    self.symbolizer_path = symbolizer_location
     if os.path.exists(build_dir):
       return build_dir
 
@@ -97,13 +101,9 @@ class BinaryProvider(object):
     os.remove(saved_file)
     os.rename(os.path.join(CLUSTERFUZZ_BUILDS_DIR,
                            os.path.splitext(filename)[0]), build_dir)
-    binary_location = os.path.join(build_dir, self.binary_name)
     stats = os.stat(binary_location)
     os.chmod(binary_location, stats.st_mode | stat.S_IEXEC)
-    symbolizer_location = os.path.join(os.path.dirname(binary_location),
-                                       'llvm-symbolizer')
     os.chmod(symbolizer_location, stats.st_mode | stat.S_IEXEC)
-    self.symbolizer_path = symbolizer_location
 
   def get_binary_path(self):
     return '%s/%s' % (self.get_build_directory(), self.binary_name)
@@ -280,8 +280,10 @@ class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
   def __init__(self, testcase_id, build_url, revision, current,
-               goma_dir, source, binary_name):
+               goma_dir, source, binary_name=None, stacktrace=None):
 
+    if not binary_name:
+      binary_name = common.get_binary_name(stacktrace)
     super(ChromiumBuilder, self).__init__(testcase_id, build_url, revision,
                                           current, goma_dir, source,
                                           binary_name, 'chromium_builder_asan')

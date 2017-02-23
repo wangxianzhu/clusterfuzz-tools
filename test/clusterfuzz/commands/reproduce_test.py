@@ -64,8 +64,13 @@ class ExecuteTest(helpers.ExtendedTestCase):
         '/path/to/symbolizer'))
     self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
         '/path/to/binary')
+    stacktrace = [
+        {'content': 'incorrect'}, {'content': '[Environment] A = b'},
+        {'content': ('Running command: path/to/binary --args --arg2 '
+                     '/path/to/testcase')}]
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='linux_asan_d8')
+                         revision=123456, job_type='linux_asan_d8',
+                         stacktrace_lines=stacktrace)
     self.mock.Testcase.return_value = testcase
     reproduce.execute('1234', False, 'download')
 
@@ -76,7 +81,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         self.mock.DownloadedBinary.return_value.get_binary_path,
         [mock.call()])
     self.assert_exact_calls(self.mock.DownloadedBinary,
-                            [mock.call(1234, 'chrome_build_url', 'd8')])
+                            [mock.call(1234, 'chrome_build_url', 'binary')])
     self.assert_exact_calls(self.mock.reproduce_crash,
                             [mock.call('/path/to/binary', '/path/to/symbolizer',
                                        testcase)])
@@ -118,7 +123,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
         '/path/to/binary')
 
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='linux_asan_pdfium')
+                         revision=123456, stacktrace_lines=['stacktrace'],
+                         job_type='linux_asan_pdfium')
     self.mock.Testcase.return_value = testcase
     reproduce.execute('1234', False, 'chromium')
 
@@ -129,7 +135,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         self.mock.ChromiumBuilder.return_value.get_binary_path, [mock.call()])
     self.assert_exact_calls(self.mock.ChromiumBuilder, [
         mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
-                  '/pdf/src', 'pdfium_test')])
+                  '/pdf/src', 'pdfium_test', ['stacktrace'])])
     self.assert_exact_calls(self.mock.reproduce_crash, [
         mock.call('/path/to/binary', '/path/to/symbolizer', testcase)])
 

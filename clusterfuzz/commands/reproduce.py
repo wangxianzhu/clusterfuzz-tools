@@ -51,7 +51,9 @@ STANDALONE_SUPPORTED_JOBS = {
 
 CHROMIUM_SUPPORTED_JOBS = {
     'linux_asan_pdfium': common.BinaryDefinition(binary_providers.PdfiumBuilder,
-                                                 'PDFIUM_SRC', 'pdfium_test')}
+                                                 'PDFIUM_SRC', 'pdfium_test'),
+    'libfuzzer_chrome_asan': common.BinaryDefinition(
+        binary_providers.ChromiumBuilder, 'CHROME_SRC')}
 
 
 class SuppressOutput(object):
@@ -177,10 +179,9 @@ def execute(testcase_id, current, build):
   current_testcase = testcase.Testcase(response)
 
   if build == 'download':
-    definition = get_binary_definition(current_testcase.job_type,
-                                       STANDALONE_SUPPORTED_JOBS)
+    binary_name = common.get_binary_name(current_testcase.stacktrace_lines)
     binary_provider = binary_providers.DownloadedBinary(
-        current_testcase.id, current_testcase.build_url, definition.binary_name)
+        current_testcase.id, current_testcase.build_url, binary_name)
   elif build == 'standalone':
     definition = get_binary_definition(current_testcase.job_type,
                                        STANDALONE_SUPPORTED_JOBS)
@@ -194,7 +195,8 @@ def execute(testcase_id, current, build):
     binary_provider = binary_providers.ChromiumBuilder( # pylint: disable=redefined-variable-type
         current_testcase.id, current_testcase.build_url,
         current_testcase.revision, current, goma_dir, os.environ.get(
-            'CHROME_SRC'), definition.binary_name)
+            'CHROME_SRC'), definition.binary_name,
+        current_testcase.stacktrace_lines)
 
   reproduce_crash(binary_provider.get_binary_path(),
                   binary_provider.symbolizer_path, current_testcase)

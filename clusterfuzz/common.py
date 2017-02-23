@@ -22,10 +22,19 @@ CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 
 
+def get_binary_name(stacktrace):
+  stacktrace_lines = [l['content'] for l in stacktrace]
+  for l in stacktrace_lines:
+    if 'Running command: ' in l:
+      l = l.replace('Running command: ', '').split(' ')
+      binary_name = os.path.basename(l[0])
+      return binary_name
+
+
 class BinaryDefinition(object):
   """Holds all the necessary information to initialize a job's builder."""
 
-  def __init__(self, builder, source_var, binary_name, kwargs=None):
+  def __init__(self, builder, source_var, binary_name=None, kwargs=None):
     self.builder = builder
     self.source_var = source_var
     self.binary_name = binary_name

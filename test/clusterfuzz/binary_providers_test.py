@@ -496,6 +496,18 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
                                                     '/chrome/src', 'binary')
     self.builder.build_directory = '/chrome/src/out/clusterfuzz_builds'
 
+  def test_no_binary_name(self):
+    """Test the functionality when no binary name is provided."""
+
+    stacktrace = [
+        {'content': 'not correct'}, {'content': '[Environment] A = b'},
+        {'content': ('Running command: path/to/binary --flag-1 --flag2 opt'
+                     ' /testcase/path')}]
+    builder = binary_providers.ChromiumBuilder(12345, 'build_url', 4567, False,
+                                               '/goma/dir', 'chrome/src', None,
+                                               stacktrace)
+    self.assertEqual(builder.binary_name, 'binary')
+
   def test_out_dir_name(self):
     """Tests the out_dir_name method."""
 

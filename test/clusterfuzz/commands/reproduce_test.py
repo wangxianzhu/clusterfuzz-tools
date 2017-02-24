@@ -20,6 +20,7 @@ import os
 import mock
 
 from clusterfuzz import common
+from clusterfuzz import binary_providers
 from clusterfuzz.commands import reproduce
 from test import helpers
 
@@ -83,7 +84,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                      '/path/to/testcase')}]
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8',
-                         stacktrace_lines=stacktrace, reproducible=False)
+                         stacktrace_lines=stacktrace, reproducible=True)
     self.mock.Testcase.return_value = testcase
     reproduce.execute('1234', False, 'download')
 
@@ -97,7 +98,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                             [mock.call(1234, 'chrome_build_url', 'binary')])
     self.assert_exact_calls(self.mock.reproduce_crash,
                             [mock.call('/path/to/binary', '/path/to/symbolizer',
-                                       testcase)])
+                                       testcase, 'ASAN')])
 
   def test_grab_data_standalone(self):
     """Ensures all method calls are made correctly when building locally."""
@@ -105,7 +106,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.commands.reproduce.get_binary_definition'])
     self.mock.get_binary_definition.return_value = mock.Mock(
-        kwargs={}, source_var='V8_SRC')
+        kwargs={}, source_var='V8_SRC', sanitizer='ASAN')
     (self.mock.get_binary_definition.return_value.builder.return_value
      .get_binary_path.return_value) = '/path/to/binary'
     (self.mock.get_binary_definition.return_value.builder.return_value
@@ -124,34 +125,11 @@ class ExecuteTest(helpers.ExtendedTestCase):
          .get_binary_path), [mock.call()])
     self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.builder, [
-            mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
-                      '/v8/src')])
+            mock.call(testcase, self.mock.get_binary_definition.return_value,
+                      False, '/goma/dir')])
     self.assert_exact_calls(self.mock.reproduce_crash, [
-        mock.call('/path/to/binary', '/path/to/symbolizer', testcase)])
-
-  def test_grab_data_chromium(self):
-    """Ensures all method calls are made correctly when building locally."""
-    self.mock.ChromiumBuilder.return_value = mock.Mock(symbolizer_path=(
-        '/path/to/symbolizer'))
-    self.mock.ChromiumBuilder.return_value.get_binary_path.return_value = (
-        '/path/to/binary')
-
-    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, stacktrace_lines=['stacktrace'],
-                         job_type='linux_asan_pdfium')
-    self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, 'chromium')
-
-    self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
-    self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
-    self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
-    self.assert_exact_calls(
-        self.mock.ChromiumBuilder.return_value.get_binary_path, [mock.call()])
-    self.assert_exact_calls(self.mock.ChromiumBuilder, [
-        mock.call(1234, 'chrome_build_url', 123456, False, '/goma/dir',
-                  '/pdf/src', 'pdfium_test', ['stacktrace'])])
-    self.assert_exact_calls(self.mock.reproduce_crash, [
-        mock.call('/path/to/binary', '/path/to/symbolizer', testcase)])
+        mock.call('/path/to/binary', '/path/to/symbolizer', testcase,
+                  'ASAN')])
 
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):
@@ -359,13 +337,13 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_testcase.get_testcase_path.return_value = testcase_file
 
     reproduce.reproduce_crash(source, '/chrome/source/folder/llvm-symbolizer',
-                              mocked_testcase)
+                              mocked_testcase, 'ASAN')
     self.assert_exact_calls(self.mock.execute, [mock.call(
         '%s %s %s' % ('/chrome/source/folder/d8',
                       args, testcase_file),
         '/chrome/source/folder', environment={
             'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
-            'ASAN_OPTIONS': 'option1=true:option2=false:symbolize=1',
+            'ASAN_OPTIONS': 'option1=true:option2=false',
             'LSAN_OPTIONS': ''})])
 
 class SuppressOutputTest(helpers.ExtendedTestCase):
@@ -405,3 +383,27 @@ class SuppressOutputTest(helpers.ExtendedTestCase):
     self.mock.open.assert_called_once_with(os.devnull, os.O_RDWR)
     self.assert_exact_calls(
         self.mock.dup2, [mock.call('out', 1), mock.call('err', 2)])
+
+
+class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
+  """Tests getting binary definitions."""
+
+  def test_download_param(self):
+    """Tests when the build_param is download"""
+
+    result = reproduce.get_binary_definition('libfuzzer_chrome_msan',
+                                             'download')
+    self.assertEqual(result.builder, binary_providers.LibfuzzerMsanBuilder)
+
+    with self.assertRaises(common.JobTypeNotSupportedError):
+      result = reproduce.get_binary_definition('fuzzlibber_nasm', 'download')
+
+  def test_build_param(self):
+    """Tests when build_param is an option that requires building."""
+
+    result = reproduce.get_binary_definition('libfuzzer_chrome_msan',
+                                             'chromium')
+    self.assertEqual(result.builder, binary_providers.LibfuzzerMsanBuilder)
+
+    with self.assertRaises(common.JobTypeNotSupportedError):
+      result = reproduce.get_binary_definition('fuzzlibber_nasm', 'chromium')

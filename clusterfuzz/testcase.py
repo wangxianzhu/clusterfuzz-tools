@@ -45,6 +45,10 @@ class Testcase(object):
       if '[Environment] ' in l:
         l = l.replace('[Environment] ', '')
         name, value = l.split(' = ')
+        if '_OPTIONS' in name:
+          value = value.replace('symbolize=0', 'symbolize=1')
+          if 'symbolize=1' not in value:
+            value += ':symbolize=1'
         new_env[name] = value
       elif 'Running command: ' in l:
         l = l.replace('Running command: ', '').split(' ')

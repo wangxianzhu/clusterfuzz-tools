@@ -253,3 +253,11 @@ class GetBinaryNameTest(helpers.ExtendedTestCase):
       common.get_binary_name([
           {'content': 'aaa'}
       ])
+
+
+class BinaryDefinitionTest(helpers.ExtendedTestCase):
+  """Tests the BinaryDefinition class."""
+
+  def test_no_sanitizer(self):
+    with self.assertRaises(common.SanitizerNotProvidedError):
+      common.BinaryDefinition('builder', 'CHROME_SRC')

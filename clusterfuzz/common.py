@@ -35,13 +35,25 @@ def get_binary_name(stacktrace):
                   prefix)
 
 
+class SanitizerNotProvidedError(Exception):
+  """An error to notify when a sanitizer isn't passed to a BinaryDefinition"""
+
+  def __init__(self):
+    message = 'A sanitizer must be provided with each BinaryDefinition.'
+    super(SanitizerNotProvidedError, self).__init__(message)
+
+
 class BinaryDefinition(object):
   """Holds all the necessary information to initialize a job's builder."""
 
-  def __init__(self, builder, source_var, binary_name=None, kwargs=None):
+  def __init__(self, builder, source_var, binary_name=None, sanitizer=None,
+               kwargs=None):
+    if not sanitizer:
+      raise SanitizerNotProvidedError()
     self.builder = builder
     self.source_var = source_var
     self.binary_name = binary_name
+    self.sanitizer = sanitizer
     self.kwargs = kwargs if kwargs else {}
 
 

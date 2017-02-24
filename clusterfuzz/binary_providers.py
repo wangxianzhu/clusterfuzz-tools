@@ -248,11 +248,10 @@ class GenericBuilder(BinaryProvider):
 class PdfiumBuilder(GenericBuilder):
   """Build a fresh Pdfium binary."""
 
-  def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source):
-    super(PdfiumBuilder, self).__init__(testcase_id, build_url, revision,
-                                        current, goma_dir, source,
-                                        'pdfium_test')
+  def __init__(self, testcase, binary_definition, current, goma_dir):
+    super(PdfiumBuilder, self).__init__(
+        testcase.id, testcase.build_url, testcase.revision, current,
+        goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test')
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
@@ -263,11 +262,11 @@ class PdfiumBuilder(GenericBuilder):
 class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
 
-  def __init__(self, testcase_id, build_url, revision, current,
-               goma_dir, source):
+  def __init__(self, testcase, binary_definition, current, goma_dir):
 
-    super(V8Builder, self).__init__(testcase_id, build_url, revision, current,
-                                    goma_dir, source, 'd8')
+    super(V8Builder, self).__init__(
+        testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
+        os.environ.get(binary_definition.source_var), 'd8')
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
     self.name = 'V8'
 
@@ -279,14 +278,14 @@ class V8Builder(GenericBuilder):
 class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
-  def __init__(self, testcase_id, build_url, revision, current,
-               goma_dir, source, binary_name=None, stacktrace=None):
+  def __init__(self, testcase, binary_definition, current, goma_dir):
 
+    binary_name = binary_definition.binary_name
     if not binary_name:
-      binary_name = common.get_binary_name(stacktrace)
-    super(ChromiumBuilder, self).__init__(testcase_id, build_url, revision,
-                                          current, goma_dir, source,
-                                          binary_name, 'chromium_builder_asan')
+      binary_name = common.get_binary_name(testcase.stacktrace_lines)
+    super(ChromiumBuilder, self).__init__(
+        testcase.id, testcase.build_url, testcase.revision, current,
+        goma_dir, os.environ.get(binary_definition.source_var), binary_name)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'chromium'
 
@@ -300,3 +299,14 @@ class ChromiumBuilder(GenericBuilder):
 
   def pre_build_steps(self):
     common.execute('gclient runhooks', self.source_directory)
+
+class LibfuzzerMsanBuilder(ChromiumBuilder):
+  """Builds for a Msan testcase, inside the Chromium repo."""
+
+  def pre_build_steps(self):
+    common.execute(("GYP_DEFINES='clang=1 component=static_library "
+                    "gomadir=%s msan=1 msan_track_origins=2 "
+                    "proprietary_codecs=1 target_arch=x64 use_goma=1"
+                    " use_prebuilt_instrumented_libraries=1' gclient "
+                    "runhooks") % self.goma_dir,
+                   self.source_directory)

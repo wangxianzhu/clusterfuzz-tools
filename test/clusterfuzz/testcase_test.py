@@ -68,6 +68,8 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     stacktrace_lines = [
         {'content': '[Environment] TEST_ARGS = first=1:second=2'},
         {'content': 'Not an env line'},
+        {'content': '[Environment] ASAN_OPTIONS = x=1:symbolize=0'},
+        {'content': '[Environment] LSAN_OPTIONS = y=1'},
         {'content': ('Running command: /path/to/binary --random-seed=23 '
                      '--turbo /path/to/testcase')},
         {'content': '[Environment] TEST_TWO = third=3:fourth=4'}]
@@ -76,7 +78,9 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     self.assertEqual(result.id, '12345')
     self.assertEqual(result.revision, 5)
     self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second=2',
-                                          'TEST_TWO': 'third=3:fourth=4'})
+                                          'TEST_TWO': 'third=3:fourth=4',
+                                          'ASAN_OPTIONS': 'x=1:symbolize=1',
+                                          'LSAN_OPTIONS': 'y=1:symbolize=1'})
     self.assertEqual(result.reproduction_args, '--random-seed=23 --turbo')
     self.assertEqual(result.build_url, 'build_url')
     self.assertTrue(result.reproducible)

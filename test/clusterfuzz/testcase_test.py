@@ -35,6 +35,7 @@ def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
       'metadata': {'build_url': build_url},
       'testcase': {'window_argument': window_arg,
                    'job_type': 'linux_asan_d8_dbg',
+                   'one_time_crasher_flag': False,
                    'minimized_arguments': minimized_args,
                    'absolute_path': '/absolute/path%s' % extension}}
 
@@ -78,6 +79,7 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
                                           'TEST_TWO': 'third=3:fourth=4'})
     self.assertEqual(result.reproduction_args, '--random-seed=23 --turbo')
     self.assertEqual(result.build_url, 'build_url')
+    self.assertTrue(result.reproducible)
 
 
 class GetTestcasePathTest(helpers.ExtendedTestCase):

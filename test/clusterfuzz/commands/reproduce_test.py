@@ -17,12 +17,25 @@ from __future__ import print_function
 
 import json
 import os
-import multiprocessing
 import mock
 
 from clusterfuzz import common
 from clusterfuzz.commands import reproduce
 from test import helpers
+
+
+class MaybeWarnUnreproducible(helpers.ExtendedTestCase):
+  """Test maybe_warn_unreproducible."""
+
+  def test_warn(self):
+    """Test warn."""
+    self.assertTrue(reproduce.maybe_warn_unreproducible(
+        mock.Mock(reproducible=False)))
+
+  def test_not_warn(self):
+    """Test warn."""
+    self.assertIsNone(reproduce.maybe_warn_unreproducible(
+        mock.Mock(reproducible=True)))
 
 
 class ExecuteTest(helpers.ExtendedTestCase):
@@ -70,7 +83,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                      '/path/to/testcase')}]
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8',
-                         stacktrace_lines=stacktrace)
+                         stacktrace_lines=stacktrace, reproducible=False)
     self.mock.Testcase.return_value = testcase
     reproduce.execute('1234', False, 'download')
 
@@ -98,7 +111,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     (self.mock.get_binary_definition.return_value.builder.return_value
      .symbolizer_path) = '/path/to/symbolizer'
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='linux_asan_d8')
+                         revision=123456, job_type='linux_asan_d8',
+                         reproducible=True)
     self.mock.Testcase.return_value = testcase
     reproduce.execute('1234', False, 'standalone')
 
@@ -315,17 +329,10 @@ class EnsureGomaTest(helpers.ExtendedTestCase):
 
     result = reproduce.ensure_goma()
 
-    cpu_count = multiprocessing.cpu_count()
-    cpu_count -= int(cpu_count / 4)
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
-            'python goma_ctl.py restart', goma_dir,
-            environment=dict(
-                os.environ,
-                GOMA_MAX_SUBPROCS_HEAVY=str(int(cpu_count / 2)),
-                GOMA_MAX_SUBPROCS=str(cpu_count),
-                GOMA_MAX_SUBPROCS_LOW=str(cpu_count),
-            ))
+            'python goma_ctl.py ensure_start', goma_dir,
+            environment=os.environ)
     ])
     self.assertEqual(result, goma_dir)
 

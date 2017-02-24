@@ -17,7 +17,6 @@ Locally reproduces a testcase given a Clusterfuzz ID."""
 
 import os
 import json
-import multiprocessing
 import urllib
 import webbrowser
 import urlfetch
@@ -128,19 +127,9 @@ def ensure_goma():
   if not os.path.isfile(os.path.join(goma_dir, 'goma_ctl.py')):
     raise common.GomaNotInstalledError()
 
-  cpu_count = multiprocessing.cpu_count()
-  # We need to discount cpu_count, otherwise the whole machine would lag because
-  # goma would be using all cpus.
-  cpu_count -= int(cpu_count / 4)
   common.execute(
-      'python goma_ctl.py restart', goma_dir,
-      # According to: https://groups.google.com/a/google.com/forum/#!topic/chrome-security-bugs--/iYlumEXRWto  # pylint: disable=line-too-long
-      environment=dict(
-          os.environ,
-          GOMA_MAX_SUBPROCS_HEAVY=str(int(cpu_count / 2)),
-          GOMA_MAX_SUBPROCS=str(cpu_count),
-          GOMA_MAX_SUBPROCS_LOW=str(cpu_count),
-      ))
+      'python goma_ctl.py ensure_start', goma_dir,
+      environment=os.environ.copy())
 
   return goma_dir
 
@@ -168,6 +157,18 @@ def get_binary_definition(job_type, supported_dict):
   return supported_dict[job_type]
 
 
+def maybe_warn_unreproducible(current_testcase):
+  """Print warning if the testcase is unreproducible."""
+  if not current_testcase.reproducible:
+    print
+    print ('WARNING: The testcase %s is marked as unreproducible. Therefore,'
+           ' it might not be reproduced correctly here.')
+    print
+    # We need to return True to make the method testable because we can't mock
+    # print.
+    return True
+
+
 def execute(testcase_id, current, build):
   """Execute the reproduce command."""
 
@@ -177,6 +178,8 @@ def execute(testcase_id, current, build):
   response = get_testcase_info(testcase_id)
   goma_dir = ensure_goma()
   current_testcase = testcase.Testcase(response)
+
+  maybe_warn_unreproducible(current_testcase)
 
   if build == 'download':
     binary_name = common.get_binary_name(current_testcase.stacktrace_lines)
@@ -200,3 +203,5 @@ def execute(testcase_id, current, build):
 
   reproduce_crash(binary_provider.get_binary_path(),
                   binary_provider.symbolizer_path, current_testcase)
+
+  maybe_warn_unreproducible(current_testcase)

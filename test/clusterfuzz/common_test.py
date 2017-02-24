@@ -233,3 +233,23 @@ class AskTest(helpers.ExtendedTestCase):
         mock.call('Initial Question: '),
         mock.call('Please answer correctly: ')])
     self.assertEqual(result, 'correct')
+
+
+class GetBinaryNameTest(helpers.ExtendedTestCase):
+  """Test get_binary_name."""
+
+  def test_running_command(self):
+    """Test 'Running Command: '."""
+    binary_name = common.get_binary_name([
+        {'content': 'aaa'},
+        {'content': 'Running command: aaa/bbb/some_fuzzer something'},
+        {'content': 'bbb'}
+    ])
+    self.assertEqual('some_fuzzer', binary_name)
+
+  def test_no_command(self):
+    """Raise an exception when there's no command."""
+    with self.assertRaises(Exception):
+      common.get_binary_name([
+          {'content': 'aaa'}
+      ])

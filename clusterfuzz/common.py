@@ -23,12 +23,16 @@ AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 
 
 def get_binary_name(stacktrace):
+  prefix = 'Running command: '
   stacktrace_lines = [l['content'] for l in stacktrace]
   for l in stacktrace_lines:
-    if 'Running command: ' in l:
-      l = l.replace('Running command: ', '').split(' ')
+    if prefix in l:
+      l = l.replace(prefix, '').split(' ')
       binary_name = os.path.basename(l[0])
       return binary_name
+
+  raise Exception("The stacktrace doesn't contain a line starting with '%s'",
+                  prefix)
 
 
 class BinaryDefinition(object):

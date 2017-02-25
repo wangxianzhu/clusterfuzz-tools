@@ -51,7 +51,7 @@ SUPPORTED_JOBS = {
             binary_providers.V8Builder, 'V8_SRC', 'd8', sanitizer='ASAN')},
     'chromium': {
         'linux_asan_pdfium': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'PDFIUM_SRC', 'pdfium_test',
+            binary_providers.ChromiumBuilder, 'CHROME_SRC', 'pdfium_test',
             sanitizer='ASAN'),
         'libfuzzer_chrome_asan': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROME_SRC', sanitizer='ASAN'),
@@ -189,7 +189,10 @@ def execute(testcase_id, current, build):
   maybe_warn_unreproducible(current_testcase)
 
   if build == 'download':
-    binary_name = common.get_binary_name(current_testcase.stacktrace_lines)
+    if definition.binary_name:
+      binary_name = definition.binary_name
+    else:
+      binary_name = common.get_binary_name(current_testcase.stacktrace_lines)
     binary_provider = binary_providers.DownloadedBinary(
         current_testcase.id, current_testcase.build_url, binary_name)
   else:

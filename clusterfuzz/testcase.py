@@ -62,6 +62,10 @@ class Testcase(object):
     self.id = testcase_json['id']
     self.stacktrace_lines = testcase_json['crash_stacktrace']['lines']
     self.environment, self.reproduction_args = self.get_environment_and_args()
+    if not self.reproduction_args:
+      self.reproduction_args = (
+          '%s %s' %(testcase_json['testcase']['window_argument'],
+                    testcase_json['testcase']['minimized_arguments']))
     self.revision = testcase_json['crash_revision']
     self.build_url = testcase_json['metadata']['build_url']
     self.job_type = testcase_json['testcase']['job_type']

@@ -72,6 +72,38 @@ class ExecuteTest(helpers.ExtendedTestCase):
     with self.assertRaises(common.JobTypeNotSupportedError):
       reproduce.execute('1234', False, 'standalone')
 
+  def test_download_no_defined_binary(self):
+    """Test what happens when no binary name is defined."""
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.get_binary_definition'])
+    self.mock.get_binary_definition.return_value = mock.Mock(
+        binary_name=None, sanitizer='ASAN')
+    self.mock.DownloadedBinary.return_value = mock.Mock(symbolizer_path=(
+        '/path/to/symbolizer'))
+    self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
+        '/path/to/binary')
+    stacktrace = [
+        {'content': 'incorrect'}, {'content': '[Environment] A = b'},
+        {'content': ('Running command: path/to/binary --args --arg2 '
+                     '/path/to/testcase')}]
+    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
+                         revision=123456, job_type='linux_asan_d8',
+                         stacktrace_lines=stacktrace, reproducible=True)
+    self.mock.Testcase.return_value = testcase
+    reproduce.execute('1234', False, 'download')
+
+    self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
+    self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
+    self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
+    self.assert_exact_calls(
+        self.mock.DownloadedBinary.return_value.get_binary_path,
+        [mock.call()])
+    self.assert_exact_calls(self.mock.DownloadedBinary,
+                            [mock.call(1234, 'chrome_build_url', 'binary')])
+    self.assert_exact_calls(self.mock.reproduce_crash,
+                            [mock.call('/path/to/binary', '/path/to/symbolizer',
+                                       testcase, 'ASAN')])
+
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
     self.mock.DownloadedBinary.return_value = mock.Mock(symbolizer_path=(
@@ -95,7 +127,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         self.mock.DownloadedBinary.return_value.get_binary_path,
         [mock.call()])
     self.assert_exact_calls(self.mock.DownloadedBinary,
-                            [mock.call(1234, 'chrome_build_url', 'binary')])
+                            [mock.call(1234, 'chrome_build_url', 'd8')])
     self.assert_exact_calls(self.mock.reproduce_crash,
                             [mock.call('/path/to/binary', '/path/to/symbolizer',
                                        testcase, 'ASAN')])

@@ -1,0 +1,19 @@
+# ----------------------------------------------------------------------------
+# UBSAN Suppressions.
+# ----------------------------------------------------------------------------
+
+# Disable features that are not relevant to security crashes.
+float-divide-by-zero:*
+integer-divide-by-zero:*
+nonnull-attribute:*
+null:*
+returns-nonnull-attribute:*
+unreachable:*
+
+# Known startup crashes.
+# crbug.com/633829
+object-size:libc++/trunk/include/list
+
+# These are expected to overflow.
+signed-integer-overflow:WebKit/Source/platform/geometry
+

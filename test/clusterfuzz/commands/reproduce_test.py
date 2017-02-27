@@ -375,8 +375,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                       args, testcase_file),
         '/chrome/source/folder', environment={
             'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
-            'ASAN_OPTIONS': 'option1=true:option2=false',
-            'LSAN_OPTIONS': ''})])
+            'ASAN_OPTIONS': 'option2=false:option1=true'})])
 
 class SuppressOutputTest(helpers.ExtendedTestCase):
   """Test SuppressOutput."""
@@ -439,3 +438,55 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
 
     with self.assertRaises(common.JobTypeNotSupportedError):
       result = reproduce.get_binary_definition('fuzzlibber_nasm', 'chromium')
+
+
+class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
+  """Tests the set_up_symbolizers_suppressions method."""
+
+  def setUp(self):
+    helpers.patch(self, ['os.path.dirname'])
+
+  def test_set_up_correct_env(self):
+    """Ensures all the setup methods work correctly."""
+
+    self.mock.dirname.return_value = '/parent/dir'
+    env = {'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:'
+                             'other_option=1:suppressions=/not/correct/path'),
+           'LSAN_OPTIONS': 'other=0:suppressions=not/correct/path:option=1'}
+    result = reproduce.set_up_symbolizers_suppressions(
+        env, '/path/to/symbolizer', 'UBSAN')
+    for i in result:
+      if '_OPTIONS' in i:
+        result[i] = reproduce.deserialize_sanitizer_options(result[i])
+    self.assertEqual(result, {
+        'UBSAN_OPTIONS': {
+            'external_symbolizer_path': '/path/to/symbolizer',
+            'other_option': '1',
+            'suppressions': '/parent/dir/suppressions/ubsan_suppressions.txt'},
+        'LSAN_OPTIONS': {
+            'other': '0',
+            'suppressions': '/parent/dir/suppressions/lsan_suppressions.txt',
+            'option': '1'},
+        'UBSAN_SYMBOLIZER_PATH': '/path/to/symbolizer'})
+
+
+class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
+  """Test the serializer & deserializers for sanitizer options."""
+
+  def test_serialize(self):
+    in_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
+               'option': '1',
+               'symbolizer': 'abcde/llvm-symbolizer'}
+    out_str = ('suppressions=/a/b/c/d/suppresions.txt:option=1'
+               ':symbolizer=abcde/llvm-symbolizer')
+
+    self.assertEqual(reproduce.serialize_sanitizer_options(in_dict), out_str)
+
+  def test_deserialize(self):
+    out_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
+                'option': '1',
+                'symbolizer': 'abcde/llvm-symbolizer'}
+    in_str = ('suppressions=/a/b/c/d/suppresions.txt:option=1'
+              ':symbolizer=abcde/llvm-symbolizer')
+
+    self.assertEqual(reproduce.deserialize_sanitizer_options(in_str), out_dict)

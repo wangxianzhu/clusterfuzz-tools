@@ -57,7 +57,9 @@ SUPPORTED_JOBS = {
             binary_providers.ChromiumBuilder, 'CHROME_SRC', sanitizer='ASAN'),
         'libfuzzer_chrome_msan': common.BinaryDefinition(
             binary_providers.LibfuzzerMsanBuilder, 'CHROME_SRC',
-            sanitizer='MSAN')}}
+            sanitizer='MSAN'),
+        'libfuzzer_chrome_ubsan': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROME_SRC', sanitizer='UBSAN')}}
 
 
 class SuppressOutput(object):
@@ -139,11 +141,52 @@ def ensure_goma():
   return goma_dir
 
 
+def deserialize_sanitizer_options(options):
+  """Read options from a variable like ASAN_OPTIONS into a dict."""
+
+  pairs = options.split(':')
+  return_dict = {}
+  for pair in pairs:
+    k, v = pair.split('=')
+    return_dict[k] = v
+  return return_dict
+
+
+def serialize_sanitizer_options(options):
+  """Takes dict of sanitizer options, return a command-line friendly string."""
+
+  pairs = []
+  for key, value in options.iteritems():
+    pairs.append('%s=%s' % (key, value))
+  return ':'.join(pairs)
+
+
+def set_up_symbolizers_suppressions(env, symbolizer_path, sanitizer):
+  """Sets up the symbolizer variables for an environment."""
+
+  parent_folder = os.path.dirname(os.path.dirname(__file__))
+  env['%s_SYMBOLIZER_PATH' % sanitizer] = symbolizer_path
+  for variable in env:
+    if '_OPTIONS' not in variable:
+      continue
+    options = deserialize_sanitizer_options(env[variable])
+
+    if 'external_symbolizer_path' in options:
+      options['external_symbolizer_path'] = symbolizer_path
+    if 'suppressions' in options:
+      suppressions_map = {'UBSAN_OPTIONS': 'ubsan', 'LSAN_OPTIONS': 'lsan'}
+      filename = os.path.abspath(
+          os.path.join(parent_folder, ('suppressions/%s_suppressions.txt' %
+                                       suppressions_map[variable])))
+      options['suppressions'] = filename
+    env[variable] = serialize_sanitizer_options(options)
+  return env
+
 def reproduce_crash(binary_path, symbolizer_path, current_testcase, sanitizer):
   """Reproduces a crash by running the downloaded testcase against a binary."""
-  env = current_testcase.environment
-  env['%s_SYMBOLIZER_PATH' % sanitizer] = symbolizer_path
-  env['LSAN_OPTIONS'] = ''
+
+  env = set_up_symbolizers_suppressions(current_testcase.environment,
+                                        symbolizer_path, sanitizer)
 
   command = '%s %s %s' % (binary_path, current_testcase.reproduction_args,
                           current_testcase.get_testcase_path())

@@ -36,9 +36,9 @@ class MainTest(unittest.TestCase):
     main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
     main.execute(['reproduce', '1234', '--build', 'chromium'])
 
-    self.mock.execute.assert_has_calls(
-        [mock.call('1234', False, 'standalone'),
-         mock.call('1234', True, 'standalone'),
-         mock.call('1234', False, 'download'),
-         mock.call('1234', True, 'standalone'),
-         mock.call('1234', False, 'chromium')])
+    self.mock.execute.assert_has_calls([
+        mock.call(build='standalone', current=False, testcase_id='1234'),
+        mock.call(build='standalone', current=True, testcase_id='1234'),
+        mock.call(build='download', current=False, testcase_id='1234'),
+        mock.call(build='standalone', current=True, testcase_id='1234'),
+        mock.call(build='chromium', current=False, testcase_id='1234')])

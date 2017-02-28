@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "clusterfuzz-tools",
+  "private_key_id": "d61ab35ceb0e281621c9b6f63c500be2c60d7a7c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDK7sg3pMve1tcB\n4CBea/FUQYJkUdKRlP/GK4P33rJhGlNKuReHR52/VZVILeMzphAwEpJzWLm9Xx5O\n2TrpPe9jEIGeTaLUJj0k6bgKzPgn1u296y5uT0nbtZQRnIAMWBOpQ1+Q9GOIJtm8\nZFgWmXHjR8c5cYr78LHGALF0IYu0pwpoUpyGxiNRmaxVdOj8KUeDpJgOUCa/83Kl\nCDK6TIHQYMQD1z4PupIG32IeKXv7K99IM5haCyoJW9zStVaim0pWnsZb+MGb8Vzp\nt3WgJcRJ3ZsyOVWerUibo8lusb4tXbJS6iknpD73pUUhpwvhx4RuMHPA7bCBn+7M\n/2/vOSG7AgMBAAECggEBAJyETNJ1/XQS+eQNbInG8WxN1nbvkNwOMrQyzec40RYJ\nyuIgHiCNwQJYzPnNwqYMWAHr4R6r+R4xJdwkucY5qdAbZA2nzYWZNKGqzfMuoduA\nbv+DS91ytAGMa/alYTGkIQ3009mmVLonVNpz/mj30po8u1D33P1yaHrSAAwU737V\n05w1XT9ygXQMIwdgewkQsmZBSxgFPLcvq5Y4URk8VV/Zz1nvEIY2zCek7nfDVZ9m\nQ3r34l1hoPnxj5O5oaMfNSDVfj1KkOETR17At0RzrfYO0dIeeMBd370HT5yRfOeL\n8une/gKkiY638ux4aP7k7MsGWtmNJlYJrxKh2dW0ycECgYEA5WRm8mE2OgagB7s0\nlmT/OSMM5UnFLwzzgQvFg9JGF+HpUc6TjK59Cqqdth6rHkVnHdmDTbPCkd52q9gH\np746l/sLSiY3vwMysfLM1AnDOKkiwvy/fgLxR7AlsU9p3eBFZQCoxkMQtTfy1fcT\nHFSdzRRd0nNBSq9nI+Ff9H3rsiECgYEA4niwoSH4/KbqMMXPKtnWAHcSH3pHbrw7\nB0ffefK6uwEsnFTiuU9BHNRZBOIYO0Rfdt7JWC5Iey4UBBM4bQXzom3qu4nrGJbE\n0GGuyv1ZMGP54lk4adQ7WOHauO8Lig5XHajKHuw9yIsdJFhPONg8XuXjb18/YLxB\nsMpiaoD20FsCgYB9MBwWrwLfC/qN/ZandRrsXbqN74KTOOgzRu9WD419PycMJEbW\nAevvxEkpuPb+IDY0Th6gazgGT3hINC+JVgG4K6NvpgfKUL576tvp5CIMbBGyhCkl\nZgmza+hGKebG1bxJcOCqwrL9kzkNmDdvwKYV48WIMqoxTiRlqnupfIcCwQKBgBs3\nbeKvdoDGfnaGDzOTIkjEBoWJ6HPCY0WouY6qQQ6gQYA4I1cp0yVnz5rqoQbeXKqo\nc4IJbeR/0R/8P1e602C93OvU01ANLnHsi1kRwVozaaBuIH13Z/pyihqXf8eDmayS\n0FePBI3JSiNICZ1HP1oYPpDv3Wn+tdZNPC6YeRDpAoGAeeD93I79+tsuk+ddRrZ5\nZhw2mKVG/Ot1yK9SgMXjTgS3KCSgibCaaMKRvwJpqAOsaDYsQq6yyR0EUUL31YrD\nLQw12YfrwXBA7msvOiQw3Vr3d2JGgeO5KphB1xg4N0TdNXy9utu7fvRznwEhGujC\nqpDk98qze8XgcTILbmI0SKM=\n-----END PRIVATE KEY-----\n",
+  "client_email": "public-logger@clusterfuzz-tools.iam.gserviceaccount.com",
+  "client_id": "102574177057996374441",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/public-logger%40clusterfuzz-tools.iam.gserviceaccount.com"
+}

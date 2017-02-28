@@ -28,6 +28,7 @@ setup(
             'clusterfuzz = clusterfuzz.main:execute'
         ]
     },
-    install_requires=['urlfetch==1.0.2'],
+    install_requires=['urlfetch==1.0.2', 'httplib2==0.10.3',
+                      'oauth2client==4.0.0'],
     classifiers=[
         'Programming Language :: Python :: 2.7'])

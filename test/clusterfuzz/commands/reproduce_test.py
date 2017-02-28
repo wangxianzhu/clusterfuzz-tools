@@ -43,6 +43,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
   """Test execute."""
 
   def setUp(self):
+    self.suppress_logging_methods()
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
     self.mock_os_environment({'V8_SRC': '/v8/src', 'CHROME_SRC': '/pdf/src'})
     helpers.patch(self, [
@@ -375,7 +376,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                       args, testcase_file),
         '/chrome/source/folder', environment={
             'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
-            'ASAN_OPTIONS': 'option2=false:option1=true'})])
+            'ASAN_OPTIONS': 'option2=false:option1=true'},
+        exit_on_error=False)])
 
 class SuppressOutputTest(helpers.ExtendedTestCase):
   """Test SuppressOutput."""

@@ -22,6 +22,7 @@ import webbrowser
 import urlfetch
 
 from clusterfuzz import common
+from clusterfuzz import stackdriver_logging
 from clusterfuzz import testcase
 from clusterfuzz import binary_providers
 
@@ -165,7 +166,6 @@ def serialize_sanitizer_options(options):
 def set_up_symbolizers_suppressions(env, symbolizer_path, sanitizer):
   """Sets up the symbolizer variables for an environment."""
 
-  parent_folder = os.path.dirname(os.path.dirname(__file__))
   env['%s_SYMBOLIZER_PATH' % sanitizer] = symbolizer_path
   for variable in env:
     if '_OPTIONS' not in variable:
@@ -176,12 +176,12 @@ def set_up_symbolizers_suppressions(env, symbolizer_path, sanitizer):
       options['external_symbolizer_path'] = symbolizer_path
     if 'suppressions' in options:
       suppressions_map = {'UBSAN_OPTIONS': 'ubsan', 'LSAN_OPTIONS': 'lsan'}
-      filename = os.path.abspath(
-          os.path.join(parent_folder, ('suppressions/%s_suppressions.txt' %
-                                       suppressions_map[variable])))
+      filename = common.get_location(('suppressions/%s_suppressions.txt' %
+                                      suppressions_map[variable]))
       options['suppressions'] = filename
     env[variable] = serialize_sanitizer_options(options)
   return env
+
 
 def reproduce_crash(binary_path, symbolizer_path, current_testcase, sanitizer):
   """Reproduces a crash by running the downloaded testcase against a binary."""
@@ -192,7 +192,7 @@ def reproduce_crash(binary_path, symbolizer_path, current_testcase, sanitizer):
   command = '%s %s %s' % (binary_path, current_testcase.reproduction_args,
                           current_testcase.get_testcase_path())
   common.execute(command, os.path.dirname(binary_path),
-                 environment=env)
+                 environment=env, exit_on_error=False)
 
 
 def get_binary_definition(job_type, build_param):
@@ -217,7 +217,7 @@ def maybe_warn_unreproducible(current_testcase):
     # print.
     return True
 
-
+@stackdriver_logging.log
 def execute(testcase_id, current, build):
   """Execute the reproduce command."""
 

@@ -26,6 +26,11 @@ class ExtendedTestCase(fake_filesystem_unittest.TestCase):
   """An extended version of TestCase with extra methods for fine-grained method
   call assertions."""
 
+  def suppress_logging_methods(self):
+    """Mock the stackdriver_logging methods to ensure logging doesn't work."""
+
+    patch(self, ['clusterfuzz.stackdriver_logging.send_log'])
+
   def mock_os_environment(self, environ):
     """Mock the OS environment with a provided dictionary."""
 

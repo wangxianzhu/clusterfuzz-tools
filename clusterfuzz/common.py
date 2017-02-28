@@ -17,6 +17,7 @@ import os
 import sys
 import stat
 import subprocess
+import pkg_resources
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
@@ -207,3 +208,11 @@ def ask(question, error_message, validate_fn):
     answer = raw_input('%s: ' % question)
     question = error_message
   return answer
+
+
+def get_location(filepath):
+  """Take a relative filepath and return the actual path."""
+
+  resource_package = __name__
+  resource_path = filepath
+  return   pkg_resources.resource_filename(resource_package, resource_path)

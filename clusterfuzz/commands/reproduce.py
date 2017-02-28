@@ -51,15 +51,16 @@ SUPPORTED_JOBS = {
             binary_providers.V8Builder, 'V8_SRC', 'd8', sanitizer='ASAN')},
     'chromium': {
         'linux_asan_pdfium': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROME_SRC', 'pdfium_test',
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC', 'pdfium_test',
             sanitizer='ASAN'),
         'libfuzzer_chrome_asan': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROME_SRC', sanitizer='ASAN'),
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC', sanitizer='ASAN'),
         'libfuzzer_chrome_msan': common.BinaryDefinition(
-            binary_providers.LibfuzzerMsanBuilder, 'CHROME_SRC',
+            binary_providers.LibfuzzerMsanBuilder, 'CHROMIUM_SRC',
             sanitizer='MSAN'),
         'libfuzzer_chrome_ubsan': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROME_SRC', sanitizer='UBSAN')}}
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            sanitizer='UBSAN')}}
 
 
 class SuppressOutput(object):

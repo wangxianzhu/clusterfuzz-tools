@@ -32,14 +32,18 @@ Develop
 
 1. Install [virtualenv](https://virtualenv.pypa.io).
 2. Setting up virtualenv by running `virtualenv ENV` and `source ENV/bin/activate`.
-3. Install dependencies by running `pip install -r requirements.txt`.
-3. Build "[the development mode](https://packaging.python.org/distributing/#working-in-development-mode)" binary by running `pip install -e .`.
-4. Run the binary by running `clusterfuzz --help`.
-5. Run the tests `python test.py --help`.
-6. Run the tests with coverage `coverage run test.py`.
-7. Generate the report with `coverage html -d /tmp/coverage` and see `/tmp/coverage/index.html`.
+3. Ensure `pip` is the latest version by running `pip install -U pip`.
+4. Install dependencies by running `pip install -r requirements.txt`.
+5. Build "[the development mode](https://packaging.python.org/distributing/#working-in-development-mode)" binary by running `pip install -e .`.
+6. Run the binary by running `clusterfuzz --help`.
 
-Please note that we need to run `pip install -e .` before running `clusterfuzz` if the code has been changed.
+
+Test
+-------------------------
+
+1. Run tests with: `python test.py`.
+2. Run the tests with coverage `coverage run test.py`.
+3. Generate the report with `coverage html -d /tmp/coverage` and see `/tmp/coverage/index.html`.
 
 
 Publish

@@ -289,14 +289,6 @@ class ChromiumBuilder(GenericBuilder):
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'chromium'
 
-  def out_dir_name(self):
-    """Returns the correct out dir in which to build the revision.
-
-    Overridden in this class to build to the same folder until builds
-    stop taking so long."""
-
-    return os.path.join(self.source_directory, 'out', 'clusterfuzz_builds')
-
   def pre_build_steps(self):
     common.execute('gclient runhooks', self.source_directory)
 

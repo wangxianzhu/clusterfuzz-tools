@@ -540,12 +540,6 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
 
     self.assertEqual(builder.binary_name, 'binary')
 
-  def test_out_dir_name(self):
-    """Tests the out_dir_name method."""
-
-    result = self.builder.out_dir_name()
-    self.assertEqual(result, '/chrome/src/out/clusterfuzz_builds')
-
   def test_build_target(self):
     """Tests the build_target method."""
     self.builder.build_target()

@@ -19,7 +19,7 @@ from setuptools import setup
 
 setup(
     name='clusterfuzz',
-    version='0.0.6-pre',
+    version='0.1',
     description="The command-line tools for ClusterFuzz's users",
     author='Google Inc.',
     license='Apache 2.0',
@@ -29,8 +29,12 @@ setup(
             'clusterfuzz = clusterfuzz.main:execute'
         ]
     },
-    install_requires=['urlfetch==1.0.2', 'httplib2==0.10.3',
-                      'oauth2client==4.0.0'],
+    install_requires=[
+        'crcmod==1.7',
+        'httplib2==0.10.3',
+        'oauth2client==4.0.0',
+        'urlfetch==1.0.2',
+    ],
     classifiers=[
         'Programming Language :: Python :: 2.7'],
     include_package_data=True)

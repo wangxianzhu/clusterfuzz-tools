@@ -71,7 +71,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='fuzzlibber_xunil')
     self.mock.Testcase.return_value = testcase
     with self.assertRaises(common.JobTypeNotSupportedError):
-      reproduce.execute('1234', False, 'standalone')
+      reproduce.execute(testcase_id='1234', current=False, build='standalone')
 
   def test_download_no_defined_binary(self):
     """Test what happens when no binary name is defined."""
@@ -91,7 +91,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='linux_asan_d8',
                          stacktrace_lines=stacktrace, reproducible=True)
     self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, 'download')
+    reproduce.execute(testcase_id='1234', current=False, build='download')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
@@ -119,7 +119,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='linux_asan_d8',
                          stacktrace_lines=stacktrace, reproducible=True)
     self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, 'download')
+    reproduce.execute(testcase_id='1234', current=False, build='download')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
@@ -148,7 +148,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='linux_asan_d8',
                          reproducible=True)
     self.mock.Testcase.return_value = testcase
-    reproduce.execute('1234', False, 'standalone')
+    reproduce.execute(testcase_id='1234', current=False, build='standalone')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])

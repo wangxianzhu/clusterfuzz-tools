@@ -61,34 +61,49 @@ def send_log(params):
       body=json.dumps(structure))
 
 
-def send_start(testcase_id, build, current):
+def make_basic_params(command, testcase_id, build, current):
+  """Creates the basic paramater dict."""
+
+  return {'testcaseId': testcase_id,
+          'buildType': build,
+          'current': current,
+          'command': command}
+
+
+def send_start(**kwargs):
   """Sends the basic testcase details to show a run has started."""
 
-  send_log({'testcaseId': testcase_id, 'buildType': build,
-            'current': current})
+  send_log(make_basic_params(**kwargs))
 
 
-def send_success():
+def send_success(**kwargs):
   """Sends a success message to show the reproduction completed."""
 
-  send_log({'success': True})
+  params = make_basic_params(**kwargs)
+  params['success'] = True
+  send_log(params)
 
 
-def send_failure(exception_name):
+def send_failure(exception_name, **kwargs):
   """Sends a log with success set to False."""
 
-  send_log({'exception': exception_name, 'success': False})
+  params = make_basic_params(**kwargs)
+  params['exception'] = exception_name
+  params['success'] = False
+  send_log(params)
 
 
 def log(func):
   """Log to stackdriver at the start & end of a command."""
   @functools.wraps(func)
   def wrapped(*args, **kwargs):
+    command_name = func.__module__.split('.')[-1]
     try:
-      send_start(*args, **kwargs)
+      send_start(*args, command=command_name, **kwargs)
       func(*args, **kwargs)
-      send_success()
+      send_success(*args, command=command_name, **kwargs)
     except BaseException as e:
-      send_failure(e.__class__.__name__)
+      send_failure(e.__class__.__name__, *args,
+                   command=command_name, **kwargs)
       raise
   return wrapped

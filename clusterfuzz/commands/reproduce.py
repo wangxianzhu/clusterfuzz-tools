@@ -25,6 +25,7 @@ from clusterfuzz import common
 from clusterfuzz import stackdriver_logging
 from clusterfuzz import testcase
 from clusterfuzz import binary_providers
+from clusterfuzz import reproducers
 
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
 CLUSTERFUZZ_TESTCASE_INFO_URL = ('https://cluster-fuzz.appspot.com/v2/'
@@ -40,28 +41,37 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
 SUPPORTED_JOBS = {
     'standalone': {
         'linux_asan_pdfium': common.BinaryDefinition(
-            binary_providers.PdfiumBuilder, 'PDFIUM_SRC', 'pdfium_test',
-            sanitizer='ASAN'),
+            binary_providers.PdfiumBuilder, 'PDFIUM_SRC',
+            reproducers.BaseReproducer, 'pdfium_test', sanitizer='ASAN'),
         'linux_asan_d8_dbg': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', 'd8', sanitizer='ASAN'),
+            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
+            'd8', sanitizer='ASAN'),
         'linux_asan_d8': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', 'd8', sanitizer='ASAN'),
+            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
+            'd8', sanitizer='ASAN'),
         'linux_asan_d8_v8_mipsel_db': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', 'd8', sanitizer='ASAN'),
+            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
+            'd8', sanitizer='ASAN'),
         'linux_v8_d8_tot': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', 'd8', sanitizer='ASAN')},
+            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
+            'd8', sanitizer='ASAN')},
     'chromium': {
         'linux_asan_pdfium': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC', 'pdfium_test',
-            sanitizer='ASAN'),
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.BaseReproducer, 'pdfium_test', sanitizer='ASAN'),
         'libfuzzer_chrome_asan': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC', sanitizer='ASAN'),
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.BaseReproducer, sanitizer='ASAN'),
         'libfuzzer_chrome_msan': common.BinaryDefinition(
             binary_providers.LibfuzzerMsanBuilder, 'CHROMIUM_SRC',
-            sanitizer='MSAN'),
+            reproducers.BaseReproducer, sanitizer='MSAN'),
         'libfuzzer_chrome_ubsan': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            sanitizer='UBSAN')}}
+            reproducers.BaseReproducer, sanitizer='UBSAN'),
+        'linux_ubsan_chrome': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.LinuxUbsanChromeReproducer, 'chrome',
+            sanitizer='UBSAN', target='chromium_builder_asan')}}
 
 
 class SuppressOutput(object):
@@ -143,58 +153,6 @@ def ensure_goma():
   return goma_dir
 
 
-def deserialize_sanitizer_options(options):
-  """Read options from a variable like ASAN_OPTIONS into a dict."""
-
-  pairs = options.split(':')
-  return_dict = {}
-  for pair in pairs:
-    k, v = pair.split('=')
-    return_dict[k] = v
-  return return_dict
-
-
-def serialize_sanitizer_options(options):
-  """Takes dict of sanitizer options, return a command-line friendly string."""
-
-  pairs = []
-  for key, value in options.iteritems():
-    pairs.append('%s=%s' % (key, value))
-  return ':'.join(pairs)
-
-
-def set_up_symbolizers_suppressions(env, symbolizer_path, sanitizer):
-  """Sets up the symbolizer variables for an environment."""
-
-  env['%s_SYMBOLIZER_PATH' % sanitizer] = symbolizer_path
-  for variable in env:
-    if '_OPTIONS' not in variable:
-      continue
-    options = deserialize_sanitizer_options(env[variable])
-
-    if 'external_symbolizer_path' in options:
-      options['external_symbolizer_path'] = symbolizer_path
-    if 'suppressions' in options:
-      suppressions_map = {'UBSAN_OPTIONS': 'ubsan', 'LSAN_OPTIONS': 'lsan'}
-      filename = common.get_location(('suppressions/%s_suppressions.txt' %
-                                      suppressions_map[variable]))
-      options['suppressions'] = filename
-    env[variable] = serialize_sanitizer_options(options)
-  return env
-
-
-def reproduce_crash(binary_path, symbolizer_path, current_testcase, sanitizer):
-  """Reproduces a crash by running the downloaded testcase against a binary."""
-
-  env = set_up_symbolizers_suppressions(current_testcase.environment,
-                                        symbolizer_path, sanitizer)
-
-  command = '%s %s %s' % (binary_path, current_testcase.reproduction_args,
-                          current_testcase.get_testcase_path())
-  common.execute(command, os.path.dirname(binary_path),
-                 environment=env, exit_on_error=False)
-
-
 def get_binary_definition(job_type, build_param):
   if build_param == 'download':
     for i in ['chromium', 'standalone']:
@@ -227,6 +185,9 @@ def execute(testcase_id, current, build):
   response = get_testcase_info(testcase_id)
   goma_dir = ensure_goma()
   current_testcase = testcase.Testcase(response)
+  if 'gestures' in response['testcase']:
+    raise common.JobTypeNotSupportedError(
+        '%s with gestures' % current_testcase.job_type)
 
   definition = get_binary_definition(current_testcase.job_type, build)
 
@@ -243,8 +204,7 @@ def execute(testcase_id, current, build):
     binary_provider = definition.builder( # pylint: disable=redefined-variable-type
         current_testcase, definition, current, goma_dir)
 
-  reproduce_crash(binary_provider.get_binary_path(),
-                  binary_provider.symbolizer_path, current_testcase,
-                  definition.sanitizer)
-
+  reproducer = definition.reproducer(binary_provider, current_testcase,
+                                     definition.sanitizer)
+  reproducer.reproduce_crash()
   maybe_warn_unreproducible(current_testcase)

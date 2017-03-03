@@ -32,7 +32,7 @@ def get_binary_name(stacktrace):
       binary_name = os.path.basename(l[0])
       return binary_name
 
-  raise Exception("The stacktrace doesn't contain a line starting with '%s'",
+  raise Exception("The stacktrace doesn't contain a line starting with '%s'" %
                   prefix)
 
 
@@ -47,15 +47,16 @@ class SanitizerNotProvidedError(Exception):
 class BinaryDefinition(object):
   """Holds all the necessary information to initialize a job's builder."""
 
-  def __init__(self, builder, source_var, binary_name=None, sanitizer=None,
-               kwargs=None):
+  def __init__(self, builder, source_var, reproducer, binary_name=None,
+               sanitizer=None, target=None):
     if not sanitizer:
       raise SanitizerNotProvidedError()
     self.builder = builder
     self.source_var = source_var
     self.binary_name = binary_name
     self.sanitizer = sanitizer
-    self.kwargs = kwargs if kwargs else {}
+    self.reproducer = reproducer
+    self.target = target
 
 
 class ClusterfuzzAuthError(Exception):

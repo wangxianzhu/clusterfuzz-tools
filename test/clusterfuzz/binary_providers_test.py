@@ -520,7 +520,8 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.mock.get_build_directory.return_value = '/chromium/build/dir'
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
-    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary',
+                                  target='target')
     self.builder = binary_providers.ChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir')
     self.builder.build_directory = '/chrome/src/out/clusterfuzz_builds'
@@ -550,7 +551,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
         mock.call('gclient sync', '/chrome/src'),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
-             "-j 120 -l 120 binary"), '/chrome/src',
+             "-j 120 -l 120 target"), '/chrome/src',
             capture_output=False)])
 
   def test_get_binary_path(self):

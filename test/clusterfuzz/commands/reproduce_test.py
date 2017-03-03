@@ -52,9 +52,9 @@ class ExecuteTest(helpers.ExtendedTestCase):
         'clusterfuzz.commands.reproduce.ensure_goma',
         'clusterfuzz.binary_providers.DownloadedBinary',
         'clusterfuzz.binary_providers.V8Builder',
-        'clusterfuzz.binary_providers.ChromiumBuilder',
-        'clusterfuzz.commands.reproduce.reproduce_crash'])
+        'clusterfuzz.binary_providers.ChromiumBuilder'])
     self.response = {
+        'testcase': {},
         'id': 1234,
         'crash_type': 'Bad Crash',
         'crash_state': ['halted'],
@@ -64,9 +64,19 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.get_testcase_info.return_value = self.response
     self.mock.ensure_goma.return_value = '/goma/dir'
 
+  def test_gesture_job(self):
+    """Ensures an excpetion is thrown when running a job with gestures."""
+
+    self.mock.get_testcase_info.return_value = {'testcase': {'gestures': 'yes'}}
+    self.mock.Testcase.return_value = mock.Mock(job_type='good_job')
+
+    with self.assertRaises(common.JobTypeNotSupportedError):
+      reproduce.execute(testcase_id='1234', current=False, build='standalone')
+
   def test_unsupported_job(self):
     """Tests to ensure an exception is thrown with an unsupported job type."""
 
+    self.mock.get_testcase_info.return_value = {'testcase': {}}
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='fuzzlibber_xunil')
     self.mock.Testcase.return_value = testcase
@@ -89,24 +99,27 @@ class ExecuteTest(helpers.ExtendedTestCase):
                      '/path/to/testcase')}]
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8',
-                         stacktrace_lines=stacktrace, reproducible=True)
+                         stacktrace_lines=stacktrace, reproducible=True,
+                         reproduction_args='--always-opt')
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='download')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
-    self.assert_exact_calls(
-        self.mock.DownloadedBinary.return_value.get_binary_path,
-        [mock.call()])
     self.assert_exact_calls(self.mock.DownloadedBinary,
                             [mock.call(1234, 'chrome_build_url', 'binary')])
-    self.assert_exact_calls(self.mock.reproduce_crash,
-                            [mock.call('/path/to/binary', '/path/to/symbolizer',
-                                       testcase, 'ASAN')])
+    self.assert_exact_calls(
+        self.mock.get_binary_definition.return_value.reproducer,
+        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN')])
 
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
+
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.get_binary_definition'])
+    self.mock.get_binary_definition.return_value = mock.Mock(
+        binary_name='binary', sanitizer='ASAN')
     self.mock.DownloadedBinary.return_value = mock.Mock(symbolizer_path=(
         '/path/to/symbolizer'))
     self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
@@ -124,14 +137,11 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
-    self.assert_exact_calls(
-        self.mock.DownloadedBinary.return_value.get_binary_path,
-        [mock.call()])
     self.assert_exact_calls(self.mock.DownloadedBinary,
-                            [mock.call(1234, 'chrome_build_url', 'd8')])
-    self.assert_exact_calls(self.mock.reproduce_crash,
-                            [mock.call('/path/to/binary', '/path/to/symbolizer',
-                                       testcase, 'ASAN')])
+                            [mock.call(1234, 'chrome_build_url', 'binary')])
+    self.assert_exact_calls(
+        self.mock.get_binary_definition.return_value.reproducer,
+        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN')])
 
   def test_grab_data_standalone(self):
     """Ensures all method calls are made correctly when building locally."""
@@ -146,7 +156,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
      .symbolizer_path) = '/path/to/symbolizer'
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='linux_asan_d8',
-                         reproducible=True)
+                         reproducible=True, reproduction_args='--always-opt')
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='standalone')
 
@@ -154,15 +164,13 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(
-        (self.mock.get_binary_definition.return_value.builder.return_value
-         .get_binary_path), [mock.call()])
-    self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.builder, [
             mock.call(testcase, self.mock.get_binary_definition.return_value,
                       False, '/goma/dir')])
-    self.assert_exact_calls(self.mock.reproduce_crash, [
-        mock.call('/path/to/binary', '/path/to/symbolizer', testcase,
-                  'ASAN')])
+    self.assert_exact_calls(
+        self.mock.get_binary_definition.return_value.reproducer,
+        [mock.call((self.mock.get_binary_definition.return_value.builder
+                    .return_value), testcase, 'ASAN')])
 
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):
@@ -348,37 +356,6 @@ class EnsureGomaTest(helpers.ExtendedTestCase):
     self.assertEqual(result, goma_dir)
 
 
-class ReproduceCrashTest(helpers.ExtendedTestCase):
-  """Tests the reproduce_crash method."""
-
-  def setUp(self):
-    helpers.patch(self, ['clusterfuzz.common.execute'])
-
-  def test_reproduce_crash(self):
-    """Ensures that the crash reproduction is called correctly."""
-
-    self.mock_os_environment({'ASAN_SYMBOLIZER_PATH': '/llvm/sym/path'})
-    testcase_id = 123456
-    testcase_file = os.path.expanduser(
-        os.path.join('~', '.clusterfuzz', '%s_testcase' % testcase_id,
-                     'testcase.js'))
-    args = '--turbo --always-opt --random-seed=12345'
-    source = '/chrome/source/folder/d8'
-    env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
-    mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
-                                environment=env)
-    mocked_testcase.get_testcase_path.return_value = testcase_file
-
-    reproduce.reproduce_crash(source, '/chrome/source/folder/llvm-symbolizer',
-                              mocked_testcase, 'ASAN')
-    self.assert_exact_calls(self.mock.execute, [mock.call(
-        '%s %s %s' % ('/chrome/source/folder/d8',
-                      args, testcase_file),
-        '/chrome/source/folder', environment={
-            'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
-            'ASAN_OPTIONS': 'option2=false:option1=true'},
-        exit_on_error=False)])
-
 class SuppressOutputTest(helpers.ExtendedTestCase):
   """Test SuppressOutput."""
 
@@ -440,55 +417,3 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
 
     with self.assertRaises(common.JobTypeNotSupportedError):
       result = reproduce.get_binary_definition('fuzzlibber_nasm', 'chromium')
-
-
-class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
-  """Tests the set_up_symbolizers_suppressions method."""
-
-  def setUp(self):
-    helpers.patch(self, ['os.path.dirname'])
-
-  def test_set_up_correct_env(self):
-    """Ensures all the setup methods work correctly."""
-
-    self.mock.dirname.return_value = '/parent/dir'
-    env = {'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:'
-                             'other_option=1:suppressions=/not/correct/path'),
-           'LSAN_OPTIONS': 'other=0:suppressions=not/correct/path:option=1'}
-    result = reproduce.set_up_symbolizers_suppressions(
-        env, '/path/to/symbolizer', 'UBSAN')
-    for i in result:
-      if '_OPTIONS' in i:
-        result[i] = reproduce.deserialize_sanitizer_options(result[i])
-    self.assertEqual(result, {
-        'UBSAN_OPTIONS': {
-            'external_symbolizer_path': '/path/to/symbolizer',
-            'other_option': '1',
-            'suppressions': '/parent/dir/suppressions/ubsan_suppressions.txt'},
-        'LSAN_OPTIONS': {
-            'other': '0',
-            'suppressions': '/parent/dir/suppressions/lsan_suppressions.txt',
-            'option': '1'},
-        'UBSAN_SYMBOLIZER_PATH': '/path/to/symbolizer'})
-
-
-class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
-  """Test the serializer & deserializers for sanitizer options."""
-
-  def test_serialize(self):
-    in_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
-               'option': '1',
-               'symbolizer': 'abcde/llvm-symbolizer'}
-    out_str = ('suppressions=/a/b/c/d/suppresions.txt:option=1'
-               ':symbolizer=abcde/llvm-symbolizer')
-
-    self.assertEqual(reproduce.serialize_sanitizer_options(in_dict), out_str)
-
-  def test_deserialize(self):
-    out_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
-                'option': '1',
-                'symbolizer': 'abcde/llvm-symbolizer'}
-    in_str = ('suppressions=/a/b/c/d/suppresions.txt:option=1'
-              ':symbolizer=abcde/llvm-symbolizer')
-
-    self.assertEqual(reproduce.deserialize_sanitizer_options(in_str), out_dict)

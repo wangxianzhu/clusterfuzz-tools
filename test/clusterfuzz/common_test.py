@@ -260,4 +260,4 @@ class BinaryDefinitionTest(helpers.ExtendedTestCase):
 
   def test_no_sanitizer(self):
     with self.assertRaises(common.SanitizerNotProvidedError):
-      common.BinaryDefinition('builder', 'CHROME_SRC')
+      common.BinaryDefinition('builder', 'CHROME_SRC', 'reproducer')

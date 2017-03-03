@@ -280,12 +280,16 @@ class ChromiumBuilder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir):
 
+    target_name = None
     binary_name = binary_definition.binary_name
+    if binary_definition.target:
+      target_name = binary_definition.target
     if not binary_name:
       binary_name = common.get_binary_name(testcase.stacktrace_lines)
     super(ChromiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
-        goma_dir, os.environ.get(binary_definition.source_var), binary_name)
+        goma_dir, os.environ.get(binary_definition.source_var), binary_name,
+        target_name)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'chromium'
 

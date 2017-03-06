@@ -120,7 +120,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         exit_on_error=False)])
 
 
-class LinuxUbsanChromeReproducerTest(ReproduceCrashTest):
+class LinuxChromeJobReproducerTest(ReproduceCrashTest):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
 
   def setUp(self):
@@ -130,7 +130,7 @@ class LinuxUbsanChromeReproducerTest(ReproduceCrashTest):
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     self.binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
     self.testcase = mock.Mock()
-    self.reproducer = reproducers.LinuxUbsanChromeReproducer(
+    self.reproducer = reproducers.LinuxChromeJobReproducer(
         self.binary_provider, self.testcase, 'UBSAN')
     self.reproducer.args = '--always-opt'
 

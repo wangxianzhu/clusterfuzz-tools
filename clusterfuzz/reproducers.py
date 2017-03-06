@@ -83,7 +83,7 @@ class BaseReproducer(object):
                    environment=self.environment, exit_on_error=False)
 
 
-class LinuxUbsanChromeReproducer(BaseReproducer):
+class LinuxChromeJobReproducer(BaseReproducer):
   """Adds and extre pre-build step to BaseReproducer."""
 
   def pre_build_steps(self):
@@ -93,4 +93,4 @@ class LinuxUbsanChromeReproducer(BaseReproducer):
     if os.path.exists(user_profile_dir):
       shutil.rmtree(user_profile_dir)
     self.args += ' --user-data-dir=%s' % user_profile_dir
-    super(LinuxUbsanChromeReproducer, self).pre_build_steps()
+    super(LinuxChromeJobReproducer, self).pre_build_steps()

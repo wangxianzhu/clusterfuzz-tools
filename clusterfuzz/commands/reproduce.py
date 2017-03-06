@@ -70,8 +70,12 @@ SUPPORTED_JOBS = {
             reproducers.BaseReproducer, sanitizer='UBSAN'),
         'linux_ubsan_chrome': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxUbsanChromeReproducer, 'chrome',
-            sanitizer='UBSAN', target='chromium_builder_asan')}}
+            reproducers.LinuxChromeJobReproducer, 'chrome',
+            sanitizer='UBSAN', target='chromium_builder_asan'),
+        'linux_msan_chrome': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.LinuxChromeJobReproducer, 'chrome',
+            sanitizer='MSAN', target='chromium_builder_asan')}}
 
 
 class SuppressOutput(object):

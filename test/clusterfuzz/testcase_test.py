@@ -20,7 +20,8 @@ from test import helpers
 from clusterfuzz import testcase
 
 def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
-                        window_arg='', minimized_args='', extension='js'):
+                        window_arg='', minimized_args='', extension='js',
+                        gestures=None):
   """Builds a testcase instance that can be used for testing."""
   if extension is not None:
     extension = '.%s' % extension
@@ -38,6 +39,8 @@ def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
                    'one_time_crasher_flag': False,
                    'minimized_arguments': minimized_args,
                    'absolute_path': '/absolute/path%s' % extension}}
+  if gestures:
+    testcase_json['testcase']['gestures'] = []
 
   return testcase.Testcase(testcase_json)
 
@@ -74,7 +77,8 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
                      '--turbo /path/to/testcase')},
         {'content': '[Environment] TEST_TWO = third=3:fourth=4'}]
     result = build_base_testcase(
-        stacktrace_lines=stacktrace_lines, revision=5, build_url='build_url')
+        stacktrace_lines=stacktrace_lines, revision=5, build_url='build_url',
+        gestures=True)
     self.assertEqual(result.id, '12345')
     self.assertEqual(result.revision, 5)
     self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second=2',
@@ -84,6 +88,7 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     self.assertEqual(result.reproduction_args, '--random-seed=23 --turbo')
     self.assertEqual(result.build_url, 'build_url')
     self.assertTrue(result.reproducible)
+    self.assertEqual(result.gestures, [])
 
 
 class GetTestcasePathTest(helpers.ExtendedTestCase):

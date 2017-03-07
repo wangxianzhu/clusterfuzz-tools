@@ -72,6 +72,7 @@ class Testcase(object):
     self.file_extension = self.get_file_extension(
         testcase_json['testcase']['absolute_path'])
     self.reproducible = not testcase_json['testcase']['one_time_crasher_flag']
+    self.gestures = testcase_json['testcase'].get('gestures')
 
   def testcase_dir_name(self):
     """Returns a testcases' respective directory."""

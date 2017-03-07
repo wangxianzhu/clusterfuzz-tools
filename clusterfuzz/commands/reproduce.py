@@ -188,9 +188,10 @@ def execute(testcase_id, current, build):
 
   response = get_testcase_info(testcase_id)
   current_testcase = testcase.Testcase(response)
+
   if 'gestures' in response['testcase']:
-    raise common.JobTypeNotSupportedError(
-        '%s with gestures' % current_testcase.job_type)
+    print ('Warning: testcases using gestures are still in development and are '
+           'not guaranteed to reproduce correctly.')
 
   definition = get_binary_definition(current_testcase.job_type, build)
 

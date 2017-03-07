@@ -34,6 +34,8 @@ setup(
         'httplib2==0.10.3',
         'oauth2client==4.0.0',
         'urlfetch==1.0.2',
+        'psutil==5.2.0',
+        'xvfbwrapper==0.2.9'
     ],
     classifiers=[
         'Programming Language :: Python :: 2.7'],

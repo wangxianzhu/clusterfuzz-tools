@@ -144,21 +144,10 @@ def get_stored_auth_header():
     return f.read()
 
 
-def execute(command,
-            cwd,
-            print_output=True,
-            capture_output=True,
-            exit_on_error=True,
-            environment=None):
-  """Execute a bash command."""
-  def _print(s):
-    if print_output:
-      print s
+def start_execute(command, cwd, environment):
+  """Runs a command, and returns the subprocess.Popen object."""
 
-  _print('Running: %s' % command)
-  output_chunks = []
-
-  proc = subprocess.Popen(
+  return subprocess.Popen(
       command,
       shell=True,
       stdout=subprocess.PIPE,
@@ -166,6 +155,15 @@ def execute(command,
       cwd=cwd,
       env=environment)
 
+
+def wait_execute(proc, exit_on_error, capture_output=True, print_output=True):
+  """Looks after a command as it runs, and prints/returns its output after."""
+
+  def _print(s):
+    if print_output:
+      print s
+
+  output_chunks = []
   for chunk in iter(lambda: proc.stdout.read(100), b''):
     if print_output:
       sys.stdout.write(chunk)
@@ -173,7 +171,6 @@ def execute(command,
       # According to: http://stackoverflow.com/questions/19926089, this is the
       # fastest way to build strings.
       output_chunks.append(chunk)
-
   proc.wait()
   if proc.returncode != 0:
     _print('| Return code is non-zero (%d).' % proc.returncode)
@@ -181,6 +178,17 @@ def execute(command,
       _print('| Exit.')
       sys.exit(proc.returncode)
   return proc.returncode, ''.join(output_chunks)
+
+
+def execute(command, cwd, print_output=True, capture_output=True,
+            exit_on_error=True, environment=None):
+  """Execute a bash command."""
+
+  if print_output:
+    print 'Running: %s' % command
+
+  proc = start_execute(command, cwd, environment)
+  return wait_execute(proc, exit_on_error, capture_output, print_output)
 
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.

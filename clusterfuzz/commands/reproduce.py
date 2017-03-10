@@ -126,7 +126,7 @@ def send_request(url):
   header = common.get_stored_auth_header()
   response = None
   for _ in range(2):
-    if not header or (response and response.status_code == 401):
+    if not header or (response is not None and response.status_code == 401):
       header = get_verification_header()
     response = requests.get(
         url=url, headers={'Authorization': header}, allow_redirects=True)

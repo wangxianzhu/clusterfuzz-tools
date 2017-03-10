@@ -35,6 +35,7 @@ setup(
         'oauth2client==4.0.0',
         'urlfetch==1.0.2',
         'psutil==5.2.0',
+        'pyOpenSSL==16.2.0',
         'xvfbwrapper==0.2.9'
     ],
     classifiers=[

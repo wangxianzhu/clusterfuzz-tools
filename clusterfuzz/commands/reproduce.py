@@ -64,6 +64,9 @@ SUPPORTED_JOBS = {
         'libfuzzer_chrome_asan': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
             reproducers.BaseReproducer, sanitizer='ASAN'),
+        'libfuzzer_chrome_asan_debug': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.BaseReproducer, sanitizer='ASAN'),
         'libfuzzer_chrome_msan': common.BinaryDefinition(
             binary_providers.LibfuzzerMsanBuilder, 'CHROMIUM_SRC',
             reproducers.BaseReproducer, sanitizer='MSAN'),

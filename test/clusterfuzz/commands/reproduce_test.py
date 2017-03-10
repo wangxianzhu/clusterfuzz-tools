@@ -70,7 +70,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.get_testcase_info.return_value = {'testcase': {'gestures': 'yes'}}
     self.mock.Testcase.return_value = mock.Mock(job_type='good_job')
 
-    with self.assertRaises(common.JobTypeNotSupportedError):
+    with self.assertRaises(SystemExit):
       reproduce.execute(testcase_id='1234', current=False, build='standalone')
 
   def test_unsupported_job(self):
@@ -80,7 +80,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=1234, build_url='chrome_build_url',
                          revision=123456, job_type='fuzzlibber_xunil')
     self.mock.Testcase.return_value = testcase
-    with self.assertRaises(common.JobTypeNotSupportedError):
+    with self.assertRaises(SystemExit):
       reproduce.execute(testcase_id='1234', current=False, build='standalone')
 
   def test_download_no_defined_binary(self):

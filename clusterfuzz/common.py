@@ -36,7 +36,14 @@ def get_binary_name(stacktrace):
                   prefix)
 
 
-class SanitizerNotProvidedError(Exception):
+class ExpectedException(Exception):
+  """A general Exception to extend from."""
+
+  def __init__(self, message):
+    super(ExpectedException, self).__init__(message)
+
+
+class SanitizerNotProvidedError(ExpectedException):
   """An error to notify when a sanitizer isn't passed to a BinaryDefinition"""
 
   def __init__(self):
@@ -59,7 +66,7 @@ class BinaryDefinition(object):
     self.target = target
 
 
-class ClusterfuzzAuthError(Exception):
+class ClusterfuzzAuthError(ExpectedException):
   """An exception to deal with Clusterfuzz Authentication errors.
 
   Makes the response dict available for inspection later on when
@@ -72,7 +79,7 @@ class ClusterfuzzAuthError(Exception):
 
     self.response = response
 
-class PermissionsTooPermissiveError(Exception):
+class PermissionsTooPermissiveError(ExpectedException):
   """An exception to deal with file permissions errors.
 
   Stores the filename and the current permissions.."""
@@ -91,7 +98,7 @@ class PermissionsTooPermissiveError(Exception):
     self.current_permissions = current_permissions
 
 
-class GomaNotInstalledError(Exception):
+class GomaNotInstalledError(ExpectedException):
   """An exception to tell people GOMA isn not installed."""
 
   def __init__(self):
@@ -101,7 +108,7 @@ class GomaNotInstalledError(Exception):
     super(GomaNotInstalledError, self).__init__(message)
 
 
-class JobTypeNotSupportedError(Exception):
+class JobTypeNotSupportedError(ExpectedException):
   """An exception raised when user tries to run an unsupported build type."""
 
   def __init__(self, job_type):

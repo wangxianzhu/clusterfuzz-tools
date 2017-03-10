@@ -17,6 +17,7 @@ import json
 import time
 import os
 import binascii
+import sys
 import functools
 
 from clusterfuzz import common
@@ -99,11 +100,15 @@ def log(func):
   def wrapped(*args, **kwargs):
     command_name = func.__module__.split('.')[-1]
     try:
-      send_start(*args, command=command_name, **kwargs)
-      func(*args, **kwargs)
-      send_success(*args, command=command_name, **kwargs)
-    except BaseException as e:
-      send_failure(e.__class__.__name__, *args,
-                   command=command_name, **kwargs)
-      raise
+      try:
+        send_start(*args, command=command_name, **kwargs)
+        func(*args, **kwargs)
+        send_success(*args, command=command_name, **kwargs)
+      except BaseException as e:
+        send_failure(e.__class__.__name__, *args,
+                     command=command_name, **kwargs)
+        raise
+    except common.ExpectedException as e:
+      print '%s: %s' % (e.__class__.__name__, e.message)
+      sys.exit(1)
   return wrapped

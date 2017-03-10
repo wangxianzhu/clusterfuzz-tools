@@ -54,6 +54,26 @@ class TestSendLog(helpers.ExtendedTestCase):
              uri='https://logging.googleapis.com/v2/entries:write',
              method='POST', body=json.dumps(structure))])
 
+
+class LogTest(helpers.ExtendedTestCase):
+  """Tests the log method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.stackdriver_logging.send_start',
+                         'clusterfuzz.stackdriver_logging.send_success',
+                         'clusterfuzz.stackdriver_logging.send_failure'])
+
+  def raise_func(self):
+    raise Exception('Oops')
+
+  def test_raise_exception(self):
+    """Test raising a non clusterfuzz exception."""
+
+    to_call = stackdriver_logging.log(self.raise_func)
+    with self.assertRaises(Exception):
+      to_call()
+
+
 class TestGetSessionId(helpers.ExtendedTestCase):
   """Tests the get session ID method"""
 

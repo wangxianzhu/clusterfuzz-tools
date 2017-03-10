@@ -157,6 +157,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
 
     reproducer = reproducers.LinuxChromeJobReproducer(
         mocked_provider, mocked_testcase, 'UBSAN')
+    reproducer.gestures = ['gesture,1', 'gesture,2']
     reproducer.reproduce_crash()
     self.assert_exact_calls(self.mock.start_execute, [mock.call(
         ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '

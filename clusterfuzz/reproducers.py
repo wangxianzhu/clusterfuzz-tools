@@ -218,5 +218,6 @@ class LinuxChromeJobReproducer(BaseReproducer):
       self.environment['DISPLAY'] = display_name
       process = common.start_execute(command, os.path.dirname(self.binary_path),
                                      environment=self.environment)
-      self.run_gestures(process, display_name)
+      if self.gestures:
+        self.run_gestures(process, display_name)
       common.wait_execute(process, exit_on_error=False)

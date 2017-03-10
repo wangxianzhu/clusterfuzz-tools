@@ -181,7 +181,7 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.get_stored_auth_header',
         'clusterfuzz.common.store_auth_header',
         'clusterfuzz.commands.reproduce.get_verification_header',
-        'urlfetch.fetch'])
+        'requests.get'])
 
   def test_correct_stored_authorization(self):
     """Ensures that the testcase info is returned when stored auth is correct"""
@@ -193,9 +193,9 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         'crash_state': ['Halted']}
 
     self.mock.get_stored_auth_header.return_value = 'Bearer 12345'
-    self.mock.fetch.return_value = mock.Mock(
-        status=200,
-        body=json.dumps(response_dict),
+    self.mock.get.return_value = mock.Mock(
+        status_code=200,
+        text=json.dumps(response_dict),
         headers=response_headers)
 
     response = reproduce.get_testcase_info('12345')
@@ -203,9 +203,10 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.get_stored_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.store_auth_header, [
         mock.call('Bearer 12345')])
-    self.assert_exact_calls(self.mock.fetch, [mock.call(
+    self.assert_exact_calls(self.mock.get, [mock.call(
         url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345',
-        headers={'Authorization': 'Bearer 12345'})])
+        headers={'Authorization': 'Bearer 12345'},
+        allow_redirects=True)])
     self.assertEqual(response, response_dict)
 
   def test_incorrect_stored_header(self):
@@ -217,10 +218,10 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         'crash_type': 'Bad Crash',
         'crash_state': ['Halted']}
 
-    self.mock.fetch.side_effect = [
-        mock.Mock(status=401),
-        mock.Mock(status=200,
-                  body=json.dumps(response_dict),
+    self.mock.get.side_effect = [
+        mock.Mock(status_code=401),
+        mock.Mock(status_code=200,
+                  text=json.dumps(response_dict),
                   headers=response_headers)]
     self.mock.get_stored_auth_header.return_value = 'Bearer 12345'
     self.mock.get_verification_header.return_value = 'VerificationCode 12345'
@@ -229,12 +230,14 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.get_stored_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.get_verification_header, [mock.call()])
-    self.assert_exact_calls(self.mock.fetch, [
+    self.assert_exact_calls(self.mock.get, [
         mock.call(
+            allow_redirects=True,
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345',
             headers={'Authorization': 'Bearer 12345'}),
         mock.call(
             headers={'Authorization': 'VerificationCode 12345'},
+            allow_redirects=True,
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345')])
     self.assert_exact_calls(self.mock.store_auth_header, [
         mock.call('Bearer 12345')])
@@ -252,9 +255,9 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
 
     self.mock.get_stored_auth_header.return_value = None
     self.mock.get_verification_header.return_value = 'VerificationCode 12345'
-    self.mock.fetch.return_value = mock.Mock(
-        status=200,
-        body=json.dumps(response_dict),
+    self.mock.get.return_value = mock.Mock(
+        status_code=200,
+        text=json.dumps(response_dict),
         headers=response_headers)
 
     response = reproduce.get_testcase_info('12345')
@@ -263,8 +266,9 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.get_verification_header, [mock.call()])
     self.assert_exact_calls(self.mock.store_auth_header, [
         mock.call('Bearer 12345')])
-    self.assert_exact_calls(self.mock.fetch, [mock.call(
+    self.assert_exact_calls(self.mock.get, [mock.call(
         headers={'Authorization': 'VerificationCode 12345'},
+        allow_redirects=True,
         url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345')])
     self.assertEqual(response, response_dict)
 
@@ -285,19 +289,21 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
 
     self.mock.get_stored_auth_header.return_value = 'Bearer 12345'
     self.mock.get_verification_header.return_value = 'VerificationCode 12345'
-    self.mock.fetch.return_value = mock.Mock(
-        status=401,
-        body=json.dumps(response_dict),
+    self.mock.get.return_value = mock.Mock(
+        status_code=401,
+        text=json.dumps(response_dict),
         headers=response_headers)
 
     with self.assertRaises(common.ClusterfuzzAuthError) as cm:
       reproduce.get_testcase_info('12345')
     self.assertIn('Invalid verification code (12345)', cm.exception.message)
-    self.assert_exact_calls(self.mock.fetch, [
+    self.assert_exact_calls(self.mock.get, [
         mock.call(
+            allow_redirects=True,
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345',
             headers={'Authorization': 'Bearer 12345'}),
         mock.call(
+            allow_redirects=True,
             headers={'Authorization': 'VerificationCode 12345'},
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL % '12345')])
 

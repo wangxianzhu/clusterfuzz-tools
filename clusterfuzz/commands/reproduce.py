@@ -19,7 +19,8 @@ import os
 import json
 import urllib
 import webbrowser
-import urlfetch
+
+import requests
 
 from clusterfuzz import common
 from clusterfuzz import stackdriver_logging
@@ -27,9 +28,10 @@ from clusterfuzz import testcase
 from clusterfuzz import binary_providers
 from clusterfuzz import reproducers
 
+
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
-CLUSTERFUZZ_TESTCASE_INFO_URL = ('https://cluster-fuzz.appspot.com/v2/'
-                                 'testcase-detail/oauth?testcaseId=%s')
+CLUSTERFUZZ_TESTCASE_INFO_URL = (
+    'https://clusterfuzz.com/v2/testcase-detail/oauth?testcaseId=%s')
 GOMA_DIR = os.path.expanduser(os.path.join('~', 'goma'))
 GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
     urllib.urlencode({
@@ -121,14 +123,15 @@ def send_request(url):
   header = common.get_stored_auth_header()
   response = None
   for _ in range(2):
-    if not header or (response and response.status == 401):
+    if not header or (response and response.status_code == 401):
       header = get_verification_header()
-    response = urlfetch.fetch(url=url, headers={'Authorization': header})
-    if response.status == 200:
+    response = requests.get(
+        url=url, headers={'Authorization': header}, allow_redirects=True)
+    if response.status_code == 200:
       break
 
-  if response.status != 200:
-    raise common.ClusterfuzzAuthError(response.body)
+  if response.status_code != 200:
+    raise common.ClusterfuzzAuthError(response.text)
   common.store_auth_header(response.headers[CLUSTERFUZZ_AUTH_HEADER])
 
   return response
@@ -141,7 +144,7 @@ def get_testcase_info(testcase_id):
   """
 
   url = CLUSTERFUZZ_TESTCASE_INFO_URL % testcase_id
-  return json.loads(send_request(url).body)
+  return json.loads(send_request(url).text)
 
 def ensure_goma():
   """Ensures GOMA is installed and ready for use, and starts it."""

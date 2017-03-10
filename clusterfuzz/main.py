@@ -32,6 +32,9 @@ def execute(argv=None):
       '-b', '--build', action='store', default='standalone',
       choices=['download', 'chromium', 'standalone'],
       help='Select which type of build to run the testcase against.')
+  reproduce.add_argument(
+      '-dg', '--disable-goma', action='store_true', default=False,
+      help='Disable GOMA when building binaries locally')
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

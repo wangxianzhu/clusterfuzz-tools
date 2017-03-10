@@ -186,7 +186,7 @@ def maybe_warn_unreproducible(current_testcase):
     return True
 
 @stackdriver_logging.log
-def execute(testcase_id, current, build):
+def execute(testcase_id, current, build, disable_goma):
   """Execute the reproduce command."""
 
   print 'Reproduce %s (current=%s)' % (testcase_id, current)
@@ -211,7 +211,7 @@ def execute(testcase_id, current, build):
     binary_provider = binary_providers.DownloadedBinary(
         current_testcase.id, current_testcase.build_url, binary_name)
   else:
-    goma_dir = ensure_goma()
+    goma_dir = None if disable_goma else ensure_goma()
     binary_provider = definition.builder( # pylint: disable=redefined-variable-type
         current_testcase, definition, current, goma_dir)
 

@@ -177,6 +177,33 @@ class GenericBuilder(BinaryProvider):
                          (command, self.source_directory))
     common.execute(command, self.source_directory)
 
+  def deserialize_gn_args(self, args):
+    """Convert gn args into a dict."""
+
+    args_hash = {}
+    for line in args:
+      key, val = line.split(' = ')
+      args_hash[key] = val
+    return args_hash
+
+  def serialize_gn_args(self, args_hash):
+    args = []
+    for key, val in args_hash.iteritems():
+      args.append('%s = %s' % (key, val))
+    return args
+
+  def setup_gn_goma_params(self, gn_args):
+    """Ensures that goma_dir and gn_goma are used correctly."""
+
+    if not self.goma_dir or (
+        'use_goma' in gn_args and gn_args['use_goma'] == 'false'):
+      self.goma_dir = False
+      gn_args.pop('goma_dir', None)
+      gn_args['use_goma'] = 'false'
+    else:
+      gn_args['goma_dir'] = '"%s"' % self.goma_dir
+    return gn_args
+
   def setup_gn_args(self):
     """Ensures that args.gn is set up properly."""
 
@@ -191,10 +218,12 @@ class GenericBuilder(BinaryProvider):
     with open(os.path.join(self.build_dir_name(), 'args.gn'), 'r') as f:
       lines = [l.strip() for l in f.readlines()]
 
+    args_hash = self.deserialize_gn_args(lines)
+    args_hash = self.setup_gn_goma_params(args_hash)
+    lines = self.serialize_gn_args(args_hash)
+
     with open(args_gn_location, 'w') as f:
       for line in lines:
-        if 'goma_dir' in line:
-          line = 'goma_dir = "%s"' % self.goma_dir
         f.write(line)
         f.write('\n')
       if self.gn_args_options:
@@ -209,6 +238,12 @@ class GenericBuilder(BinaryProvider):
 
     pass
 
+  def get_goma_cores(self):
+    """Choose the correct amount of GOMA cores for a build."""
+
+    cpu_count = multiprocessing.cpu_count()
+    return 10 * cpu_count if self.goma_dir else (3 * cpu_count) / 4
+
   def build_target(self):
     """Build the correct revision in the source directory."""
 
@@ -216,11 +251,11 @@ class GenericBuilder(BinaryProvider):
     common.execute('gclient sync', self.source_directory)
     #Note: gclient sync must be run before setting up the gn args
     self.setup_gn_args()
-    goma_cores = 10 * multiprocessing.cpu_count()
+    goma_cores = self.get_goma_cores()
     common.execute(
         ("ninja -w 'dupbuild=err' -C %s -j %i -l %i %s" % (
-            self.build_directory, goma_cores, goma_cores, self.target)),
-        self.source_directory, capture_output=False)
+            self.build_directory, goma_cores, goma_cores,
+            self.target)), self.source_directory, capture_output=False)
 
   def get_build_directory(self):
     """Returns the location of the correct build to use for reproduction."""

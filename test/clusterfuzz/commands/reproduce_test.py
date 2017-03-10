@@ -71,7 +71,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Testcase.return_value = mock.Mock(job_type='good_job')
 
     with self.assertRaises(SystemExit):
-      reproduce.execute(testcase_id='1234', current=False, build='standalone')
+      reproduce.execute(testcase_id='1234', current=False, build='standalone',
+                        disable_goma=False)
 
   def test_unsupported_job(self):
     """Tests to ensure an exception is thrown with an unsupported job type."""
@@ -81,7 +82,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='fuzzlibber_xunil')
     self.mock.Testcase.return_value = testcase
     with self.assertRaises(SystemExit):
-      reproduce.execute(testcase_id='1234', current=False, build='standalone')
+      reproduce.execute(testcase_id='1234', current=False, build='standalone',
+                        disable_goma=False)
 
   def test_download_no_defined_binary(self):
     """Test what happens when no binary name is defined."""
@@ -102,7 +104,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          stacktrace_lines=stacktrace, reproducible=True,
                          reproduction_args='--always-opt')
     self.mock.Testcase.return_value = testcase
-    reproduce.execute(testcase_id='1234', current=False, build='download')
+    reproduce.execute(testcase_id='1234', current=False, build='download',
+                      disable_goma=False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
@@ -132,7 +135,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='linux_asan_d8',
                          stacktrace_lines=stacktrace, reproducible=True)
     self.mock.Testcase.return_value = testcase
-    reproduce.execute(testcase_id='1234', current=False, build='download')
+    reproduce.execute(testcase_id='1234', current=False, build='download',
+                      disable_goma=False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
@@ -158,7 +162,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          revision=123456, job_type='linux_asan_d8',
                          reproducible=True, reproduction_args='--always-opt')
     self.mock.Testcase.return_value = testcase
-    reproduce.execute(testcase_id='1234', current=False, build='standalone')
+    reproduce.execute(testcase_id='1234', current=False, build='standalone',
+                      disable_goma=False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])

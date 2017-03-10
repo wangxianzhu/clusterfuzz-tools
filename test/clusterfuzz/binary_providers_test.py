@@ -273,10 +273,10 @@ class BuildTargetTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.V8Builder.setup_gn_args',
-        'multiprocessing.cpu_count',
+        'clusterfuzz.binary_providers.V8Builder.get_goma_cores',
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision'])
-    self.mock.cpu_count.return_value = 12
+    self.mock.get_goma_cores.return_value = 120
 
   def test_correct_calls(self):
     """Tests the correct checks and commands are run to build."""
@@ -474,6 +474,28 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
       self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
                                   'pdf_is_standalone = true\n'))
 
+  def test_gn_args_no_goma(self):
+    """Tests the args.gn parsing of extra values when not using goma."""
+
+    os.makedirs(self.testcase_dir)
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'w') as f:
+      f.write('Not correct args.gn')
+    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    os.makedirs(build_dir)
+    with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
+      f.write('goma_dir = /not/correct/dir\n')
+      f.write('use_goma = true')
+
+    self.builder.build_directory = self.testcase_dir
+    self.builder.goma_dir = None
+    self.builder.setup_gn_args()
+
+    self.assert_exact_calls(self.mock.execute, [mock.call(
+        'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
+    with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
+      self.assertEqual(f.read(), ('use_goma = false\n'
+                                  'pdf_is_standalone = true\n'))
+
 
 class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
   """Tests the build_target method in PdfiumBuilder."""
@@ -482,10 +504,10 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.PdfiumBuilder.setup_gn_args',
         'clusterfuzz.common.execute',
-        'multiprocessing.cpu_count',
+        'clusterfuzz.binary_providers.PdfiumBuilder.get_goma_cores',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.get_pdfium_sha'])
-    self.mock.cpu_count.return_value = 12
+    self.mock.get_goma_cores.return_value = 120
     self.mock.sha_from_revision.return_value = 'chrome_sha'
     testcase = mock.Mock(id=1234, build_url='', revision=54321)
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
@@ -513,22 +535,39 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.ChromiumBuilder.setup_gn_args',
-        'clusterfuzz.binary_providers.ChromiumBuilder.get_build_directory',
-        'multiprocessing.cpu_count'])
-    self.mock.cpu_count.return_value = 12
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_build_directory'])
     self.mock.sha_from_revision.return_value = '1a2s3d4f5g'
     self.mock.get_build_directory.return_value = '/chromium/build/dir'
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
-    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary',
-                                  target='target')
+    self.binary_definition = mock.Mock(
+        source_var='V8_SRC', binary_name='binary', target='target')
     self.builder = binary_providers.ChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir')
+        self.testcase, self.binary_definition, False, '/goma/dir')
     self.builder.build_directory = '/chrome/src/out/clusterfuzz_builds'
+
+  def test_get_goma_cores(self):
+    """Ensure goma_cores is calculated correctly."""
+
+    helpers.patch(self, ['multiprocessing.cpu_count'])
+    self.mock.cpu_count.return_value = 12
+
+    builder = binary_providers.ChromiumBuilder(
+        self.testcase, self.binary_definition, False, '/goma/dir')
+
+    builder.goma_dir = False
+    result = builder.get_goma_cores()
+    self.assertEqual(result, 9)
+
+    builder.goma_dir = True
+    result = builder.get_goma_cores()
+    self.assertEqual(result, 120)
 
   def test_no_binary_name(self):
     """Test the functionality when no binary name is provided."""
-
+    helpers.patch(self, [
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_goma_cores'])
+    self.mock.get_goma_cores.return_value = 120
     stacktrace = [
         {'content': 'not correct'}, {'content': '[Environment] A = b'},
         {'content': ('Running command: path/to/binary --flag-1 --flag2 opt'
@@ -543,9 +582,13 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
 
   def test_build_target(self):
     """Tests the build_target method."""
+    helpers.patch(self, [
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_goma_cores'])
+    self.mock.get_goma_cores.return_value = 120
     self.builder.build_target()
 
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
+    self.assert_exact_calls(self.mock.get_goma_cores, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient runhooks', '/chrome/src'),
         mock.call('gclient sync', '/chrome/src'),
@@ -557,6 +600,9 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
   def test_get_binary_path(self):
     """Tests the get_binary_path method."""
 
+    helpers.patch(self, [
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_goma_cores'])
+    self.mock.get_goma_cores.return_value = 120
     result = self.builder.get_binary_path()
     self.assertEqual(result, '/chromium/build/dir/binary')
 

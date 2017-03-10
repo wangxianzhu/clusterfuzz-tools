@@ -160,11 +160,12 @@ class LinuxChromeJobReproducer(BaseReproducer):
     if not pids:
       return []
 
+    time.sleep(20)
     visible_windows = set()
-    for _ in pids:
+    for pid in pids:
       _, windows = common.execute(
-          ('xdotool search --all --pid %s --onlyvisible --nam'
-           'e ".*"' % display_name), os.path.expanduser('~'),
+          ('xdotool search --all --pid %s --onlyvisible --name'
+           ' ".*"' % pid), os.path.expanduser('~'),
           environment={'DISPLAY': display_name},
           exit_on_error=False)
       for line in windows.splitlines():

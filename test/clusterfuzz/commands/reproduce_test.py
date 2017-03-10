@@ -105,7 +105,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     reproduce.execute(testcase_id='1234', current=False, build='download')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
-    self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
+    self.assert_n_calls(0, [self.mock.ensure_goma])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(self.mock.DownloadedBinary,
                             [mock.call(1234, 'chrome_build_url', 'binary')])
@@ -135,7 +135,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     reproduce.execute(testcase_id='1234', current=False, build='download')
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
-    self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
+    self.assert_n_calls(0, [self.mock.ensure_goma])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(self.mock.DownloadedBinary,
                             [mock.call(1234, 'chrome_build_url', 'binary')])

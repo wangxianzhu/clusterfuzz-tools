@@ -187,7 +187,6 @@ def execute(testcase_id, current, build):
   print 'Downloading testcase information...'
 
   response = get_testcase_info(testcase_id)
-  goma_dir = ensure_goma()
   current_testcase = testcase.Testcase(response)
   if 'gestures' in response['testcase']:
     raise common.JobTypeNotSupportedError(
@@ -205,6 +204,7 @@ def execute(testcase_id, current, build):
     binary_provider = binary_providers.DownloadedBinary(
         current_testcase.id, current_testcase.build_url, binary_name)
   else:
+    goma_dir = ensure_goma()
     binary_provider = definition.builder( # pylint: disable=redefined-variable-type
         current_testcase, definition, current, goma_dir)
 

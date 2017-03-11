@@ -58,7 +58,7 @@ class TestcaseFileExtensionTest(helpers.ExtendedTestCase):
     """Tests functionality when the testcase has an extension."""
 
     test = build_base_testcase(extension='py')
-    self.assertEqual(test.file_extension, 'py')
+    self.assertEqual(test.file_extension, '.py')
 
 
 

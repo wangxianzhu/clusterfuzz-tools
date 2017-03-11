@@ -32,7 +32,7 @@ class Testcase(object):
     if len(split_filename) != 2:
       return ''
     else:
-      return split_filename[1]
+      return '.%s' % split_filename[1]
 
 
   def get_environment_and_args(self):
@@ -83,7 +83,7 @@ class Testcase(object):
     """Downloads & returns the location of the testcase file."""
 
     testcase_dir = self.testcase_dir_name()
-    filename = os.path.join(testcase_dir, 'testcase.%s' % self.file_extension)
+    filename = os.path.join(testcase_dir, 'testcase%s' % self.file_extension)
     if os.path.isfile(filename):
       return filename
 
@@ -94,7 +94,7 @@ class Testcase(object):
     os.makedirs(testcase_dir)
 
     auth_header = common.get_stored_auth_header()
-    command = 'wget --header="Authorization: %s" "%s" -O ./testcase.%s' % (
+    command = 'wget --header="Authorization: %s" "%s" -O ./testcase%s' % (
         auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id, self.file_extension)
     common.execute(command, testcase_dir)
 

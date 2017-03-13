@@ -21,6 +21,7 @@ import pkg_resources
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
+DOMAIN_NAME = 'clusterfuzz.com'
 
 
 def get_binary_name(stacktrace):

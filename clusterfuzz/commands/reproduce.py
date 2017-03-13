@@ -31,7 +31,7 @@ from clusterfuzz import reproducers
 
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
 CLUSTERFUZZ_TESTCASE_INFO_URL = (
-    'https://clusterfuzz.com/v2/testcase-detail/oauth?testcaseId=%s')
+    'https://%s/v2/testcase-detail/refresh' % common.DOMAIN_NAME)
 GOMA_DIR = os.path.expanduser(os.path.join('~', 'goma'))
 GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
     urllib.urlencode({
@@ -129,7 +129,7 @@ def get_verification_header():
   return 'VerificationCode %s' % verification
 
 
-def send_request(url):
+def send_request(url, data):
   """Get a clusterfuzz url that requires authentication.
 
   Attempts to authenticate and is guaranteed to either
@@ -140,8 +140,9 @@ def send_request(url):
   for _ in range(2):
     if not header or (response is not None and response.status_code == 401):
       header = get_verification_header()
-    response = requests.get(
-        url=url, headers={'Authorization': header}, allow_redirects=True)
+    response = requests.post(
+        url=url, headers={'Authorization': header}, allow_redirects=True,
+        data=data)
     if response.status_code == 200:
       break
 
@@ -158,8 +159,8 @@ def get_testcase_info(testcase_id):
   authentication is successful.
   """
 
-  url = CLUSTERFUZZ_TESTCASE_INFO_URL % testcase_id
-  return json.loads(send_request(url).text)
+  data = json.dumps({'testcaseId': testcase_id})
+  return json.loads(send_request(CLUSTERFUZZ_TESTCASE_INFO_URL, data).text)
 
 def ensure_goma():
   """Ensures GOMA is installed and ready for use, and starts it."""

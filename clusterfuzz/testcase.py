@@ -19,8 +19,9 @@ from clusterfuzz import common
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_DIR, 'testcases')
-CLUSTERFUZZ_TESTCASE_URL = ('https://cluster-fuzz.appspot.com/v2/testcase-'
-                            'detail/download-testcase/oauth?id=%s')
+CLUSTERFUZZ_TESTCASE_URL = (
+    'https://%s/v2/testcase-detail/download-testcase?id=%s' %
+    (common.DOMAIN_NAME, '%s'))
 
 class Testcase(object):
   """The Testase module, to abstract away logic using the testcase JSON."""

@@ -365,7 +365,8 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with reproducers.Blackbox() as display_name:
+    with reproducers.Blackbox(
+        ['--disable-gl-drawing-for-tests']) as display_name:
       self.assertEqual(display_name, ':display')
 
     self.assert_exact_calls(self.mock.Xvfb, [mock.call(
@@ -377,3 +378,19 @@ class BlackboxTest(helpers.ExtendedTestCase):
         mock.call(['blackbox'], env={'DISPLAY': ':display'})])
     self.assert_exact_calls(self.mock.Popen.return_value.kill, [mock.call()])
     self.assert_exact_calls(self.mock.sleep, [mock.call(30)])
+
+  def test_no_blackbox(self):
+    """Tests that the manager doesnt start blackbox when incorrect args."""
+
+    self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
+                                                      ':display'])
+
+    with reproducers.Blackbox(['incorrect']) as display_name:
+      self.assertEqual(display_name, None)
+
+    self.assert_n_calls(0, [self.mock.Xvfb,
+                            self.mock.Xvfb.return_value.start,
+                            self.mock.Xvfb.return_value.stop,
+                            self.mock.Popen,
+                            self.mock.Popen.return_value.kill,
+                            self.mock.sleep])

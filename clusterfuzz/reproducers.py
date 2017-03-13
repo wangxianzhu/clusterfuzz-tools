@@ -105,7 +105,12 @@ class BaseReproducer(object):
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""
 
+  def __init__(self, args):
+    self.disable_blackbox = '--disable-gl-drawing-for-tests' not in args
+
   def __enter__(self):
+    if self.disable_blackbox:
+      return None
     self.display = xvfbwrapper.Xvfb(width=1280, height=1024)
     self.display.start()
     for i in self.display.xvfb_cmd:
@@ -119,6 +124,8 @@ class Blackbox(object):
     return display_name
 
   def __exit__(self, unused_type, unused_value, unused_traceback):
+    if self.disable_blackbox:
+      return
     self.blackbox.kill()
     self.display.stop()
 
@@ -213,10 +220,11 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
     self.pre_build_steps()
 
-    with Blackbox() as display_name:
+    with Blackbox(self.args) as display_name:
       command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
       print 'Running: %s' % command
-      self.environment['DISPLAY'] = display_name
+      if display_name:
+        self.environment['DISPLAY'] = display_name
       process = common.start_execute(command, os.path.dirname(self.binary_path),
                                      environment=self.environment)
       if self.gestures:

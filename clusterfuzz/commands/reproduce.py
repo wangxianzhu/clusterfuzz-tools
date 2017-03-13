@@ -84,6 +84,14 @@ SUPPORTED_JOBS = {
         'linux_asan_chrome_mp': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
             reproducers.LinuxChromeJobReproducer, 'chrome',
+            sanitizer='ASAN', target='chromium_builder_asan'),
+        'linux_asan_chrome_chromeos': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.LinuxChromeJobReproducer, 'chrome',
+            sanitizer='ASAN', target='chromium_builder_asan'),
+        'linux_asan_chrome_gpu': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.LinuxChromeJobReproducer, 'chrome',
             sanitizer='ASAN', target='chromium_builder_asan')}}
 
 

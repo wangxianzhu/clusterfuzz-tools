@@ -220,7 +220,8 @@ class FindWindowsForProcessTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.get_process_ids',
-        'clusterfuzz.common.execute'])
+        'clusterfuzz.common.execute',
+        'time.sleep'])
     self.reproducer = create_chrome_reproducer()
 
   def test_no_pids(self):
@@ -240,6 +241,7 @@ class FindWindowsForProcessTest(helpers.ExtendedTestCase):
 
     result = self.reproducer.find_windows_for_process(1234, ':45434')
     self.assertEqual(result, set(['234', '567', '890', '123', '345']))
+    self.assert_exact_calls(self.mock.sleep, [mock.call(20)])
 
 
 class GetProcessIdsTest(helpers.ExtendedTestCase):

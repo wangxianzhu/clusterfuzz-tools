@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import zipfile
 
 from clusterfuzz import common
 
@@ -28,12 +29,11 @@ class Testcase(object):
 
   def get_file_extension(self, absolute_path):
     """Pulls the file extension from the path, returns '' if no extension."""
-
     split_filename = absolute_path.split('.')
-    if len(split_filename) != 2:
+    if len(split_filename) < 2:
       return ''
     else:
-      return '.%s' % split_filename[1]
+      return '.%s' % split_filename[-1]
 
 
   def get_environment_and_args(self):
@@ -70,8 +70,8 @@ class Testcase(object):
     self.revision = testcase_json['crash_revision']
     self.build_url = testcase_json['metadata']['build_url']
     self.job_type = testcase_json['testcase']['job_type']
-    self.file_extension = self.get_file_extension(
-        testcase_json['testcase']['absolute_path'])
+    self.absolute_path = testcase_json['testcase']['absolute_path']
+    self.file_extension = self.get_file_extension(self.absolute_path)
     self.reproducible = not testcase_json['testcase']['one_time_crasher_flag']
     self.gestures = testcase_json['testcase'].get('gestures')
 
@@ -79,6 +79,23 @@ class Testcase(object):
     """Returns a testcases' respective directory."""
     return os.path.join(CLUSTERFUZZ_TESTCASES_DIR,
                         str(self.id) + '_testcase')
+
+  def get_true_testcase_file(self, filename):
+    """Unzips a testcase if required."""
+
+    testcase_dir = self.testcase_dir_name()
+    true_filename = os.path.join(testcase_dir,
+                                 'testcase%s' % self.file_extension)
+
+    if filename.endswith('.zip'):
+      zipped_file = zipfile.ZipFile(os.path.join(testcase_dir, filename), 'r')
+      zipped_file.extractall(testcase_dir)
+      zipped_file.close()
+      filename = self.absolute_path.split('/')[-1]
+
+    filename = os.path.join(testcase_dir, filename)
+    os.rename(filename, true_filename)
+    return true_filename
 
   def get_testcase_path(self):
     """Downloads & returns the location of the testcase file."""
@@ -94,9 +111,13 @@ class Testcase(object):
       os.makedirs(CLUSTERFUZZ_TESTCASES_DIR)
     os.makedirs(testcase_dir)
 
+    print os.listdir(CLUSTERFUZZ_TESTCASES_DIR)
     auth_header = common.get_stored_auth_header()
-    command = 'wget --header="Authorization: %s" "%s" -O ./testcase%s' % (
-        auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id, self.file_extension)
+    command = 'wget --content-disposition --header="Authorization: %s" "%s"' % (
+        auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id)
     common.execute(command, testcase_dir)
+    downloaded_filename = os.listdir(testcase_dir)[0]
+
+    filename = self.get_true_testcase_file(downloaded_filename)
 
     return filename

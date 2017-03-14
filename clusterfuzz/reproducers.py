@@ -17,12 +17,14 @@ import os
 import shutil
 import time
 import subprocess
+import logging
 import xvfbwrapper
 import psutil
 
 from clusterfuzz import common
 
 DEFAULT_GESTURE_TIME = 5
+logger = logging.getLogger('clusterfuzz')
 
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
@@ -98,9 +100,18 @@ class BaseReproducer(object):
     self.pre_build_steps()
 
     command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
-    common.execute(command, os.path.dirname(self.binary_path),
-                   environment=self.environment, exit_on_error=False)
+    return common.execute(command, os.path.dirname(self.binary_path),
+                          environment=self.environment, exit_on_error=False)
 
+  def reproduce(self):
+    """Reproduces the crash and prints the stacktrace."""
+
+    _, output = self.reproduce_crash()
+
+    print
+    logger.info('Reproduction Successful. Stacktrace:')
+    print
+    logger.info(output)
 
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""
@@ -117,7 +128,7 @@ class Blackbox(object):
       if i.startswith(':'):
         display_name = i
         break
-    print 'Starting the blackbox window manager in a virtual display.'
+    logger.info('Starting the blackbox window manager in a virtual display.')
     self.blackbox = subprocess.Popen(['blackbox'],
                                      env={'DISPLAY': display_name})
     time.sleep(30)
@@ -147,7 +158,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
       for child in children:
         pids.append(child.pid)
     except:
-      print 'psutil: Process abruptly ended.'
+      logger.info('psutil: Process abruptly ended.')
       raise
 
     return pids
@@ -196,14 +207,14 @@ class LinuxChromeJobReproducer(BaseReproducer):
     """Executes all required gestures."""
 
     time.sleep(self.gesture_start_time)
-
+    logger.info('Running gestures...')
     windows = self.find_windows_for_process(proc.pid, display_name)
     for index, window in enumerate(windows):
-      print 'Window %s of %s' % (index, len(windows))
+      logger.debug('Window %s of %s', index, len(windows))
       self.xdotool_command('windowactivate --sync %s' % window, display_name)
 
       for gesture in self.gestures:
-        print gesture
+        logger.debug(gesture)
         self.execute_gesture(gesture, window, display_name)
 
   def pre_build_steps(self):
@@ -222,11 +233,11 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
     with Blackbox(self.args) as display_name:
       command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
-      print 'Running: %s' % command
+      logger.info('Running: %s', command)
       if display_name:
         self.environment['DISPLAY'] = display_name
       process = common.start_execute(command, os.path.dirname(self.binary_path),
                                      environment=self.environment)
       if self.gestures:
         self.run_gestures(process, display_name)
-      common.wait_execute(process, exit_on_error=False)
+      return common.wait_execute(process, exit_on_error=False)

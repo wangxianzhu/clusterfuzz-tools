@@ -25,7 +25,8 @@ class MainTest(unittest.TestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.commands.reproduce.execute'
+        'clusterfuzz.commands.reproduce.execute',
+        'clusterfuzz.local_logging.start_loggers'
     ])
 
   def test_parse_reproduce(self):
@@ -36,6 +37,7 @@ class MainTest(unittest.TestCase):
     main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
     main.execute(['reproduce', '1234', '--build', 'chromium'])
 
+    self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
         mock.call(build='standalone', current=False, disable_goma=False,
                   testcase_id='1234'),

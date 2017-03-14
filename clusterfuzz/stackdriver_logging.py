@@ -19,6 +19,7 @@ import os
 import binascii
 import sys
 import functools
+import logging
 
 from clusterfuzz import common
 from httplib2 import Http
@@ -27,6 +28,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 SESSION_ID = ':'.join([os.environ.get('USER'),
                        str(time.time()),
                        str(binascii.b2a_hex(os.urandom(20)))])
+logger = logging.getLogger('clusterfuzz')
 
 def get_session_id():
   """For easier testing/mocking."""
@@ -110,6 +112,6 @@ def log(func):
                      command=command_name, **kwargs)
         raise
     except common.ExpectedException as e:
-      print '%s: %s' % (e.__class__.__name__, e.message)
+      logger.info('%s: %s', e.__class__.__name__, e.message)
       sys.exit(1)
   return wrapped

@@ -71,7 +71,12 @@ class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the execute method."""
 
   def setUp(self):
-    helpers.patch(self, ['subprocess.Popen'])
+    helpers.patch(self, ['subprocess.Popen',
+                         'logging.getLogger',
+                         'logging.config.dictConfig'])
+    self.mock.dictConfig.return_value = {}
+    from clusterfuzz import local_logging
+    local_logging.start_loggers()
     self.lines = 'Line 1\nLine 2\nLine 3'
 
   def build_popen_mock(self, code):

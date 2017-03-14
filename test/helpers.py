@@ -26,6 +26,11 @@ class ExtendedTestCase(fake_filesystem_unittest.TestCase):
   """An extended version of TestCase with extra methods for fine-grained method
   call assertions."""
 
+  def __init__(self, *args, **kwargs):
+    super(ExtendedTestCase, self).__init__(*args, **kwargs)
+    patch(self, ['logging.getLogger'])
+    self.mock.getLogger.return_value = mock.Mock()
+
   def suppress_logging_methods(self):
     """Mock the stackdriver_logging methods to ensure logging doesn't work."""
 

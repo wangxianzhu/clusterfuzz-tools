@@ -21,12 +21,14 @@ import urllib
 import json
 import base64
 import string
+import logging
 import urlfetch
 
 from clusterfuzz import common
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_DIR, 'builds')
+logger = logging.getLogger('clusterfuzz')
 
 def build_revision_to_sha_url(revision, repo):
   return ('https://cr-rev.appspot.com/_ah/api/crrev/v1/get_numbering?%s' %
@@ -81,7 +83,7 @@ class BinaryProvider(object):
     if os.path.exists(build_dir):
       return build_dir
 
-    print 'Downloading build data...'
+    logger.info('Downloading build data...')
     if not os.path.exists(CLUSTERFUZZ_BUILDS_DIR):
       os.makedirs(CLUSTERFUZZ_BUILDS_DIR)
 
@@ -92,12 +94,12 @@ class BinaryProvider(object):
     filename = os.path.split(gsutil_path)[1]
     saved_file = os.path.join(CLUSTERFUZZ_DIR, filename)
 
-    print 'Extracting...'
+    logger.info('Extracting...')
     zipped_file = zipfile.ZipFile(saved_file, 'r')
     zipped_file.extractall(CLUSTERFUZZ_BUILDS_DIR)
     zipped_file.close()
 
-    print 'Cleaning up...'
+    logger.info('Cleaning up...')
     os.remove(saved_file)
     os.rename(os.path.join(CLUSTERFUZZ_BUILDS_DIR,
                            os.path.splitext(filename)[0]), build_dir)

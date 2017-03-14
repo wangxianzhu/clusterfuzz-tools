@@ -16,9 +16,11 @@
 import argparse
 import importlib
 
+from clusterfuzz import local_logging
 
 def execute(argv=None):
   """The main entry point."""
+  local_logging.start_loggers()
   parser = argparse.ArgumentParser(description='ClusterFuzz tools')
   subparsers = parser.add_subparsers(dest='command')
 

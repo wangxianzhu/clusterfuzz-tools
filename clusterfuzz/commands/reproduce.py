@@ -19,6 +19,7 @@ import os
 import json
 import urllib
 import webbrowser
+import logging
 
 import requests
 
@@ -101,7 +102,7 @@ SUPPORTED_JOBS = {
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
             reproducers.LinuxChromeJobReproducer, 'chrome',
             sanitizer='ASAN', target='chromium_builder_asan')}}
-
+logger = logging.getLogger('clusterfuzz')
 
 class SuppressOutput(object):
   """Suppress stdout and stderr. We need this because there's no way to suppress
@@ -122,11 +123,11 @@ class SuppressOutput(object):
 def get_verification_header():
   """Prompts the user for & returns a verification token."""
   print
-  print ('We need to authenticate you in order to get information from '
-         'ClusterFuzz.')
+  logger.info(('We need to authenticate you in order to get information from '
+               'ClusterFuzz.'))
   print
 
-  print 'Open: %s' % GOOGLE_OAUTH_URL
+  logger.info('Open: %s', GOOGLE_OAUTH_URL)
   with SuppressOutput():
     webbrowser.open(GOOGLE_OAUTH_URL, new=1, autoraise=True)
   print
@@ -199,8 +200,8 @@ def maybe_warn_unreproducible(current_testcase):
   """Print warning if the testcase is unreproducible."""
   if not current_testcase.reproducible:
     print
-    print ('WARNING: The testcase %s is marked as unreproducible. Therefore,'
-           ' it might not be reproduced correctly here.')
+    logger.info(('WARNING: The testcase %s is marked as unreproducible. '
+                 'Therefore, it might not be reproduced correctly here.'))
     print
     # We need to return True to make the method testable because we can't mock
     # print.
@@ -209,16 +210,17 @@ def maybe_warn_unreproducible(current_testcase):
 @stackdriver_logging.log
 def execute(testcase_id, current, build, disable_goma):
   """Execute the reproduce command."""
-
-  print 'Reproduce %s (current=%s)' % (testcase_id, current)
-  print 'Downloading testcase information...'
+  logger.info('Reproducing testcase %s', testcase_id)
+  logger.debug('(testcase_id:%s, current=%s, build=%s, disable_goma=%s)',
+               testcase_id, current, build, disable_goma)
+  logger.info('Downloading testcase information...')
 
   response = get_testcase_info(testcase_id)
   current_testcase = testcase.Testcase(response)
 
   if 'gestures' in response['testcase']:
-    print ('Warning: testcases using gestures are still in development and are '
-           'not guaranteed to reproduce correctly.')
+    logger.info(('Warning: testcases using gestures are still in development '
+                 'and are not guaranteed to reproduce correctly.'))
 
   definition = get_binary_definition(current_testcase.job_type, build)
 
@@ -238,5 +240,5 @@ def execute(testcase_id, current, build, disable_goma):
 
   reproducer = definition.reproducer(binary_provider, current_testcase,
                                      definition.sanitizer)
-  reproducer.reproduce_crash()
+  reproducer.reproduce()
   maybe_warn_unreproducible(current_testcase)

@@ -394,3 +394,18 @@ class BlackboxTest(helpers.ExtendedTestCase):
                             self.mock.Popen,
                             self.mock.Popen.return_value.kill,
                             self.mock.sleep])
+
+
+class ReproduceTest(helpers.ExtendedTestCase):
+  """Tests the reproduce method within reproducers."""
+
+  def setUp(self):
+    self.reproducer = create_chrome_reproducer()
+    helpers.patch(self, [
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash'])
+    self.mock.reproduce_crash.return_value = (0, ['stuff'])
+
+  def test_call(self):
+    self.reproducer.reproduce()
+    self.assert_exact_calls(self.mock.reproduce_crash, [
+        mock.call(self.reproducer)])

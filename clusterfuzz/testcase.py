@@ -15,6 +15,7 @@
 
 import os
 import zipfile
+import logging
 
 from clusterfuzz import common
 
@@ -23,6 +24,7 @@ CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_DIR, 'testcases')
 CLUSTERFUZZ_TESTCASE_URL = (
     'https://%s/v2/testcase-detail/download-testcase?id=%s' %
     (common.DOMAIN_NAME, '%s'))
+logger = logging.getLogger('clusterfuzz')
 
 class Testcase(object):
   """The Testase module, to abstract away logic using the testcase JSON."""
@@ -105,13 +107,12 @@ class Testcase(object):
     if os.path.isfile(filename):
       return filename
 
-    print 'Downloading testcase data...'
+    logger.info('Downloading testcase data...')
 
     if not os.path.exists(CLUSTERFUZZ_TESTCASES_DIR):
       os.makedirs(CLUSTERFUZZ_TESTCASES_DIR)
     os.makedirs(testcase_dir)
 
-    print os.listdir(CLUSTERFUZZ_TESTCASES_DIR)
     auth_header = common.get_stored_auth_header()
     command = 'wget --content-disposition --header="Authorization: %s" "%s"' % (
         auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id)

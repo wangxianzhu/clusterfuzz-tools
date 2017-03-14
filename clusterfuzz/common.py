@@ -17,12 +17,16 @@ import os
 import sys
 import stat
 import subprocess
+import logging
 import pkg_resources
+
+from clusterfuzz import local_logging
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 DOMAIN_NAME = 'clusterfuzz.com'
-
+DEBUG_PRINT = os.environ.get('CF_DEBUG')
+logger = logging.getLogger('clusterfuzz')
 
 def get_binary_name(stacktrace):
   prefix = 'Running command: '
@@ -162,17 +166,22 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True):
 
   def _print(s):
     if print_output:
-      print s
+      logger.info(s)
 
+  _print('---------------------------------------')
   output_chunks = []
   for chunk in iter(lambda: proc.stdout.read(100), b''):
     if print_output:
-      sys.stdout.write(chunk)
+      local_logging.send_output(chunk)
+      if not DEBUG_PRINT:
+        sys.stdout.write('.')
+        sys.stdout.flush()
     if capture_output:
       # According to: http://stackoverflow.com/questions/19926089, this is the
       # fastest way to build strings.
       output_chunks.append(chunk)
   proc.wait()
+  _print('---------------------------------------')
   if proc.returncode != 0:
     _print('| Return code is non-zero (%d).' % proc.returncode)
     if exit_on_error:
@@ -186,7 +195,7 @@ def execute(command, cwd, print_output=True, capture_output=True,
   """Execute a bash command."""
 
   if print_output:
-    print 'Running: %s' % command
+    logger.info('Running: %s', command)
 
   proc = start_execute(command, cwd, environment)
   return wait_execute(proc, exit_on_error, capture_output, print_output)

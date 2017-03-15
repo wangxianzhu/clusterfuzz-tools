@@ -44,7 +44,7 @@ class BaseReproducer(object):
     self.environment = testcase.environment
     self.args = testcase.reproduction_args
     self.binary_path = binary_provider.get_binary_path()
-    self.symbolizer_path = binary_provider.symbolizer_path
+    self.symbolizer_path = common.get_location('llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures

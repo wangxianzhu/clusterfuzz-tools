@@ -77,9 +77,6 @@ class BinaryProvider(object):
 
     build_dir = self.build_dir_name()
     binary_location = os.path.join(build_dir, self.binary_name)
-    symbolizer_location = os.path.join(os.path.dirname(binary_location),
-                                       'llvm-symbolizer')
-    self.symbolizer_path = symbolizer_location
     if os.path.exists(build_dir):
       return build_dir
 
@@ -105,7 +102,6 @@ class BinaryProvider(object):
                            os.path.splitext(filename)[0]), build_dir)
     stats = os.stat(binary_location)
     os.chmod(binary_location, stats.st_mode | stat.S_IEXEC)
-    os.chmod(symbolizer_location, stats.st_mode | stat.S_IEXEC)
 
   def get_binary_path(self):
     return '%s/%s' % (self.get_build_directory(), self.binary_name)

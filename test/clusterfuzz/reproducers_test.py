@@ -34,7 +34,7 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, ['os.path.dirname'])
-    self.binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
+    self.binary_provider = mock.Mock()
     self.testcase = mock.Mock(gestures=None)
     self.reproducer = reproducers.BaseReproducer(
         self.binary_provider, self.testcase, 'UBSAN')
@@ -43,6 +43,7 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     """Ensures all the setup methods work correctly."""
 
     self.mock.dirname.return_value = '/parent/dir'
+    self.reproducer.symbolizer_path = '/parent/dir/llvm-symbolizer'
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
                           'option=1:suppressions=/not/correct/path'),
@@ -54,14 +55,14 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
         result[i] = self.reproducer.deserialize_sanitizer_options(result[i])
     self.assertEqual(result, {
         'UBSAN_OPTIONS': {
-            'external_symbolizer_path': '/path/to/symbolizer',
+            'external_symbolizer_path': '/parent/dir/llvm-symbolizer',
             'other_option': '1',
             'suppressions': '/parent/dir/suppressions/ubsan_suppressions.txt'},
         'LSAN_OPTIONS': {
             'other': '0',
             'suppressions': '/parent/dir/suppressions/lsan_suppressions.txt',
             'option': '1'},
-        'UBSAN_SYMBOLIZER_PATH': '/path/to/symbolizer',
+        'UBSAN_SYMBOLIZER_PATH': '/parent/dir/llvm-symbolizer',
         'DISPLAY': ':0.0'})
 
 
@@ -104,7 +105,10 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.execute',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.run_gestures',
         'clusterfuzz.reproducers.Blackbox.__enter__',
-        'clusterfuzz.reproducers.Blackbox.__exit__'])
+        'clusterfuzz.reproducers.Blackbox.__exit__',
+        'clusterfuzz.common.get_location'])
+    self.mock.get_location.return_value = ('/chrome/source/folder/'
+                                           'llvm-symbolizer')
 
   def test_base_reproduce_crash(self):
     """Ensures that the crash reproduction is called correctly."""
@@ -120,8 +124,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
                                 environment=env, gestures=None)
     mocked_testcase.get_testcase_path.return_value = testcase_file
-    mocked_provider = mock.Mock(
-        symbolizer_path='/chrome/source/folder/llvm-symbolizer')
+    mocked_provider = mock.Mock()
+    self.mock.get_location = '/chrome/source/folder/llvm-symbolizer'
     mocked_provider.get_binary_path.return_value = source
 
     reproducer = reproducers.BaseReproducer(mocked_provider, mocked_testcase,

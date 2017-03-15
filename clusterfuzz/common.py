@@ -181,7 +181,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True):
       # fastest way to build strings.
       output_chunks.append(chunk)
   proc.wait()
-  _print('---------------------------------------')
+  _print('\n---------------------------------------')
   if proc.returncode != 0:
     _print('| Return code is non-zero (%d).' % proc.returncode)
     if exit_on_error:

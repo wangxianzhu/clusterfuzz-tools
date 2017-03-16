@@ -1,7 +1,8 @@
 dependencies:
   override:
-    - pip install -r requirements.txt
-    - pip install .
+    - pip install virtualenv
+    - python bootstrap.py
+    - source ENV/bin/activate
 
 test:
   override:

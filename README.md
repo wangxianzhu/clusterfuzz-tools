@@ -30,12 +30,9 @@ support uploading a fuzzer, tailing fuzzer log, and uploading a testcase.
 Develop
 ------------
 
-1. Install [virtualenv](https://virtualenv.pypa.io).
+1. Set up virtualenv with `python bootstrap.py`.
 2. Setting up virtualenv by running `virtualenv ENV` and `source ENV/bin/activate`.
-3. Ensure `pip` is the latest version by running `pip install -U pip`.
-4. Install dependencies by running `pip install -r requirements.txt`.
-5. Build "[the development mode](https://packaging.python.org/distributing/#working-in-development-mode)" binary by running `pip install -e .`.
-6. Run the binary by running `clusterfuzz --help`.
+3. Run the binary by running `clusterfuzz --help`.
 
 
 Test

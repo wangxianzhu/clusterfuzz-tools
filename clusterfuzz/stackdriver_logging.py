@@ -111,7 +111,7 @@ def log(func):
         send_failure(e.__class__.__name__, *args,
                      command=command_name, **kwargs)
         raise
-    except common.ExpectedException as e:
+    except (KeyboardInterrupt, common.ExpectedException) as e:
       logger.info('%s: %s', e.__class__.__name__, e.message)
       sys.exit(1)
   return wrapped

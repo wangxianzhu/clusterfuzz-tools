@@ -111,25 +111,28 @@ class BaseReproducer(object):
   def reproduce(self):
     """Reproduces the crash and prints the stacktrace."""
 
-    _, output = self.reproduce_crash()
+    logger.info('Reproducing...')
 
-    print
-    response = requests.post(
-        url='https://staging-dot-cluster-fuzz.appspot.com/v2/parse_stacktrace',
-        data=json.dumps({'job': self.job_type, 'stacktrace': output}))
-    response = json.loads(response.text)
-    new_crash_state = [x for x in response['crash_state'].split('\n') if x]
+    iterations = 1
+    while True:
+      _, output = self.reproduce_crash()
 
-    logger.info(output)
-    if (new_crash_state == self.crash_state and
-        response['crash_type'] == self.crash_type):
-      logger.info('The stacktrace matches the original crash')
-      return True
-    else:
-      logger.info(
-          ('This crash may not have been successfully reproduced or '
-           'symbolized - the stacktrace does not match the orignal crash'))
-      return False
+      print
+      response = requests.post(
+          url=('https://staging-dot-cluster-fuzz.appspot.com/v2/'
+               'parse_stacktrace'),
+          data=json.dumps({'job': self.job_type, 'stacktrace': output}))
+      response = json.loads(response.text)
+      new_crash_state = [x for x in response['crash_state'].split('\n') if x]
+
+      logger.info(output)
+      if (new_crash_state == self.crash_state and
+          response['crash_type'] == self.crash_type):
+        logger.info('The stacktrace matches the original crash')
+        return True
+      logger.info('Reproduction attempt %d unsuccessful. Press Ctrl+C to'
+                  ' stop trying to reproduce.', iterations)
+      iterations += 1
 
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""

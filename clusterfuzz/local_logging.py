@@ -18,6 +18,7 @@ import logging
 from logging import config
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
+LOG_DIR = os.path.join(CLUSTERFUZZ_DIR, 'logs')
 DEBUG = os.environ.get('CF_DEBUG')
 logging_config = dict(
     version=1,
@@ -29,7 +30,7 @@ logging_config = dict(
                     'formatter': 'message',
                     'level': logging.DEBUG if DEBUG else logging.INFO},
         'file': {'class': 'logging.handlers.RotatingFileHandler',
-                 'filename': os.path.join(CLUSTERFUZZ_DIR, 'output.log'),
+                 'filename': os.path.join(LOG_DIR, 'output.log'),
                  'formatter': 'timestamp',
                  'maxBytes': 1048576,
                  'backupCount': 9,
@@ -42,6 +43,8 @@ current_chunk = []
 
 def start_loggers():
   global logger
+  if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
   config.dictConfig(logging_config)
   logger = logging.getLogger('clusterfuzz')
 

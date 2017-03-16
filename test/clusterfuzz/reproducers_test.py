@@ -416,24 +416,17 @@ class ReproduceTest(helpers.ExtendedTestCase):
 
   def test_good_stacktrace(self):
     """Tests functionality when the stacktrace matches"""
-    response = {
+    correct_response = {
         'crash_type': 'original_type',
         'crash_state': 'original\nstate'}
-    self.mock.post.return_value = mock.Mock(text=json.dumps(response))
+    wrong_response = {
+        'crash_type': 'wrong type',
+        'crash_state': 'incorrect\nstate'}
+    self.mock.post.side_effect = [
+        mock.Mock(text=json.dumps(wrong_response)),
+        mock.Mock(text=json.dumps(correct_response))]
 
     result = self.reproducer.reproduce()
     self.assertTrue(result)
     self.assert_exact_calls(self.mock.reproduce_crash, [
-        mock.call(self.reproducer)])
-
-  def test_bad_stacktrace(self):
-    """Tests functionality when the stacktraces don't match."""
-    response = {
-        'crash_type': 'different_type',
-        'crash_state': 'state'}
-    self.mock.post.return_value = mock.Mock(text=json.dumps(response))
-
-    result = self.reproducer.reproduce()
-    self.assertFalse(result)
-    self.assert_exact_calls(self.mock.reproduce_crash, [
-        mock.call(self.reproducer)])
+        mock.call(self.reproducer), mock.call(self.reproducer)])

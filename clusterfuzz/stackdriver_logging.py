@@ -122,6 +122,8 @@ def log(func):
       except BaseException as e:
         send_failure(e.__class__.__name__, *args,
                      command=command_name, **kwargs)
+        print ('\nDetailed logs of this run can be found in: '
+               '~/.clusterfuzz/logs.')
         raise
     except (KeyboardInterrupt, common.ExpectedException) as e:
       logger.info('%s: %s', e.__class__.__name__, e.message)

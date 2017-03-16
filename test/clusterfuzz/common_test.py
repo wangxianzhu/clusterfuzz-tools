@@ -74,7 +74,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['subprocess.Popen',
                          'logging.getLogger',
                          'logging.config.dictConfig',
-                         'clusterfuzz.common.wait_timeout'])
+                         'clusterfuzz.common.wait_timeout',
+                         'clusterfuzz.common.interpret_ninja_output'])
     self.mock.dictConfig.return_value = {}
     from clusterfuzz import local_logging
     local_logging.start_loggers()
@@ -85,6 +86,16 @@ class ExecuteTest(helpers.ExtendedTestCase):
     return mock.MagicMock(
         stdout=cStringIO.StringIO(self.lines),
         returncode=code)
+
+  def test_with_ninja(self):
+    """Ensure interpret_ninja_output is run when the ninja flag is set."""
+
+    x = mock.Mock()
+    x.read.side_effect = ['part1', 'part2\n']
+    self.mock.Popen.return_value = mock.Mock(stdout=x, returncode=0)
+    common.execute('ninja do this plz', '~/working/directory',
+                   print_output=True, exit_on_error=True)
+    self.assert_n_calls(1, [self.mock.interpret_ninja_output])
 
   def run_execute(self, print_out, exit_on_err):
     return common.execute(
@@ -317,3 +328,40 @@ class WaitTimeoutTest(helpers.ExtendedTestCase):
 
     self.assert_n_calls(0, [self.mock.sleep, self.mock.getpgid,
                             self.mock.killpg])
+
+
+class InterpretNinjaOutputTest(helpers.ExtendedTestCase):
+  """Tests the interpret_ninja_output method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.print_progress_bar'])
+
+  def test_invalid_string(self):
+    """Ensures it doesn't try to print from an invalid input."""
+
+    common.interpret_ninja_output('wrong')
+    self.assert_n_calls(0, [self.mock.print_progress_bar])
+
+  def test_correct_parsing(self):
+    """Ensure valid ninja commands are parsed correctly."""
+
+    common.interpret_ninja_output('[23/100] CXX ../file/name /second/file')
+    self.assert_exact_calls(self.mock.print_progress_bar, [
+        mock.call(23, 100, prefix='Ninja progress:')])
+
+
+class PrintProgressBarTest(helpers.ExtendedTestCase):
+  """Ensures the print_progress_bar method works properly."""
+
+  def setUp(self):
+    helpers.patch(self, ['__builtin__.print'])
+
+  def test_call(self):
+    """Ensures print is called with the correct parameters."""
+
+    result = common.print_progress_bar(50, 100, prefix='Progress')
+    bar = '|%s%s|' % ('=' * 50, '-' * 50)
+    self.assertEqual(result, '\rProgress %s 50.0%% ' % bar)
+    result = common.print_progress_bar(100, 100, prefix='Progress')
+    bar = '|%s|' % ('=' * 100)
+    self.assertEqual(result, '\rProgress %s 100.0%% ' % bar)

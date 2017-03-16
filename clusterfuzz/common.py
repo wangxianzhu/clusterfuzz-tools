@@ -13,12 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 import os
 import sys
 import stat
 import subprocess
 import logging
 import time
+import re
 import signal
 import pkg_resources
 
@@ -163,6 +166,37 @@ def wait_timeout(proc, timeout):
     os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
 
 
+def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1,
+                       length=100, fill='='):
+  """Prints a progress bar on the same line.
+
+  From: http://stackoverflow.com/a/34325723."""
+
+  percent = ("{0:." + str(decimals) + "f}").format(
+      100 * (iteration / float(total)))
+  filled_length = int(length * iteration // total)
+  bar = fill * filled_length + '-' * (length - filled_length)
+  full_line = '\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
+  print(full_line, end='\r')
+  if iteration == total:
+    print()
+  return full_line
+
+
+def interpret_ninja_output(line):
+  """Call print progress bar with the right params if line is valid.
+
+  In this case, valid implies line is of a form similar to:
+  [12/1000] CXX /filename/1...."""
+
+  if not re.search(r'\[[0-9]{1,6}\/[0-9]{1,6}\] [A-Z]*', line):
+    return
+  progress = line.split(' ')[0]
+  current, total = [int(x) for x in (progress.replace('[', '')
+                                     .replace(']', '').split('/'))]
+  print_progress_bar(current, total, prefix='Ninja progress:')
+
+
 def start_execute(command, cwd, environment):
   """Runs a command, and returns the subprocess.Popen object."""
 
@@ -177,20 +211,28 @@ def start_execute(command, cwd, environment):
 
 
 def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
-                 timeout=None):
+                 timeout=None, ninja_command=False):
   """Looks after a command as it runs, and prints/returns its output after."""
 
   def _print(s):
     if print_output:
-      logger.info(s)
+      logger.debug(s)
 
   _print('---------------------------------------')
   output_chunks = []
+  current_line = []
   wait_timeout(proc, timeout)
   for chunk in iter(lambda: proc.stdout.read(100), b''):
     if print_output:
       local_logging.send_output(chunk)
-      if not DEBUG_PRINT:
+      if ninja_command and not DEBUG_PRINT:
+        for x in chunk:
+          if x == '\n':
+            interpret_ninja_output(''.join(current_line))
+            current_line = []
+          else:
+            current_line.append(x)
+      elif not DEBUG_PRINT:
         sys.stdout.write('.')
         sys.stdout.flush()
     if capture_output:
@@ -198,7 +240,9 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
       # fastest way to build strings.
       output_chunks.append(chunk)
   proc.wait()
-  _print('\n---------------------------------------')
+  if print_output:
+    print()
+  _print('---------------------------------------')
   if proc.returncode != 0:
     _print('| Return code is non-zero (%d).' % proc.returncode)
     if exit_on_error:
@@ -213,9 +257,9 @@ def execute(command, cwd, print_output=True, capture_output=True,
 
   if print_output:
     logger.info('Running: %s', command)
-
   proc = start_execute(command, cwd, environment)
-  return wait_execute(proc, exit_on_error, capture_output, print_output)
+  return wait_execute(proc, exit_on_error, capture_output, print_output,
+                      ninja_command='ninja' in command)
 
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.

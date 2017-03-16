@@ -49,6 +49,18 @@ def send_log(params):
 
   params['user'] = os.environ.get('USER')
   params['sessionId'] = get_session_id()
+  if 'success' in params:
+    prefix = ('successfully finished' if params['success'] else
+              'unsuccessfully finished')
+  else:
+    prefix = 'started'
+  params['message'] = ('%s %s running %s with testcase=%s, build_type=%s, '
+                       'current=%s, and goma=%s' % (
+                           params['user'], prefix, params['command'],
+                           params['testcaseId'], params['buildType'],
+                           params['current'],
+                           'disabled' if params['disableGoma'] else 'enabled'))
+
   structure = {
       'logName': 'projects/clusterfuzz-tools/logs/client',
       'resource': {

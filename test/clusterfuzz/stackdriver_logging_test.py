@@ -35,11 +35,50 @@ class TestSendLog(helpers.ExtendedTestCase):
     """Test to ensure params are sent properly."""
     self.mock.get_session_id.return_value = 'user:1234:sessionid'
 
-    params = {'testcase_id': 123456}
+    params = {'testcaseId': 123456,
+              'success': True,
+              'command': 'reproduce',
+              'buildType': 'chromium',
+              'current': True,
+              'disableGoma': True}
     stackdriver_logging.send_log(params)
 
     params['user'] = 'name'
     params['sessionId'] = 'user:1234:sessionid'
+    params['message'] = ('name successfully finished running reproduce with '
+                         'testcase=123456, build_type=chromium, current=True, '
+                         'and goma=disabled')
+    structure = {
+        'logName': 'projects/clusterfuzz-tools/logs/client',
+        'resource': {
+            'type': 'project',
+            'labels': {
+                'project_id': 'clusterfuzz-tools'}},
+        'entries': [{
+            'jsonPayload': params}]}
+    self.assert_exact_calls(
+        (self.mock.ServiceAccountCredentials.from_json_keyfile_name
+         .return_value.authorize.return_value.request), [mock.call(
+             uri='https://logging.googleapis.com/v2/entries:write',
+             method='POST', body=json.dumps(structure))])
+
+
+  def test_send_log_start(self):
+    """Test to ensure params are sent properly."""
+    self.mock.get_session_id.return_value = 'user:1234:sessionid'
+
+    params = {'testcaseId': 123456,
+              'command': 'reproduce',
+              'buildType': 'chromium',
+              'current': True,
+              'disableGoma': True}
+    stackdriver_logging.send_log(params)
+
+    params['user'] = 'name'
+    params['sessionId'] = 'user:1234:sessionid'
+    params['message'] = ('name started running reproduce with '
+                         'testcase=123456, build_type=chromium, current=True, '
+                         'and goma=disabled')
     structure = {
         'logName': 'projects/clusterfuzz-tools/logs/client',
         'resource': {

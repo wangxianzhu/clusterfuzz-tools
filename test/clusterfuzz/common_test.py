@@ -73,7 +73,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, ['subprocess.Popen',
                          'logging.getLogger',
-                         'logging.config.dictConfig'])
+                         'logging.config.dictConfig',
+                         'clusterfuzz.common.wait_timeout'])
     self.mock.dictConfig.return_value = {}
     from clusterfuzz import local_logging
     local_logging.start_loggers()
@@ -116,7 +117,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd='~/working/directory',
-        env=None)])
+        env=None,
+        preexec_fn=os.setsid)])
 
   def test_process_runs_successfully(self):
     """Test execute when the process successfully runs."""
@@ -266,3 +268,52 @@ class BinaryDefinitionTest(helpers.ExtendedTestCase):
   def test_no_sanitizer(self):
     with self.assertRaises(common.SanitizerNotProvidedError):
       common.BinaryDefinition('builder', 'CHROME_SRC', 'reproducer')
+
+
+class WaitTimeoutTest(helpers.ExtendedTestCase):
+  """Tests the wait_timeout method."""
+
+  def setUp(self):
+    helpers.patch(self, ['time.sleep',
+                         'os.getpgid',
+                         'os.killpg'])
+
+  def test_kill_not_needed(self):
+    """Tests when the process exits without needing to be killed."""
+
+    class ProcMock(object):
+      poll_results = [1, None, None, None]
+      pid = 1234
+      def poll(self):
+        return self.poll_results.pop()
+    proc = ProcMock()
+
+    common.wait_timeout(proc, 5)
+
+    self.assert_n_calls(0, [self.mock.killpg])
+    self.assert_exact_calls(self.mock.sleep, [mock.call(0.5), mock.call(0.5),
+                                              mock.call(0.5), mock.call(0.5)])
+
+  def test_kill_needed(self):
+    """Tests when the process must be killed."""
+
+    self.mock.getpgid.return_value = 345
+    class ProcMock(object):
+      pid = 1234
+      def poll(self):
+        return None
+    proc = ProcMock()
+
+    common.wait_timeout(proc, 5)
+
+    self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
+    self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
+    self.assert_n_calls(10, [self.mock.sleep])
+
+  def test_no_timeout(self):
+    """Tests when no timeout is specified."""
+
+    common.wait_timeout(mock.Mock(), None)
+
+    self.assert_n_calls(0, [self.mock.sleep, self.mock.getpgid,
+                            self.mock.killpg])

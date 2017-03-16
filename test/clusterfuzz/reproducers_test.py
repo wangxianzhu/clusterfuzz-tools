@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import json
 import mock
 
 from test import helpers
@@ -172,7 +173,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             'ASAN_OPTIONS': 'option2=false:option1=true',
             'UBSAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer'})])
     self.assert_exact_calls(self.mock.wait_execute, [mock.call(
-        self.mock.start_execute.return_value, exit_on_error=False)])
+        self.mock.start_execute.return_value, exit_on_error=False, timeout=15)])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])
 
@@ -406,10 +407,33 @@ class ReproduceTest(helpers.ExtendedTestCase):
   def setUp(self):
     self.reproducer = create_chrome_reproducer()
     helpers.patch(self, [
-        'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash'])
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',
+        'requests.post'])
     self.mock.reproduce_crash.return_value = (0, ['stuff'])
+    self.reproducer.crash_type = 'original_type'
+    self.reproducer.crash_state = ['original', 'state']
+    self.reproducer.job_type = 'linux_ubsan_chrome'
 
-  def test_call(self):
-    self.reproducer.reproduce()
+  def test_good_stacktrace(self):
+    """Tests functionality when the stacktrace matches"""
+    response = {
+        'crash_type': 'original_type',
+        'crash_state': 'original\nstate'}
+    self.mock.post.return_value = mock.Mock(text=json.dumps(response))
+
+    result = self.reproducer.reproduce()
+    self.assertTrue(result)
+    self.assert_exact_calls(self.mock.reproduce_crash, [
+        mock.call(self.reproducer)])
+
+  def test_bad_stacktrace(self):
+    """Tests functionality when the stacktraces don't match."""
+    response = {
+        'crash_type': 'different_type',
+        'crash_state': 'state'}
+    self.mock.post.return_value = mock.Mock(text=json.dumps(response))
+
+    result = self.reproducer.reproduce()
+    self.assertFalse(result)
     self.assert_exact_calls(self.mock.reproduce_crash, [
         mock.call(self.reproducer)])

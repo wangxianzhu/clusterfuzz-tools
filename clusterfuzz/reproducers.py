@@ -18,6 +18,8 @@ import shutil
 import time
 import subprocess
 import logging
+import json
+import requests
 import xvfbwrapper
 import psutil
 
@@ -41,12 +43,15 @@ class BaseReproducer(object):
 
   def __init__(self, binary_provider, testcase, sanitizer):
     self.testcase_path = testcase.get_testcase_path()
+    self.job_type = testcase.job_type
     self.environment = testcase.environment
     self.args = testcase.reproduction_args
     self.binary_path = binary_provider.get_binary_path()
     self.symbolizer_path = common.get_location('llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
+    self.crash_state = testcase.crash_state
+    self.crash_type = testcase.crash_type
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
 
@@ -109,9 +114,22 @@ class BaseReproducer(object):
     _, output = self.reproduce_crash()
 
     print
-    logger.info('Reproduction Successful. Stacktrace:')
-    print
+    response = requests.post(
+        url='https://staging-dot-cluster-fuzz.appspot.com/v2/parse_stacktrace',
+        data=json.dumps({'job': self.job_type, 'stacktrace': output}))
+    response = json.loads(response.text)
+    new_crash_state = [x for x in response['crash_state'].split('\n') if x]
+
     logger.info(output)
+    if (new_crash_state == self.crash_state and
+        response['crash_type'] == self.crash_type):
+      logger.info('The stacktrace matches the original crash')
+      return True
+    else:
+      logger.info(
+          ('This crash may not have been successfully reproduced or '
+           'symbolized - the stacktrace does not match the orignal crash'))
+      return False
 
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""
@@ -185,7 +203,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
           ('xdotool search --all --pid %s --onlyvisible --name'
            ' ".*"' % pid), os.path.expanduser('~'),
           environment={'DISPLAY': display_name},
-          exit_on_error=False)
+          exit_on_error=False, print_output=False)
       for line in windows.splitlines():
         if not line.isdigit():
           continue
@@ -240,4 +258,4 @@ class LinuxChromeJobReproducer(BaseReproducer):
                                      environment=self.environment)
       if self.gestures:
         self.run_gestures(process, display_name)
-      return common.wait_execute(process, exit_on_error=False)
+      return common.wait_execute(process, exit_on_error=False, timeout=15)

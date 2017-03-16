@@ -76,6 +76,8 @@ class Testcase(object):
     self.file_extension = self.get_file_extension(self.absolute_path)
     self.reproducible = not testcase_json['testcase']['one_time_crasher_flag']
     self.gestures = testcase_json['testcase'].get('gestures')
+    self.crash_type = testcase_json['crash_type']
+    self.crash_state = testcase_json['crash_state']
 
   def testcase_dir_name(self):
     """Returns a testcases' respective directory."""

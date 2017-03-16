@@ -32,6 +32,8 @@ def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
   testcase_json = {
       'id': '12345',
       'crash_stacktrace': {'lines': stacktrace_lines},
+      'crash_type': 'bad_crash',
+      'crash_state': 'halted',
       'crash_revision': revision,
       'metadata': {'build_url': build_url},
       'testcase': {'window_argument': window_arg,

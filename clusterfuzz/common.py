@@ -18,6 +18,8 @@ import sys
 import stat
 import subprocess
 import logging
+import time
+import signal
 import pkg_resources
 
 from clusterfuzz import local_logging
@@ -149,6 +151,18 @@ def get_stored_auth_header():
     return f.read()
 
 
+def wait_timeout(proc, timeout):
+  """If proc runs longer than <timeout> seconds, kill it."""
+  if not timeout:
+    return
+  for _ in range(0, timeout * 2):
+    time.sleep(0.5)
+    if proc.poll():
+      break
+  else:
+    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+
+
 def start_execute(command, cwd, environment):
   """Runs a command, and returns the subprocess.Popen object."""
 
@@ -158,10 +172,12 @@ def start_execute(command, cwd, environment):
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd,
-      env=environment)
+      env=environment,
+      preexec_fn=os.setsid)
 
 
-def wait_execute(proc, exit_on_error, capture_output=True, print_output=True):
+def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
+                 timeout=None):
   """Looks after a command as it runs, and prints/returns its output after."""
 
   def _print(s):
@@ -170,6 +186,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True):
 
   _print('---------------------------------------')
   output_chunks = []
+  wait_timeout(proc, timeout)
   for chunk in iter(lambda: proc.stdout.read(100), b''):
     if print_output:
       local_logging.send_output(chunk)

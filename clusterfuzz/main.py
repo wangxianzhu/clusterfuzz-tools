@@ -31,7 +31,7 @@ def execute(argv=None):
       help=('Use the current tree. Without --current, the Chrome repository is'
             ' switched to the commit specified in the testcase.'))
   reproduce.add_argument(
-      '-b', '--build', action='store', default='standalone',
+      '-b', '--build', action='store', default='chromium',
       choices=['download', 'chromium', 'standalone'],
       help='Select which type of build to run the testcase against.')
   reproduce.add_argument(

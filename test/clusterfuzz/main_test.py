@@ -39,9 +39,9 @@ class MainTest(unittest.TestCase):
 
     self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
-        mock.call(build='standalone', current=False, disable_goma=False,
+        mock.call(build='chromium', current=False, disable_goma=False,
                   testcase_id='1234'),
-        mock.call(build='standalone', current=True, disable_goma=False,
+        mock.call(build='chromium', current=True, disable_goma=False,
                   testcase_id='1234'),
         mock.call(build='download', current=False, disable_goma=True,
                   testcase_id='1234'),

@@ -203,6 +203,7 @@ def start_execute(command, cwd, environment):
   return subprocess.Popen(
       command,
       shell=True,
+      stdin=subprocess.PIPE,
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd,

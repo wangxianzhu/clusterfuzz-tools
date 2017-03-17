@@ -127,7 +127,7 @@ class BaseReproducer(object):
 
       logger.info(output)
       if (new_crash_state == self.crash_state and
-          response['crash_type'] == self.crash_type):
+          response['crash_type'].replace('\n', ' ') == self.crash_type):
         logger.info('The stacktrace matches the original crash')
         return True
       logger.info('Reproduction attempt %d unsuccessful. Press Ctrl+C to'
@@ -244,8 +244,26 @@ class LinuxChromeJobReproducer(BaseReproducer):
     user_profile_dir = '/tmp/clusterfuzz-user-profile-data'
     if os.path.exists(user_profile_dir):
       shutil.rmtree(user_profile_dir)
-    self.args += ' --user-data-dir=%s' % user_profile_dir
+    user_data_str = ' --user-data-dir=%s' % user_profile_dir
+    if user_data_str not in self.args:
+      self.args += user_data_str
     super(LinuxChromeJobReproducer, self).pre_build_steps()
+
+
+  def post_run_symbolize(self, output):
+    """Symbolizes non-libfuzzer chrome jobs."""
+
+    asan_symbolizer_location = os.path.join(
+        os.environ['CHROMIUM_SRC'], os.path.join('tools', 'valgrind', 'asan',
+                                                 'asan_symbolize.py'))
+    x = common.start_execute(asan_symbolizer_location, os.path.expanduser('~'),
+                             {'LLVM_SYMBOLIZER_PATH': common.get_location(
+                                 'asan_symbolize_proxy.py'),
+                              'CHROMIUM_SRC': os.environ['CHROMIUM_SRC']})
+    output += '\0'
+    out, _ = x.communicate(input=output)
+    return out
+
 
   def reproduce_crash(self):
     """Reproduce the crash, running gestures if necessary."""
@@ -257,8 +275,10 @@ class LinuxChromeJobReproducer(BaseReproducer):
       logger.info('Running: %s', command)
       if display_name:
         self.environment['DISPLAY'] = display_name
+      self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
       process = common.start_execute(command, os.path.dirname(self.binary_path),
                                      environment=self.environment)
       if self.gestures:
         self.run_gestures(process, display_name)
-      return common.wait_execute(process, exit_on_error=False, timeout=15)
+      err, out = common.wait_execute(process, exit_on_error=False, timeout=15)
+      return err, self.post_run_symbolize(out)

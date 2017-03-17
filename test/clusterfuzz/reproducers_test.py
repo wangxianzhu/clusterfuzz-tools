@@ -107,9 +107,12 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.run_gestures',
         'clusterfuzz.reproducers.Blackbox.__enter__',
         'clusterfuzz.reproducers.Blackbox.__exit__',
-        'clusterfuzz.common.get_location'])
+        'clusterfuzz.common.get_location',
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize'])
     self.mock.get_location.return_value = ('/chrome/source/folder/'
                                            'llvm-symbolizer')
+    self.mock.wait_execute.return_value = (0, 'lines')
+    self.mock.post_run_symbolize.return_value = 'symbolized'
 
   def test_base_reproduce_crash(self):
     """Ensures that the crash reproduction is called correctly."""
@@ -163,7 +166,9 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     reproducer = reproducers.LinuxChromeJobReproducer(
         mocked_provider, mocked_testcase, 'UBSAN')
     reproducer.gestures = ['gesture,1', 'gesture,2']
-    reproducer.reproduce_crash()
+    err, text = reproducer.reproduce_crash()
+    self.assertEqual(err, 0)
+    self.assertEqual(text, 'symbolized')
     self.assert_exact_calls(self.mock.start_execute, [mock.call(
         ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
          '--user-data-dir=/tmp/clusterfuzz-user-profile-data %s/.'
@@ -408,8 +413,10 @@ class ReproduceTest(helpers.ExtendedTestCase):
     self.reproducer = create_chrome_reproducer()
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize',
         'requests.post'])
     self.mock.reproduce_crash.return_value = (0, ['stuff'])
+    self.mock.post_run_symbolize.return_value = 'stuff'
     self.reproducer.crash_type = 'original_type'
     self.reproducer.crash_state = ['original', 'state']
     self.reproducer.job_type = 'linux_ubsan_chrome'
@@ -430,3 +437,31 @@ class ReproduceTest(helpers.ExtendedTestCase):
     self.assertTrue(result)
     self.assert_exact_calls(self.mock.reproduce_crash, [
         mock.call(self.reproducer), mock.call(self.reproducer)])
+
+
+class PostRunSymbolizeTest(helpers.ExtendedTestCase):
+  """Tests the post_run_symbolize method."""
+
+  def setUp(self):
+    self.reproducer = create_chrome_reproducer()
+    self.mock_os_environment({'CHROMIUM_SRC': '/path/to/chromium'})
+    helpers.patch(self, ['clusterfuzz.common.start_execute',
+                         'clusterfuzz.common.get_location'])
+    self.mock.get_location.return_value = 'asan_sym_proxy.py'
+    (self.mock.start_execute.return_value.
+     communicate.return_value) = ('symbolized', 0)
+
+  def test_symbolize_output(self):
+    """Test to ensure the correct symbolization call are made."""
+    output = 'output_lines'
+
+    result = self.reproducer.post_run_symbolize(output)
+
+    self.assert_exact_calls(self.mock.start_execute, [
+        mock.call(('/path/to/chromium/tools/valgrind/asan/asan_symbolize.py'),
+                  os.path.expanduser('~'),
+                  {'LLVM_SYMBOLIZER_PATH': 'asan_sym_proxy.py',
+                   'CHROMIUM_SRC': '/path/to/chromium'})])
+    self.assert_exact_calls(self.mock.start_execute.return_value.communicate,
+                            [mock.call(input='output_lines\x00')])
+    self.assertEqual(result, 'symbolized')

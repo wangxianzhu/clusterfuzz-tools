@@ -127,6 +127,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        stdin=subprocess.PIPE,
         cwd='~/working/directory',
         env=None,
         preexec_fn=os.setsid)])

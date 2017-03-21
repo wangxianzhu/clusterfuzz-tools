@@ -19,6 +19,7 @@ import time
 import subprocess
 import logging
 import json
+import HTMLParser
 import requests
 import xvfbwrapper
 import psutil
@@ -50,8 +51,10 @@ class BaseReproducer(object):
     self.symbolizer_path = common.get_location('llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
-    self.crash_state = testcase.crash_state
-    self.crash_type = testcase.crash_type
+    parser = HTMLParser.HTMLParser()
+    self.crash_state, self.crash_type = self.get_stacktrace_info(
+        parser.unescape('\n'.join(
+            [l['content'] for l in testcase.stacktrace_lines])))
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
 
@@ -108,6 +111,17 @@ class BaseReproducer(object):
     return common.execute(command, os.path.dirname(self.binary_path),
                           environment=self.environment, exit_on_error=False)
 
+  def get_stacktrace_info(self, trace):
+    """Post a stacktrace, return (crash_state, crash_type)."""
+
+    response = requests.post(
+        url=('https://clusterfuzz.com/v2/parse_stacktrace'),
+        data=json.dumps({'job': self.job_type, 'stacktrace': trace}))
+    response = json.loads(response.text)
+    crash_state = [x for x in response['crash_state'].split('\n') if x]
+    crash_type = response['crash_type'].replace('\n', ' ')
+    return crash_state, crash_type
+
   def reproduce(self):
     """Reproduces the crash and prints the stacktrace."""
 
@@ -118,16 +132,11 @@ class BaseReproducer(object):
       _, output = self.reproduce_crash()
 
       print
-      response = requests.post(
-          url=('https://staging-dot-cluster-fuzz.appspot.com/v2/'
-               'parse_stacktrace'),
-          data=json.dumps({'job': self.job_type, 'stacktrace': output}))
-      response = json.loads(response.text)
-      new_crash_state = [x for x in response['crash_state'].split('\n') if x]
-
       logger.info(output)
+
+      new_crash_state, new_crash_type = self.get_stacktrace_info(output)
       if (new_crash_state == self.crash_state and
-          response['crash_type'].replace('\n', ' ') == self.crash_type):
+          new_crash_type == self.crash_type):
         logger.info('The stacktrace matches the original crash')
         return True
       logger.info('Reproduction attempt %d unsuccessful. Press Ctrl+C to'

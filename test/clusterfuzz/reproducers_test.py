@@ -20,11 +20,23 @@ import mock
 from test import helpers
 from clusterfuzz import reproducers
 
+def patch_stacktrace_info(obj):
+  """Patches get_stacktrace_info for initializing a Reproducer."""
+
+  patcher = mock.patch('requests.post',
+                       return_value=mock.Mock(text=json.dumps({
+                           'crash_state': 'original\nstate',
+                           'crash_type': 'original_type'})))
+  patcher.start()
+  obj.addCleanup(patcher.stop)
+
+
 def create_chrome_reproducer():
   """Creates a LinuxChromeJobReproducer for use in testing."""
 
   binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
-  testcase = mock.Mock(gestures=None)
+  testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
+                       job_type='job_type')
   reproducer = reproducers.LinuxChromeJobReproducer(
       binary_provider, testcase, 'UBSAN')
   reproducer.args = '--always-opt'
@@ -36,7 +48,8 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, ['os.path.dirname'])
     self.binary_provider = mock.Mock()
-    self.testcase = mock.Mock(gestures=None)
+    self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
+        {'content': 'line'}], job_type='job_type')
     self.reproducer = reproducers.BaseReproducer(
         self.binary_provider, self.testcase, 'UBSAN')
 
@@ -72,7 +85,8 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     self.binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
-    self.testcase = mock.Mock(gestures=None)
+    self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
+        {'content': 'line'}], job_type='job_type')
     self.reproducer = reproducers.BaseReproducer(
         self.binary_provider, self.testcase, 'UBSAN')
 
@@ -126,7 +140,9 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     source = '/chrome/source/folder/d8'
     env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
     mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
-                                environment=env, gestures=None)
+                                environment=env, gestures=None,
+                                stacktrace_lines=[{'content': 'line'}],
+                                job_type='job_type')
     mocked_testcase.get_testcase_path.return_value = testcase_file
     mocked_provider = mock.Mock()
     self.mock.get_location = '/chrome/source/folder/llvm-symbolizer'
@@ -157,7 +173,9 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     source = '/chrome/source/folder/d8'
     env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
     mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
-                                environment=env, gestures=None)
+                                environment=env, gestures=None,
+                                stacktrace_lines=[{'content': 'line'}],
+                                job_type='job_type')
     mocked_testcase.get_testcase_path.return_value = testcase_file
     mocked_provider = mock.Mock(
         symbolizer_path='/chrome/source/folder/llvm-symbolizer')
@@ -190,6 +208,7 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
     helpers.patch(self,
                   ['clusterfuzz.reproducers.BaseReproducer.pre_build_steps'])
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
 
   def test_reproduce_crash(self):
@@ -210,6 +229,7 @@ class XdotoolCommandTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['clusterfuzz.common.start_execute',
                          'clusterfuzz.common.wait_execute'])
     self.mock.start_execute.return_value = mock.Mock()
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
 
   def test_call(self):
@@ -232,6 +252,7 @@ class FindWindowsForProcessTest(helpers.ExtendedTestCase):
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.get_process_ids',
         'clusterfuzz.common.execute',
         'time.sleep'])
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
 
   def test_no_pids(self):
@@ -260,6 +281,7 @@ class GetProcessIdsTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, ['psutil.Process',
                          'psutil.pid_exists'])
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
 
   def test_process_not_running(self):
@@ -306,6 +328,7 @@ class RunGesturesTest(helpers.ExtendedTestCase):
          '_process'),
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.xdotool_command',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.execute_gesture'])
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
     self.mock.get_gesture_start_time.return_value = 5
     self.mock.find_windows_for_process.return_value = ['123']
@@ -327,6 +350,7 @@ class GetGestureStartTimeTest(helpers.ExtendedTestCase):
   """Test the get_gesture_start_time method."""
 
   def setUp(self):
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
 
   def test_with_trigger(self):
@@ -347,6 +371,7 @@ class ExecuteGestureTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.xdotool_command'])
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
     self.reproducer.gestures = ['windowsize,2', 'type,\'ValeM1khbW4Gt!\'']
 
@@ -410,6 +435,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
   """Tests the reproduce method within reproducers."""
 
   def setUp(self):
+    patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',

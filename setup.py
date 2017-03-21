@@ -19,7 +19,7 @@ from setuptools import setup
 
 setup(
     name='clusterfuzz',
-    version='0.2rc1',
+    version='0.2rc2',
     description="The command-line tools for ClusterFuzz's users",
     author='Google Inc.',
     license='Apache 2.0',

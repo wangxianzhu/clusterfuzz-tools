@@ -446,7 +446,8 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     self.reproducer = create_chrome_reproducer()
     self.mock_os_environment({'CHROMIUM_SRC': '/path/to/chromium'})
     helpers.patch(self, ['clusterfuzz.common.start_execute',
-                         'clusterfuzz.common.get_location'])
+                         'clusterfuzz.common.get_location',
+                         'os.chmod'])
     self.mock.get_location.return_value = 'asan_sym_proxy.py'
     (self.mock.start_execute.return_value.
      communicate.return_value) = ('symbolized', 0)
@@ -464,4 +465,6 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
                    'CHROMIUM_SRC': '/path/to/chromium'})])
     self.assert_exact_calls(self.mock.start_execute.return_value.communicate,
                             [mock.call(input='output_lines\x00')])
+    self.assert_exact_calls(self.mock.chmod, [
+        mock.call('asan_sym_proxy.py', 0755)])
     self.assertEqual(result, 'symbolized')

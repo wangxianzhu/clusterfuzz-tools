@@ -256,9 +256,10 @@ class LinuxChromeJobReproducer(BaseReproducer):
     asan_symbolizer_location = os.path.join(
         os.environ['CHROMIUM_SRC'], os.path.join('tools', 'valgrind', 'asan',
                                                  'asan_symbolize.py'))
+    symbolizer_proxy_location = common.get_location('asan_symbolize_proxy.py')
+    os.chmod(symbolizer_proxy_location, 0755)
     x = common.start_execute(asan_symbolizer_location, os.path.expanduser('~'),
-                             {'LLVM_SYMBOLIZER_PATH': common.get_location(
-                                 'asan_symbolize_proxy.py'),
+                             {'LLVM_SYMBOLIZER_PATH': symbolizer_proxy_location,
                               'CHROMIUM_SRC': os.environ['CHROMIUM_SRC']})
     output += '\0'
     out, _ = x.communicate(input=output)

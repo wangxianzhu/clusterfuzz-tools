@@ -15,6 +15,8 @@ def main(*argv):
   for x in argv[1:]:
     if '--functions' in x:
       cmd.append('--functions=linkage')
+    elif '--inlining' in x:
+      cmd.append('--inlining=false')
     else:
       cmd.append(x)
   subprocess.call(cmd, stdin=sys.stdin, stdout=sys.stdout)

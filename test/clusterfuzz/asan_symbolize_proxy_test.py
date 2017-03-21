@@ -19,7 +19,9 @@ class TestSymbolizerProxying(helpers.ExtendedTestCase):
     """Test running the main method."""
 
     with self.assertRaises(SystemExit):
-      asan_symbolize_proxy.main('cmd', 'arg1', '--functions=short')
+      asan_symbolize_proxy.main('cmd', '--inlining=true', 'arg1',
+                                '--functions=short')
     self.assert_exact_calls(self.mock.call, [
-        mock.call(['symbolizer_location', 'arg1', '--functions=linkage'],
+        mock.call(['symbolizer_location', '--inlining=false', 'arg1',
+                   '--functions=linkage'],
                   stdin=sys.stdin, stdout=sys.stdout)])

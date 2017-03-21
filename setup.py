@@ -19,7 +19,7 @@ from setuptools import setup
 
 setup(
     name='clusterfuzz',
-    version='0.2rc0',
+    version='0.2rc1',
     description="The command-line tools for ClusterFuzz's users",
     author='Google Inc.',
     license='Apache 2.0',
@@ -36,7 +36,8 @@ setup(
         'urlfetch==1.0.2',
         'psutil==5.2.0',
         'pyOpenSSL==16.2.0',
-        'xvfbwrapper==0.2.9'
+        'xvfbwrapper==0.2.9',
+        'requests==2.13.0'
     ],
     classifiers=[
         'Programming Language :: Python :: 2.7'],

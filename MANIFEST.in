@@ -1,0 +1,3 @@
+include clusterfuzz/clusterfuzz-tools-logging.json
+include clusterfuzz/llvm-symbolizer
+include clusterfuzz/suppressions/*.txt

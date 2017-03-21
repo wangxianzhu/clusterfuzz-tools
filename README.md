@@ -31,7 +31,7 @@ Develop
 ------------
 
 1. Set up virtualenv with `python bootstrap.py`.
-2. Setting up virtualenv by running `virtualenv ENV` and `source ENV/bin/activate`.
+2. Load the virtualenv's environment by running `source ENV/bin/activate`.
 3. Run the binary by running `clusterfuzz --help`.
 
 

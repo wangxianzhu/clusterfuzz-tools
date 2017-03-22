@@ -57,6 +57,7 @@ class BaseReproducer(object):
             [l['content'] for l in testcase.stacktrace_lines])))
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
+    self.source_directory = binary_provider.source_directory
 
   def deserialize_sanitizer_options(self, options):
     """Read options from a variable like ASAN_OPTIONS into a dict."""
@@ -263,13 +264,13 @@ class LinuxChromeJobReproducer(BaseReproducer):
     """Symbolizes non-libfuzzer chrome jobs."""
 
     asan_symbolizer_location = os.path.join(
-        os.environ['CHROMIUM_SRC'], os.path.join('tools', 'valgrind', 'asan',
-                                                 'asan_symbolize.py'))
+        self.source_directory, os.path.join('tools', 'valgrind', 'asan',
+                                            'asan_symbolize.py'))
     symbolizer_proxy_location = common.get_location('asan_symbolize_proxy.py')
     os.chmod(symbolizer_proxy_location, 0755)
     x = common.start_execute(asan_symbolizer_location, os.path.expanduser('~'),
                              {'LLVM_SYMBOLIZER_PATH': symbolizer_proxy_location,
-                              'CHROMIUM_SRC': os.environ['CHROMIUM_SRC']})
+                              'CHROMIUM_SRC': self.source_directory})
     output += '\0'
     out, _ = x.communicate(input=output)
     return out

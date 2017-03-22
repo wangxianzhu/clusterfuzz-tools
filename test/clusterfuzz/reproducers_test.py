@@ -470,7 +470,7 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     self.reproducer = create_chrome_reproducer()
-    self.mock_os_environment({'CHROMIUM_SRC': '/path/to/chromium'})
+    self.reproducer.source_directory = '/path/to/chromium'
     helpers.patch(self, ['clusterfuzz.common.start_execute',
                          'clusterfuzz.common.get_location',
                          'os.chmod'])

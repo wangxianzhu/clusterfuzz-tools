@@ -1,3 +1,4 @@
+"""Runs tests for clusterfuzz."""
 # Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,6 @@
 
 import argparse
 import os
-import StringIO
 import sys
 import unittest
 
@@ -49,4 +49,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-

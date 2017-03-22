@@ -1,11 +1,11 @@
 dependencies:
   override:
-    - pip install -r requirements.txt
-    - pip install -e .
+    - pip install -r tool/requirements.txt
+    - pip install -e tool/.
 test:
   override:
-    - git diff-index --name-only origin/master | grep "\.py$" | xargs --no-run-if-empty pylint
-    - coverage run test.py
+    - cd tool && git diff-index --name-only origin/master | grep "\.py$" | xargs ls -d 2>/dev/null | xargs --no-run-if-empty pylint
+    - cd tool && coverage run test.py
   post:
-    - coveralls
+    - cd tool && coveralls
 

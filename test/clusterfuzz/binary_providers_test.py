@@ -631,3 +631,24 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
                    "_origins=2 proprietary_codecs=1 target_arch=x64 use_goma=1"
                    " use_prebuilt_instrumented_libraries=1' gclient runhooks"),
                   '/chrome/src')])
+
+
+class GetCurrentShaTest(helpers.ExtendedTestCase):
+  """Tests functionality when the rev-parse command fails."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute',
+                         'logging.RootLogger.info',
+                         'clusterfuzz.binary_providers.sha_from_revision'])
+
+    self.mock.execute.side_effect = SystemExit
+
+  def test_log_when_exception(self):
+    """Tests to ensure the method prints before it exits."""
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    builder = binary_providers.LibfuzzerMsanBuilder(
+        testcase, binary_definition, False, '/goma/dir')
+    with self.assertRaises(SystemExit):
+      builder.get_current_sha()

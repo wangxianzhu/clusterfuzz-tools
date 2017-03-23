@@ -143,9 +143,14 @@ class GenericBuilder(BinaryProvider):
     self.gn_flags = '--check'
 
   def get_current_sha(self):
-    _, current_sha = common.execute('git rev-parse HEAD',
-                                    self.source_directory,
-                                    print_output=False)
+    try:
+      _, current_sha = common.execute('git rev-parse HEAD',
+                                      self.source_directory,
+                                      print_output=False)
+    except SystemExit:
+      logger.info(
+          'Error: The selected directory is not a valid git repository.')
+      raise
     return current_sha.strip()
 
   def out_dir_name(self):

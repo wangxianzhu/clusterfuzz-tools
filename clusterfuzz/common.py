@@ -25,12 +25,14 @@ import re
 import signal
 import pkg_resources
 
+from backports.shutil_get_terminal_size import get_terminal_size
 from clusterfuzz import local_logging
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 DOMAIN_NAME = 'clusterfuzz.com'
 DEBUG_PRINT = os.environ.get('CF_DEBUG')
+TERMINAL_WIDTH = get_terminal_size().columns
 logger = logging.getLogger('clusterfuzz')
 
 def get_binary_name(stacktrace):
@@ -167,7 +169,7 @@ def wait_timeout(proc, timeout):
 
 
 def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1,
-                       length=100, fill='='):
+                       length=min(100, TERMINAL_WIDTH-26), fill='='):
   """Prints a progress bar on the same line.
 
   From: http://stackoverflow.com/a/34325723."""

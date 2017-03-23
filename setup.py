@@ -37,7 +37,8 @@ setup(
         'pyOpenSSL==16.2.0',
         'xvfbwrapper==0.2.9',
         'requests==2.13.0',
-        'gsutil==4.23'
+        'gsutil==4.23',
+        'backports.shutil_get_terminal_size==1.0.0'
     ],
     classifiers=[
         'Programming Language :: Python :: 2.7'],

@@ -355,7 +355,11 @@ class PrintProgressBarTest(helpers.ExtendedTestCase):
   """Ensures the print_progress_bar method works properly."""
 
   def setUp(self):
-    helpers.patch(self, ['__builtin__.print'])
+    helpers.patch(self,
+                  ['__builtin__.print',
+                   'backports.shutil_get_terminal_size.get_terminal_size'])
+    self.mock.get_terminal_size.return_value = mock.Mock(columns=150)
+    reload(common)
 
   def test_call(self):
     """Ensures print is called with the correct parameters."""

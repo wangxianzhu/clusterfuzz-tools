@@ -142,6 +142,10 @@ class BaseReproducer(object):
         return True
       logger.info('Reproduction attempt %d unsuccessful. Press Ctrl+C to'
                   ' stop trying to reproduce.', iterations)
+      logger.debug('New crash state: %s, original: %s',
+                   ', '.join(new_crash_state), ', '.join(self.crash_state))
+      logger.debug('New crash type: %s, original: %s', new_crash_type,
+                   self.crash_type)
       iterations += 1
 
 class Blackbox(object):

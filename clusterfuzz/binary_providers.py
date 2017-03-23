@@ -193,8 +193,7 @@ class GenericBuilder(BinaryProvider):
   def setup_gn_goma_params(self, gn_args):
     """Ensures that goma_dir and gn_goma are used correctly."""
 
-    if not self.goma_dir or (
-        'use_goma' in gn_args and gn_args['use_goma'] == 'false'):
+    if not self.goma_dir or gn_args.get('use_goma', 'false') == 'false':
       self.goma_dir = False
       gn_args.pop('goma_dir', None)
       gn_args['use_goma'] = 'false'

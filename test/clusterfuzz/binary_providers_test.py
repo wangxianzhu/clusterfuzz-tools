@@ -325,7 +325,8 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
     os.makedirs(build_dir)
     with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
-      f.write('goma_dir = /not/correct/dir')
+      f.write('goma_dir = /not/correct/dir\n')
+      f.write('use_goma = true')
 
     self.builder.build_directory = self.testcase_dir
     self.builder.setup_gn_args()
@@ -334,7 +335,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         mock.call('gn gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\n')
+      self.assertEqual(f.read(), 'use_goma = true\ngoma_dir = "/goma/dir"\n')
 
   def test_args_setup(self):
     """Tests to ensure that the args.gn is setup correctly."""
@@ -354,7 +355,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         mock.call('gn gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\n')
+      self.assertEqual(f.read(), 'use_goma = false\n')
 
 
 
@@ -471,7 +472,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [mock.call(
         'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
+      self.assertEqual(f.read(), ('use_goma = false\n'
                                   'pdf_is_standalone = true\n'))
 
   def test_gn_args_no_goma(self):

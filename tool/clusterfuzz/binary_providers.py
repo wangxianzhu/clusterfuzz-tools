@@ -130,7 +130,7 @@ class GenericBuilder(BinaryProvider):
   """Provides a base for binary builders."""
 
   def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source, binary_name, target=None):
+               source, binary_name, target=None, goma_threads=None):
     """self.git_sha must be set in a subclass, or some of these
     instance methods may not work."""
     super(GenericBuilder, self).__init__(testcase_id, build_url, binary_name)
@@ -141,6 +141,7 @@ class GenericBuilder(BinaryProvider):
     self.revision = revision
     self.gn_args_options = None
     self.gn_flags = '--check'
+    self.goma_threads = goma_threads
 
   def get_current_sha(self):
     try:
@@ -243,8 +244,11 @@ class GenericBuilder(BinaryProvider):
   def get_goma_cores(self):
     """Choose the correct amount of GOMA cores for a build."""
 
-    cpu_count = multiprocessing.cpu_count()
-    return 10 * cpu_count if self.goma_dir else (3 * cpu_count) / 4
+    if self.goma_threads:
+      return self.goma_threads
+    else:
+      cpu_count = multiprocessing.cpu_count()
+      return 10 * cpu_count if self.goma_dir else (3 * cpu_count) / 4
 
   def build_target(self):
     """Build the correct revision in the source directory."""
@@ -285,10 +289,12 @@ class GenericBuilder(BinaryProvider):
 class PdfiumBuilder(GenericBuilder):
   """Build a fresh Pdfium binary."""
 
-  def __init__(self, testcase, binary_definition, current, goma_dir):
+  def __init__(self, testcase, binary_definition, current, goma_dir,
+               goma_threads):
     super(PdfiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
-        goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test')
+        goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test',
+        goma_threads)
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
@@ -299,11 +305,12 @@ class PdfiumBuilder(GenericBuilder):
 class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
 
-  def __init__(self, testcase, binary_definition, current, goma_dir):
+  def __init__(self, testcase, binary_definition, current, goma_dir,
+               goma_threads):
 
     super(V8Builder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
-        os.environ.get(binary_definition.source_var), 'd8')
+        os.environ.get(binary_definition.source_var), 'd8', goma_threads)
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
     self.name = 'V8'
 
@@ -315,7 +322,8 @@ class V8Builder(GenericBuilder):
 class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
-  def __init__(self, testcase, binary_definition, current, goma_dir):
+  def __init__(self, testcase, binary_definition, current, goma_dir,
+               goma_threads):
 
     target_name = None
     binary_name = binary_definition.binary_name
@@ -326,7 +334,7 @@ class ChromiumBuilder(GenericBuilder):
     super(ChromiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), binary_name,
-        target_name)
+        target_name, goma_threads)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'chromium'
 

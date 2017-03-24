@@ -37,6 +37,9 @@ def execute(argv=None):
   reproduce.add_argument(
       '-dg', '--disable-goma', action='store_true', default=False,
       help='Disable GOMA when building binaries locally')
+  reproduce.add_argument(
+      '-j', action='store', default=None, type=int,
+      help='Manually specify the number of concurrent jobs for a ninja build.')
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

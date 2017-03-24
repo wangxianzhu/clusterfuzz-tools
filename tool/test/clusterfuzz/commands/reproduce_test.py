@@ -72,7 +72,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
     with self.assertRaises(SystemExit):
       reproduce.execute(testcase_id='1234', current=False, build='standalone',
-                        disable_goma=False)
+                        disable_goma=False, j=None)
 
   def test_unsupported_job(self):
     """Tests to ensure an exception is thrown with an unsupported job type."""
@@ -83,7 +83,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Testcase.return_value = testcase
     with self.assertRaises(SystemExit):
       reproduce.execute(testcase_id='1234', current=False, build='standalone',
-                        disable_goma=False)
+                        disable_goma=False, j=None)
 
   def test_download_no_defined_binary(self):
     """Test what happens when no binary name is defined."""
@@ -105,7 +105,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          reproduction_args='--always-opt')
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='download',
-                      disable_goma=False)
+                      disable_goma=False, j=None)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
@@ -136,7 +136,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          stacktrace_lines=stacktrace, reproducible=True)
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='download',
-                      disable_goma=False)
+                      disable_goma=False, j=None)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
@@ -163,7 +163,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          reproducible=True, reproduction_args='--always-opt')
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='standalone',
-                      disable_goma=False)
+                      disable_goma=False, j=22)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
@@ -171,7 +171,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.builder, [
             mock.call(testcase, self.mock.get_binary_definition.return_value,
-                      False, '/goma/dir')])
+                      False, '/goma/dir', 22)])
     self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.reproducer,
         [mock.call((self.mock.get_binary_definition.return_value.builder

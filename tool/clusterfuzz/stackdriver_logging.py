@@ -76,14 +76,15 @@ def send_log(params):
       body=json.dumps(structure))
 
 
-def make_basic_params(command, testcase_id, build, current, disable_goma):
+def make_basic_params(command, testcase_id, build, current, disable_goma, j):
   """Creates the basic paramater dict."""
 
   return {'testcaseId': testcase_id,
           'buildType': build,
           'current': current,
           'command': command,
-          'disableGoma': disable_goma}
+          'disableGoma': disable_goma,
+          'j': j}
 
 
 def send_start(**kwargs):

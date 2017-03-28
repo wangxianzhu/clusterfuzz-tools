@@ -1,0 +1,86 @@
+- name: Setup the instance on GCE
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Create the instance
+      gce:
+        instance_names: continuous-integration-test
+        machine_type: n1-standard-8
+        image: debian-7
+        service_account_email: "ci-test-tanin@clusterfuzz-tools.iam.gserviceaccount.com"
+        credentials_file: "clusterfuzz-tools-456f4e1584b9.json"
+        project_id: "981641712411"
+        zone: "us-central1-f"
+      register: gce
+    - name: Wait for SSH to come up
+      wait_for: host={{ gce.instance_data[0].public_ip }}
+                port=22
+                timeout=60
+    - name: Add host to groupname
+      add_host: hostname={{ gce.instance_data[0].public_ip }}
+                groupname=continuous-integration-instances
+- name: Configure users and dependencies
+  hosts: continuous-integration-instances
+  connection: ssh
+  become: true
+  tasks:
+    - group:
+        name: clusterfuzz
+        state: present
+    - user:
+        name: clusterfuzz
+        state: present
+        groups: clusterfuzz
+    - apt:
+        update_cache: yes
+    - apt: name={{item}} state=latest
+      with_items:
+        - python
+        - python-pip
+        - runit
+    - name: Upgrade PIP
+      pip: name={{item}} state=latest
+      with_items:
+        - pip
+        - wheel
+        - setuptools
+- name: Setup python-daemon (runit service, folder, log folder, and service)
+  hosts: continuous-integration-instances
+  connection: ssh
+  become: true
+  tasks:
+    - file:
+        path: /python-daemon
+        state: directory
+        owner: clusterfuzz
+        group: clusterfuzz
+        mode: 'u=rwx,g=rx,o=rx'
+    - file: path="{{item}}"
+            state=directory
+            owner=root
+            group=root
+            mode='u=rwx,g=rwx,o=rwx'
+      with_items:
+        - '/etc/sv/python-daemon'
+        - '/etc/sv/python-daemon/log'
+        - '/var/log/python-daemon'
+    - copy: src={{item.src}}
+            dest={{item.dest}}
+            force=true
+            owner=root
+            group=root
+            mode='u=rwx,g=rwx,o=rwx'
+      with_items:
+        - {'src': 'python_daemon_run', 'dest': '/etc/sv/python-daemon/run'}
+        - {'src': 'python_daemon_log_run', 'dest': '/etc/sv/python-daemon/log/run'}
+        - {'src': 'test.py', 'dest': '/python-daemon/test.py'}
+    - file:
+        src: '{{ item.src }}'
+        dest: '{{ item.dest }}'
+        state: link
+        mode: 'u=rwx,g=rwx,o=rwx'
+      with_items:
+        - { src: '/etc/sv/python-daemon', dest: '/etc/service/python-daemon' }
+    - shell: "sv restart python-daemon/log"
+    - shell: "sv restart python-daemon"

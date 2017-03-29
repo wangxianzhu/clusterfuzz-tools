@@ -40,6 +40,9 @@ def execute(argv=None):
   reproduce.add_argument(
       '-j', action='store', default=None, type=int,
       help='Manually specify the number of concurrent jobs for a ninja build.')
+  reproduce.add_argument(
+      '--disable-gclient-commands', action='store_true', default=False,
+      help='Disable all "gclient runhooks" and "gclient sync" commands')
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

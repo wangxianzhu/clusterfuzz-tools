@@ -130,7 +130,8 @@ class GenericBuilder(BinaryProvider):
   """Provides a base for binary builders."""
 
   def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source, binary_name, target=None, goma_threads=None):
+               source, binary_name, target=None, goma_threads=None,
+               disable_gclient_commands=False):
     """self.git_sha must be set in a subclass, or some of these
     instance methods may not work."""
     super(GenericBuilder, self).__init__(testcase_id, build_url, binary_name)
@@ -142,6 +143,7 @@ class GenericBuilder(BinaryProvider):
     self.gn_args_options = None
     self.gn_flags = '--check'
     self.goma_threads = goma_threads
+    self.disable_gclient_commands = disable_gclient_commands
 
   def get_current_sha(self):
     try:
@@ -254,7 +256,8 @@ class GenericBuilder(BinaryProvider):
     """Build the correct revision in the source directory."""
 
     self.pre_build_steps()
-    common.execute('gclient sync', self.source_directory)
+    if not self.disable_gclient_commands:
+      common.execute('gclient sync', self.source_directory)
     #Note: gclient sync must be run before setting up the gn args
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()
@@ -290,11 +293,11 @@ class PdfiumBuilder(GenericBuilder):
   """Build a fresh Pdfium binary."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads):
+               goma_threads, disable_gclient_commands=False):
     super(PdfiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test',
-        goma_threads)
+        goma_threads, disable_gclient_commands)
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
@@ -306,16 +309,19 @@ class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads):
+               goma_threads, disable_gclient_commands=False):
 
     super(V8Builder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
-        os.environ.get(binary_definition.source_var), 'd8', goma_threads)
+        os.environ.get(binary_definition.source_var), 'd8', goma_threads,
+        disable_gclient_commands)
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
     self.name = 'V8'
 
   def pre_build_steps(self):
-    common.execute('GYP_DEFINES=asan=1 gclient runhooks', self.source_directory)
+    if not self.disable_gclient_commands:
+      common.execute('GYP_DEFINES=asan=1 gclient runhooks',
+                     self.source_directory)
     common.execute('GYP_DEFINES=asan=1 gypfiles/gyp_v8', self.source_directory)
 
 
@@ -323,7 +329,7 @@ class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads):
+               goma_threads, disable_gclient_commands=False):
 
     target_name = None
     binary_name = binary_definition.binary_name
@@ -334,20 +340,22 @@ class ChromiumBuilder(GenericBuilder):
     super(ChromiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), binary_name,
-        target_name, goma_threads)
+        target_name, goma_threads, disable_gclient_commands)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'chromium'
 
   def pre_build_steps(self):
-    common.execute('gclient runhooks', self.source_directory)
+    if not self.disable_gclient_commands:
+      common.execute('gclient runhooks', self.source_directory)
 
 class LibfuzzerMsanBuilder(ChromiumBuilder):
   """Builds for a Msan testcase, inside the Chromium repo."""
 
   def pre_build_steps(self):
-    common.execute(("GYP_DEFINES='clang=1 component=static_library "
-                    "gomadir=%s msan=1 msan_track_origins=2 "
-                    "proprietary_codecs=1 target_arch=x64 use_goma=1"
-                    " use_prebuilt_instrumented_libraries=1' gclient "
-                    "runhooks") % self.goma_dir,
-                   self.source_directory)
+    if not self.disable_gclient_commands:
+      common.execute(("GYP_DEFINES='clang=1 component=static_library "
+                      "gomadir=%s msan=1 msan_track_origins=2 "
+                      "proprietary_codecs=1 target_arch=x64 use_goma=1"
+                      " use_prebuilt_instrumented_libraries=1' gclient "
+                      "runhooks") % self.goma_dir,
+                     self.source_directory)

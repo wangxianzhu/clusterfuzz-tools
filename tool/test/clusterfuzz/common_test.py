@@ -66,6 +66,14 @@ class ConfirmTest(helpers.ExtendedTestCase):
         mock.call('Please type either "y" or "n": ')])
     self.assert_n_calls(4, [self.mock.raw_input])
 
+  def test_quiet_mode(self):
+    """Tests functinality in quiet mode."""
+    self.mock_os_environment({'CF_QUIET': '1'})
+
+    self.assertTrue(common.confirm('Anything'))
+    self.assertTrue(common.confirm('Anything', default='n'))
+
+    self.assert_n_calls(0, [self.mock.raw_input])
 
 class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the execute method."""

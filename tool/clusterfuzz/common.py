@@ -269,6 +269,9 @@ def confirm(question, default='y'):
   default can either be 'y', 'n', or None. Answer
   is returned as either True or False."""
 
+  if os.environ.get('CF_QUIET'):
+    return True
+
   accepts = ['y', 'n']
   defaults = '[y/n]'
   if default:

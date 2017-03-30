@@ -123,13 +123,13 @@ class BaseReproducer(object):
     crash_type = response['crash_type'].replace('\n', ' ')
     return crash_state, crash_type
 
-  def reproduce(self):
+  def reproduce(self, iteration_max=None):
     """Reproduces the crash and prints the stacktrace."""
 
     logger.info('Reproducing...')
 
     iterations = 1
-    while True:
+    while not iteration_max or iterations <= iteration_max:
       _, output = self.reproduce_crash()
 
       print

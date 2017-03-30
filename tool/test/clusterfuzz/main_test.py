@@ -32,23 +32,29 @@ class MainTest(unittest.TestCase):
   def test_parse_reproduce(self):
     """Test parse reproduce command."""
     main.execute(['reproduce', '1234'])
-    main.execute(['reproduce', '1234', '-j', '25' ,'--current'])
+    main.execute(['reproduce', '1234', '-j', '25', '--current'])
     main.execute(['reproduce', '1234', '--disable-goma', '--build', 'download'])
     main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
-    main.execute(['reproduce', '1234', '--build', 'chromium'])
+    main.execute(['reproduce', '1234', '--build', 'chromium', '-i', '500'])
     main.execute(['reproduce', '1234', '--disable-gclient-commands'])
 
     self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
-        mock.call(build='chromium', current=False, disable_gclient_commands=False,
-                  disable_goma=False, j=None, testcase_id='1234'),
-        mock.call(build='chromium', current=True, disable_gclient_commands=False,
-                  disable_goma=False, j=25, testcase_id='1234'),
-        mock.call(build='download', current=False, disable_gclient_commands=False,
-                  disable_goma=True, j=None, testcase_id='1234'),
-        mock.call(build='standalone', current=True, disable_gclient_commands=False,
-                  disable_goma=False, j=None, testcase_id='1234'),
-        mock.call(build='chromium', current=False, disable_gclient_commands=False,
-                  disable_goma=False, j=None, testcase_id='1234'),
-        mock.call(build='chromium', current=False, disable_gclient_commands=True,
-                  disable_goma=False, j=None, testcase_id='1234')])
+        mock.call(build='chromium', current=False,
+                  disable_gclient_commands=False, disable_goma=False,
+                  j=None, testcase_id='1234', iterations=None),
+        mock.call(build='chromium', current=True,
+                  disable_gclient_commands=False, disable_goma=False,
+                  j=25, testcase_id='1234', iterations=None),
+        mock.call(build='download', current=False,
+                  disable_gclient_commands=False, disable_goma=True,
+                  j=None, testcase_id='1234', iterations=None),
+        mock.call(build='standalone', current=True,
+                  disable_gclient_commands=False, disable_goma=False,
+                  j=None, testcase_id='1234', iterations=None),
+        mock.call(build='chromium', current=False,
+                  disable_gclient_commands=False, disable_goma=False,
+                  j=None, testcase_id='1234', iterations=500),
+        mock.call(build='chromium', current=False,
+                  disable_gclient_commands=True, disable_goma=False,
+                  j=None, testcase_id='1234', iterations=None)])

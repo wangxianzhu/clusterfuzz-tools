@@ -46,6 +46,9 @@ SUPPORTED_JOBS = {
         'linux_asan_pdfium': common.BinaryDefinition(
             binary_providers.PdfiumBuilder, 'PDFIUM_SRC',
             reproducers.BaseReproducer, 'pdfium_test', sanitizer='ASAN'),
+        'linux_msan_pdfium': common.BinaryDefinition(
+            binary_providers.PdfiumBuilder, 'PDFIUM_SRC',
+            reproducers.BaseReproducer, 'pdfium_test', sanitizer='MSAN'),
         'linux_asan_d8_dbg': common.BinaryDefinition(
             binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
             'd8', sanitizer='ASAN'),
@@ -62,6 +65,9 @@ SUPPORTED_JOBS = {
         'linux_asan_pdfium': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
             reproducers.BaseReproducer, 'pdfium_test', sanitizer='ASAN'),
+        'linux_msan_pdfium': common.BinaryDefinition(
+            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            reproducers.BaseReproducer, 'pdfium_test', sanitizer='MSAN'),
         'libfuzzer_chrome_asan': common.BinaryDefinition(
             binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
             reproducers.BaseReproducer, sanitizer='ASAN'),

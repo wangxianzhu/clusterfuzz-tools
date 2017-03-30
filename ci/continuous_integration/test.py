@@ -1,4 +1,4 @@
-"""Runs tests for clusterfuzz."""
+"""Runs tests for clusterfuzz CI."""
 # Copyright 2016 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,11 @@ import os
 import sys
 import unittest
 
+
 def execute(pattern, unsuppressed_output):
   """Run tests."""
   suites = unittest.loader.TestLoader().discover(
-      os.path.join('test', 'clusterfuzz'),
+      os.path.join('test', 'ci'),
       pattern=pattern,
       top_level_dir='.')
 
@@ -48,6 +49,6 @@ def main():
 
 if __name__ == '__main__':
   this_directory = os.path.dirname(os.path.realpath(__file__))
-  parent_directory = os.path.dirname(this_directory)
+  parent_directory = os.path.dirname(os.path.dirname(this_directory))
   sys.path.insert(0, os.path.join(parent_directory, 'shared'))
   main()

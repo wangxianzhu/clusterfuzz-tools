@@ -17,7 +17,7 @@ import os
 import json
 import mock
 
-from test import helpers
+import helpers
 from clusterfuzz import reproducers
 from clusterfuzz import common
 
@@ -114,7 +114,7 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
 class ReproduceCrashTest(helpers.ExtendedTestCase):
   """Tests the reproduce_crash method."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.common.start_execute', 'clusterfuzz.common.wait_execute',
@@ -320,7 +320,7 @@ class GetProcessIdsTest(helpers.ExtendedTestCase):
 class RunGesturesTest(helpers.ExtendedTestCase):
   """Tests the run_gestures method."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, [
         'time.sleep',
         ('clusterfuzz.reproducers.LinuxChromeJobReproducer.get_gesture_start_'
@@ -471,7 +471,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
 class ReproduceTest(helpers.ExtendedTestCase):
   """Tests the reproduce method within reproducers."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
     helpers.patch(self, [

@@ -18,7 +18,7 @@ import json
 import time
 import mock
 
-from test import helpers
+import helpers
 from clusterfuzz import stackdriver_logging
 
 class TestSendLog(helpers.ExtendedTestCase):

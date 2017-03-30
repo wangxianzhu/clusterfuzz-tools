@@ -7,6 +7,6 @@ test:
   override:
     - python pylint.py
     - cd tool && coverage run test.py
+    - cd ci/continuous_integration && coverage run test.py
   post:
     - cd tool && coveralls
-

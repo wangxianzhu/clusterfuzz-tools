@@ -17,7 +17,7 @@ import unittest
 import mock
 
 from clusterfuzz import main
-from test import helpers
+import helpers
 
 
 class MainTest(unittest.TestCase):

@@ -19,7 +19,7 @@ import zipfile
 import mock
 
 from clusterfuzz import binary_providers
-from test import helpers
+import helpers
 
 class BuildRevisionToShaUrlTest(helpers.ExtendedTestCase):
   """Tests the build_revision_to_sha_url method."""
@@ -161,7 +161,7 @@ class GetBinaryPathTest(helpers.ExtendedTestCase):
 class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
   """Test get_build_directory inside the V8DownloadedBinary class."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, [
         'clusterfuzz.binary_providers.V8Builder.download_build_data',
         'clusterfuzz.binary_providers.sha_from_revision',
@@ -362,7 +362,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
 class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
   """Tests the checkout_chrome_by_sha method."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.common.check_confirm',
@@ -439,7 +439,7 @@ class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
 class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
   """Tests the setup_gn_args method inside PdfiumBuilder."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     self.setup_fake_filesystem()
     helpers.patch(self, ['clusterfuzz.common.execute',
                          'clusterfuzz.binary_providers.sha_from_revision',
@@ -502,7 +502,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
 class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
   """Tests the build_target method in PdfiumBuilder."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, [
         'clusterfuzz.binary_providers.PdfiumBuilder.setup_gn_args',
         'clusterfuzz.common.execute',
@@ -532,7 +532,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the methods in ChromiumBuilder."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, [
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.common.execute',

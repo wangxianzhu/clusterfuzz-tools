@@ -23,7 +23,7 @@ from clusterfuzz import common
 from clusterfuzz import binary_providers
 from clusterfuzz import reproducers
 from clusterfuzz.commands import reproduce
-from test import helpers
+import helpers
 
 
 class MaybeWarnUnreproducible(helpers.ExtendedTestCase):
@@ -43,7 +43,7 @@ class MaybeWarnUnreproducible(helpers.ExtendedTestCase):
 class ExecuteTest(helpers.ExtendedTestCase):
   """Test execute."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     self.suppress_logging_methods()
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
     self.mock_os_environment({'V8_SRC': '/v8/src', 'CHROME_SRC': '/pdf/src'})

@@ -20,7 +20,7 @@ import stat
 import mock
 
 from clusterfuzz import common
-from test import helpers
+import helpers
 
 class ConfirmTest(helpers.ExtendedTestCase):
   """Tests the confirm method."""

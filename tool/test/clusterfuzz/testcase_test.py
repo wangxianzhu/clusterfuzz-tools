@@ -16,7 +16,7 @@
 import os
 import mock
 
-from test import helpers
+import helpers
 from clusterfuzz import testcase
 
 def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
@@ -96,7 +96,7 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
 class GetTestcasePathTest(helpers.ExtendedTestCase):
   """Tests the get_testcase_path method."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.common.get_stored_auth_header',

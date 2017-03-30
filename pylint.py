@@ -1,11 +1,14 @@
 """Run pylint of all changed."""
 import subprocess
 import sys
+import os
 
+def check_valid_file(filename):
+  return os.path.exists(filename) and filename.endswith('.py')
 
 files = subprocess.check_output(
     'git diff --name-only origin/master', shell=True).splitlines()
-files = [f for f in files if f.endswith('.py')]
+files = [f for f in files if check_valid_file(f)]
 
 exit_code = 0
 for f in files:

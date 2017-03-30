@@ -4,7 +4,7 @@ import sys
 import mock
 
 from clusterfuzz import asan_symbolize_proxy
-from test import helpers
+import helpers
 
 class TestSymbolizerProxying(helpers.ExtendedTestCase):
   """Tests to ensure symbolizer proxying is done correctly."""

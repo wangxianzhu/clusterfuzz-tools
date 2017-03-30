@@ -3,13 +3,26 @@
   connection: local
   gather_facts: no
   tasks:
+    - name: Create storage disk
+      gce_pd:
+        disk_type: pd-ssd
+        zone: "us-central1-f"
+        project_id: "981641712411"
+        size_gb: 100
+        image: ubuntu-1404
+        name: "ci-test-boot"
+        state: present
+        service_account_email: "ci-test-tanin@clusterfuzz-tools.iam.gserviceaccount.com"
+        credentials_file: "clusterfuzz-tools-ci-credentials.json"
     - name: Create the instance
       gce:
+        disks:
+          - name: "ci-test-boot"
+            mode: READ_WRITE
         instance_names: continuous-integration-test
-        machine_type: n1-standard-8
-        image: debian-7
+        machine_type: n1-standard-32
         service_account_email: "ci-test-tanin@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "clusterfuzz-tools-456f4e1584b9.json"
+        credentials_file: "clusterfuzz-tools-ci-credentials.json"
         project_id: "981641712411"
         zone: "us-central1-f"
       register: gce
@@ -28,34 +41,50 @@
     - group:
         name: clusterfuzz
         state: present
+    - name: Allow clusterfuzz group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%clusterfuzz'
+        line: '%clusterfuzz ALL=(ALL) NOPASSWD: ALL'
     - user:
         name: clusterfuzz
         state: present
         groups: clusterfuzz
+        shell: /bin/bash
     - apt:
         update_cache: yes
     - apt: name={{item}} state=latest
       with_items:
         - python
         - python-pip
+        - python-dev
         - runit
+        - git
+        - pkg-config
+        - blackbox
     - name: Upgrade PIP
       pip: name={{item}} state=latest
       with_items:
         - pip
         - wheel
         - setuptools
+        - oauth2client
+        - virtualenv
+        - httplib2
+        - pyyaml
 - name: Setup python-daemon (runit service, folder, log folder, and service)
   hosts: continuous-integration-instances
   connection: ssh
   become: true
   tasks:
-    - file:
-        path: /python-daemon
-        state: directory
-        owner: clusterfuzz
-        group: clusterfuzz
-        mode: 'u=rwx,g=rx,o=rx'
+    - file: path="{{item}}"
+            state=directory
+            owner=clusterfuzz
+            group=clusterfuzz
+            mode='u=rwx,g=rx,o=rx'
+      with_items:
+        - '/python-daemon'
     - file: path="{{item}}"
             state=directory
             owner=root
@@ -65,6 +94,7 @@
         - '/etc/sv/python-daemon'
         - '/etc/sv/python-daemon/log'
         - '/var/log/python-daemon'
+        - '/home/clusterfuzz/.clusterfuzz'
     - copy: src={{item.src}}
             dest={{item.dest}}
             force=true
@@ -72,9 +102,10 @@
             group=root
             mode='u=rwx,g=rwx,o=rwx'
       with_items:
-        - {'src': 'python_daemon_run', 'dest': '/etc/sv/python-daemon/run'}
-        - {'src': 'python_daemon_log_run', 'dest': '/etc/sv/python-daemon/log/run'}
-        - {'src': 'test.py', 'dest': '/python-daemon/test.py'}
+        - {'src': 'python_daemon/run', 'dest': '/etc/sv/python-daemon/run'}
+        - {'src': 'python_daemon/log_run', 'dest': '/etc/sv/python-daemon/log/run'}
+        - {'src': 'continuous_integration/ci', 'dest': '/python-daemon'}
+        - {'src': 'clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
     - file:
         src: '{{ item.src }}'
         dest: '{{ item.dest }}'
@@ -82,5 +113,4 @@
         mode: 'u=rwx,g=rwx,o=rwx'
       with_items:
         - { src: '/etc/sv/python-daemon', dest: '/etc/service/python-daemon' }
-    - shell: "sv restart python-daemon/log"
     - shell: "sv restart python-daemon"

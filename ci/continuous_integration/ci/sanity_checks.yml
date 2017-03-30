@@ -1,0 +1,11 @@
+testcases:
+          #Libfuzzer_chrome_ubsan:
+        - 5899279404367872
+          #Libfuzzer_chrome_msan:
+        - 6581818276184064
+          #Libfuzzer_chrome_asan:
+        - 5145840470720512
+          #pdfium:
+        - 6312423965589504
+          #Linux_ubsan_chrome:
+        - 5844907341381632

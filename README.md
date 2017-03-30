@@ -15,13 +15,15 @@ needed by ClusterFuzz's users.
 Installation
 -----------------
 
-`pip install clusterfuzz`
+`pip install -U clusterfuzz`
 
 
 Usage
 ------
 
-See `clusterfuzz --help`.
+See `clusterfuzz reproduce --help`.
+
+Run `clusterfuzz reproduce [testcase-id]`
 
 Currently, it supports reproducing a crash locally. In the future, it will
 support uploading a fuzzer, tailing fuzzer log, and uploading a testcase.

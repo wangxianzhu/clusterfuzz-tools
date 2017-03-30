@@ -4,7 +4,7 @@ dependencies:
     - pip install -e tool/.
 test:
   override:
-    - cd tool && git diff-index --name-only origin/master | grep "\.py$" | xargs ls -d 2>/dev/null | xargs --no-run-if-empty pylint
+    - python pylint.py
     - cd tool && coverage run test.py
   post:
     - cd tool && coveralls

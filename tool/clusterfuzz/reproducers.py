@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import re
 import shutil
 import time
 import subprocess
@@ -28,6 +29,31 @@ from clusterfuzz import common
 
 DEFAULT_GESTURE_TIME = 5
 logger = logging.getLogger('clusterfuzz')
+
+
+def strip_html(lines):
+  """Strip HTML tags and escape HTML chars."""
+  new_lines = []
+  parser = HTMLParser.HTMLParser()
+
+  for line in lines:
+    # We only strip <a> because that's all we need.
+    line = re.sub('<[/a][^<]+?>', '', line)
+    new_lines.append(parser.unescape(line))
+
+  return new_lines
+
+
+def remove_unsymbolized_stacktrace(lines):
+  """Remove unsymbolized stacktrace because it interferes with stacktrace
+    parsing. See: https://chrome-internal.googlesource.com/chrome/tools/clusterfuzz/+/master/src/common/utils.py#220"""  # pylint: disable=line-too-long
+  new_lines = []
+  for line in lines:
+    if 'Release Build Unsymbolized Stacktrace' in line:
+      break
+    new_lines.append(line)
+  return new_lines
+
 
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
@@ -51,10 +77,13 @@ class BaseReproducer(object):
     self.symbolizer_path = common.get_location('llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
-    parser = HTMLParser.HTMLParser()
+
+    stacktrace_lines = strip_html(
+        [l['content'] for l in testcase.stacktrace_lines])
+    stacktrace_lines = remove_unsymbolized_stacktrace(stacktrace_lines)
     self.crash_state, self.crash_type = self.get_stacktrace_info(
-        parser.unescape('\n'.join(
-            [l['content'] for l in testcase.stacktrace_lines])))
+        '\n'.join(stacktrace_lines))
+
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
     self.source_directory = binary_provider.source_directory
@@ -147,6 +176,7 @@ class BaseReproducer(object):
       logger.debug('New crash type: %s, original: %s', new_crash_type,
                    self.crash_type)
       iterations += 1
+      time.sleep(3)
 
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""

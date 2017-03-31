@@ -440,7 +440,8 @@ class ReproduceTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize',
-        'requests.post'])
+        'requests.post',
+        'time.sleep'])
     self.mock.reproduce_crash.return_value = (0, ['stuff'])
     self.mock.post_run_symbolize.return_value = 'stuff'
     self.reproducer.crash_type = 'original_type'
@@ -494,3 +495,34 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.chmod, [
         mock.call('asan_sym_proxy.py', 0755)])
     self.assertEqual(result, 'symbolized')
+
+
+class StripHtmlTest(helpers.ExtendedTestCase):
+  """Test strip_html."""
+
+  def test_strip_html(self):
+    """Test strip <a> tag."""
+    self.assertEqual(
+        ['aa test &'],
+        reproducers.strip_html(['aa <a href="sadfsd">test</a> &amp;']))
+
+
+class RemoveUnsymbolizedStacktraceTest(helpers.ExtendedTestCase):
+  """Test remove_unsymbolized_stacktrace."""
+
+  def test_no_unsymbolized_stacktrace(self):
+    """Test no unsymbolized stacktrace."""
+    self.assertEqual(
+        ['aa', 'bb'],
+        reproducers.strip_html(['aa', 'bb']))
+
+  def test_unsymbolized_stacktrace(self):
+    """Test unsymbolized stacktrace."""
+    self.assertEqual(
+        ['aa', 'bb'],
+        reproducers.remove_unsymbolized_stacktrace([
+            'aa',
+            'bb',
+            '+------Release Build Unsymbolized Stacktrace (diff)------+',
+            'cc'
+        ]))

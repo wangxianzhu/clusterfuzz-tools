@@ -85,7 +85,7 @@ SUPPORTED_JOBS = {
             reproducers.LinuxChromeJobReproducer, 'chrome',
             sanitizer='UBSAN', target='chromium_builder_asan'),
         'linux_msan_chrome': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
+            binary_providers.MsanChromiumBuilder, 'CHROMIUM_SRC',
             reproducers.LinuxChromeJobReproducer, 'chrome',
             sanitizer='MSAN', target='chromium_builder_asan'),
         'linux_asan_chrome_mp': common.BinaryDefinition(

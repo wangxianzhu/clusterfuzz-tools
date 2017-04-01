@@ -633,6 +633,33 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
                   '/chrome/src')])
 
 
+class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of MsanChromiumBuilder."""
+
+  def test_prebuild_steps(self):
+    """Test the prebuild_steps method."""
+
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision'])
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.mock_os_environment({'V8_SRC': '/chrome/src'})
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    builder = binary_providers.MsanChromiumBuilder(
+        testcase, binary_definition, False, '/goma/dir', None)
+
+    builder.pre_build_steps()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call(
+            ("GYP_DEFINES='clang=1 component=static_library gomadir=/goma/dir "
+             'msan=1 msan_track_origins=0 sanitizer_coverage=edge '
+             "target_arch=x64 use_goma=1 "
+             "use_prebuilt_instrumented_libraries=1' "
+             'gclient runhooks'),
+            '/chrome/src')])
+
+
 class GetCurrentShaTest(helpers.ExtendedTestCase):
   """Tests functionality when the rev-parse command fails."""
 

@@ -348,6 +348,20 @@ class ChromiumBuilder(GenericBuilder):
     if not self.disable_gclient_commands:
       common.execute('gclient runhooks', self.source_directory)
 
+
+class MsanChromiumBuilder(ChromiumBuilder):
+  """Builds an msan chromium."""
+
+  def pre_build_steps(self):
+    if not self.disable_gclient_commands:
+      common.execute(
+          ("GYP_DEFINES='clang=1 component=static_library gomadir=%s "
+           'msan=1 msan_track_origins=0 sanitizer_coverage=edge '
+           "target_arch=x64 use_goma=1 use_prebuilt_instrumented_libraries=1' "
+           'gclient runhooks') % self.goma_dir,
+          self.source_directory)
+
+
 class LibfuzzerMsanBuilder(ChromiumBuilder):
   """Builds for a Msan testcase, inside the Chromium repo."""
 

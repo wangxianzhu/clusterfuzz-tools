@@ -156,8 +156,10 @@ def send_request(url, data):
     if not header or (response is not None and response.status_code == 401):
       header = get_verification_header()
     response = requests.post(
-        url=url, headers={'Authorization': header}, allow_redirects=True,
-        data=data)
+        url=url, headers={
+            'Authorization': header,
+            'User-Agent': 'clusterfuzz-tools'},
+        allow_redirects=True, data=data)
     if response.status_code == 200:
       break
 

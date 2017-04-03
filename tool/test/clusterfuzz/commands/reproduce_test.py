@@ -215,7 +215,8 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         mock.call('Bearer 12345')])
     self.assert_exact_calls(self.mock.post, [mock.call(
         url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL,
-        headers={'Authorization': 'Bearer 12345'},
+        headers={'Authorization': 'Bearer 12345',
+                 'User-Agent': 'clusterfuzz-tools'},
         data=json.dumps({'testcaseId': 999}),
         allow_redirects=True)])
     self.assertEqual(response, response_dict)
@@ -246,9 +247,11 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
             allow_redirects=True,
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL,
             data=json.dumps({'testcaseId': 999}),
-            headers={'Authorization': 'Bearer 12345'}),
+            headers={'Authorization': 'Bearer 12345',
+                     'User-Agent': 'clusterfuzz-tools'}),
         mock.call(
-            headers={'Authorization': 'VerificationCode 12345'},
+            headers={'Authorization': 'VerificationCode 12345',
+                     'User-Agent': 'clusterfuzz-tools'},
             allow_redirects=True,
             data=json.dumps({'testcaseId': 999}),
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL)])
@@ -280,7 +283,8 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.store_auth_header, [
         mock.call('Bearer 12345')])
     self.assert_exact_calls(self.mock.post, [mock.call(
-        headers={'Authorization': 'VerificationCode 12345'},
+        headers={'Authorization': 'VerificationCode 12345',
+                 'User-Agent': 'clusterfuzz-tools'},
         allow_redirects=True,
         data=json.dumps({'testcaseId': 999}),
         url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL)])
@@ -316,10 +320,12 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
             allow_redirects=True,
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL,
             data=json.dumps({'testcaseId': 999}),
-            headers={'Authorization': 'Bearer 12345'}),
+            headers={'Authorization': 'Bearer 12345',
+                     'User-Agent': 'clusterfuzz-tools'}),
         mock.call(
             allow_redirects=True,
-            headers={'Authorization': 'VerificationCode 12345'},
+            headers={'Authorization': 'VerificationCode 12345',
+                     'User-Agent': 'clusterfuzz-tools'},
             url=reproduce.CLUSTERFUZZ_TESTCASE_INFO_URL,
             data=json.dumps({'testcaseId': 999}))])
 

@@ -3,6 +3,4 @@
 .coverage
 /ENV
 /MANIFEST
-/build
-/dist
 /htmlcov

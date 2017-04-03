@@ -349,6 +349,15 @@ class ChromiumBuilder(GenericBuilder):
       common.execute('gclient runhooks', self.source_directory)
 
 
+class CfiChromiumBuilder(ChromiumBuilder):
+  """Build a CFI chromium."""
+
+  def pre_build_steps(self):
+    """Pre-build steps for CFI."""
+    common.execute('build/download_gold_plugin.py', self.source_directory)
+    super(CfiChromiumBuilder, self).pre_build_steps()
+
+
 class MsanChromiumBuilder(ChromiumBuilder):
   """Builds an msan chromium."""
 

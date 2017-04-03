@@ -23,6 +23,7 @@ import logging
 import time
 import re
 import signal
+import shutil
 import pkg_resources
 
 from backports.shutil_get_terminal_size import get_terminal_size
@@ -309,3 +310,10 @@ def get_location(filepath):
   resource_package = __name__
   resource_path = filepath
   return   pkg_resources.resource_filename(resource_package, resource_path)
+
+
+def delete_if_exists(path):
+  """Deletes file if path exists."""
+
+  if os.path.exists(path):
+    shutil.rmtree(path)

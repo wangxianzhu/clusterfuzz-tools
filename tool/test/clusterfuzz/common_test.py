@@ -378,3 +378,25 @@ class PrintProgressBarTest(helpers.ExtendedTestCase):
     result = common.print_progress_bar(100, 100, prefix='Progress')
     bar = '|%s|' % ('=' * 100)
     self.assertEqual(result, '\rProgress %s 100.0%% ' % bar)
+
+
+class DeleteIfExistsTest(helpers.ExtendedTestCase):
+  """Tests the delete_if_exists method."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_deletes_file(self):
+    """Ensure the file gets deleted."""
+
+    home = os.path.expanduser('~')
+    directory = os.path.join(home, 'testcase')
+    filename = os.path.join(directory, 'testcase.js')
+    os.makedirs(directory)
+    with open(filename, 'w') as f:
+      f.write('text')
+    self.assertTrue(os.path.isfile(filename))
+
+    common.delete_if_exists(directory)
+
+    self.assertFalse(os.path.exists(directory))

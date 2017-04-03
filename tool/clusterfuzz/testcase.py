@@ -106,8 +106,7 @@ class Testcase(object):
 
     testcase_dir = self.testcase_dir_name()
     filename = os.path.join(testcase_dir, 'testcase%s' % self.file_extension)
-    if os.path.isfile(filename):
-      return filename
+    common.delete_if_exists(testcase_dir)
 
     logger.info('Downloading testcase data...')
 

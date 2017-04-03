@@ -101,6 +101,7 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.get_stored_auth_header',
         'clusterfuzz.common.execute',
+        'clusterfuzz.common.delete_if_exists',
         'os.listdir',
         'clusterfuzz.testcase.Testcase.get_true_testcase_file'])
     self.mock.get_stored_auth_header.return_value = 'Bearer 1a2s3d4f'
@@ -108,21 +109,7 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
         '~', '.clusterfuzz', 'testcases', '12345_testcase'))
     self.test = build_base_testcase()
 
-  def test_already_downloaded(self):
-    """Tests the scenario in which the testcase is already downloaded."""
-
-    filename = os.path.join(self.testcase_dir, 'testcase.js')
-    os.makedirs(self.testcase_dir)
-    with open(filename, 'w') as f:
-      f.write('testcase exists')
-    self.assertTrue(os.path.isfile(filename))
-
-    result = self.test.get_testcase_path()
-    self.assertEqual(result, filename)
-    self.assert_n_calls(0, [self.mock.get_stored_auth_header,
-                            self.mock.execute])
-
-  def test_not_already_downloaded(self):
+  def test_downloading_testcase(self):
     """Tests the creation of folders & downloading of the testcase"""
 
     def do_wget(*unused_args):

@@ -355,7 +355,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         mock.call('gn gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), 'use_goma = false\n')
+      self.assertEqual(f.read(), 'use_goma = true\ngoma_dir = "/goma/dir"\n')
 
 
 
@@ -472,7 +472,8 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [mock.call(
         'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), ('use_goma = false\n'
+      self.assertEqual(f.read(), ('use_goma = true\n'
+                                  'goma_dir = "/goma/dir"\n'
                                   'pdf_is_standalone = true\n'))
 
   def test_gn_args_no_goma(self):

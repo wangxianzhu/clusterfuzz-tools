@@ -460,7 +460,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
         mock.Mock(text=json.dumps(wrong_response)),
         mock.Mock(text=json.dumps(correct_response))]
 
-    result = self.reproducer.reproduce()
+    result = self.reproducer.reproduce(10)
     self.assertTrue(result)
     self.assert_exact_calls(self.mock.reproduce_crash, [
         mock.call(self.reproducer), mock.call(self.reproducer)])

@@ -44,7 +44,7 @@ def execute(argv=None):
       '--disable-gclient-commands', action='store_true', default=False,
       help='Disable all "gclient runhooks" and "gclient sync" commands')
   reproduce.add_argument(
-      '-i', '--iterations', action='store', default=None, type=int,
+      '-i', '--iterations', action='store', default=10, type=int,
       help='Specify the number of times to attempt reproduction')
 
   args = parser.parse_args(argv)

@@ -31,6 +31,38 @@ class TestSendLog(helpers.ExtendedTestCase):
         'httplib2.Http',
         'clusterfuzz.stackdriver_logging.get_session_id'])
 
+  def test_send_stacktrace(self):
+    """Test to ensure stacktrace and params are sent properly."""
+    self.mock.get_session_id.return_value = 'user:1234:sessionid'
+
+    params = {'testcaseId': 123456,
+              'success': True,
+              'command': 'reproduce',
+              'buildType': 'chromium',
+              'current': True,
+              'disableGoma': True}
+    stackdriver_logging.send_log(params, 'Stacktrace')
+
+    params['user'] = 'name'
+    params['sessionId'] = 'user:1234:sessionid'
+    params['message'] = ('name successfully finished running reproduce with '
+                         'testcase=123456, build_type=chromium, current=True, '
+                         'and goma=disabled\nStacktrace')
+    structure = {
+        'logName': 'projects/clusterfuzz-tools/logs/client',
+        'resource': {
+            'type': 'project',
+            'labels': {
+                'project_id': 'clusterfuzz-tools'}},
+        'entries': [{
+            'jsonPayload': params,
+            'severity': 'ERROR'}]}
+    self.assert_exact_calls(
+        (self.mock.ServiceAccountCredentials.from_json_keyfile_name
+         .return_value.authorize.return_value.request), [mock.call(
+             uri='https://logging.googleapis.com/v2/entries:write',
+             method='POST', body=json.dumps(structure))])
+
   def test_send_log_params(self):
     """Test to ensure params are sent properly."""
     self.mock.get_session_id.return_value = 'user:1234:sessionid'
@@ -55,7 +87,8 @@ class TestSendLog(helpers.ExtendedTestCase):
             'labels': {
                 'project_id': 'clusterfuzz-tools'}},
         'entries': [{
-            'jsonPayload': params}]}
+            'jsonPayload': params,
+            'severity': 'INFO'}]}
     self.assert_exact_calls(
         (self.mock.ServiceAccountCredentials.from_json_keyfile_name
          .return_value.authorize.return_value.request), [mock.call(
@@ -86,7 +119,8 @@ class TestSendLog(helpers.ExtendedTestCase):
             'labels': {
                 'project_id': 'clusterfuzz-tools'}},
         'entries': [{
-            'jsonPayload': params}]}
+            'jsonPayload': params,
+            'severity': 'INFO'}]}
     self.assert_exact_calls(
         (self.mock.ServiceAccountCredentials.from_json_keyfile_name
          .return_value.authorize.return_value.request), [mock.call(

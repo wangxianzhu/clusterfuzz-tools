@@ -20,6 +20,7 @@ import binascii
 import sys
 import functools
 import logging
+import traceback
 
 from clusterfuzz import common
 from httplib2 import Http
@@ -36,7 +37,7 @@ def get_session_id():
   return SESSION_ID
 
 
-def send_log(params):
+def send_log(params, stacktrace=None):
   """Joins the params dict with info like user id and then sends logs."""
 
   scopes = ['https://www.googleapis.com/auth/logging.write']
@@ -60,6 +61,8 @@ def send_log(params):
                            params['testcaseId'], params['buildType'],
                            params['current'],
                            'disabled' if params['disableGoma'] else 'enabled'))
+  if stacktrace:
+    params['message'] += '\n%s' % stacktrace
 
   structure = {
       'logName': 'projects/clusterfuzz-tools/logs/client',
@@ -68,7 +71,8 @@ def send_log(params):
           'labels': {
               'project_id': 'clusterfuzz-tools'}},
       'entries': [{
-          'jsonPayload': params}]}
+          'jsonPayload': params,
+          'severity': 'ERROR' if stacktrace else 'INFO'}]}
 
   http_auth.request(
       uri='https://logging.googleapis.com/v2/entries:write',
@@ -104,13 +108,13 @@ def send_success(**kwargs):
   send_log(params)
 
 
-def send_failure(exception_name, **kwargs):
+def send_failure(exception_name, stacktrace, **kwargs):
   """Sends a log with success set to False."""
 
   params = make_basic_params(**kwargs)
   params['exception'] = exception_name
   params['success'] = False
-  send_log(params)
+  send_log(params, stacktrace)
 
 
 def log(func):
@@ -124,7 +128,7 @@ def log(func):
         func(*args, **kwargs)
         send_success(*args, command=command_name, **kwargs)
       except BaseException as e:
-        send_failure(e.__class__.__name__, *args,
+        send_failure(e.__class__.__name__, traceback.format_exc(), *args,
                      command=command_name, **kwargs)
         print ('\nDetailed logs of this run can be found in: '
                '~/.clusterfuzz/logs.')

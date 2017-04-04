@@ -129,6 +129,16 @@ class JobTypeNotSupportedError(ExpectedException):
     super(JobTypeNotSupportedError, self).__init__(message)
 
 
+class BlackboxNotInstalledError(ExpectedException):
+  """An exception raised to tell the user to install Blackbox."""
+
+  def __init__(self):
+    message = ('The blackbox window manager is not installed. As this testcase'
+               'requires blackbox running in a virtual display to reproduce'
+               'correctly, please install blackbox and run this command again.')
+    super(BlackboxNotInstalledError, self).__init__(message)
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 

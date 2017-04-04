@@ -194,8 +194,14 @@ class Blackbox(object):
         display_name = i
         break
     logger.info('Starting the blackbox window manager in a virtual display.')
-    self.blackbox = subprocess.Popen(['blackbox'],
-                                     env={'DISPLAY': display_name})
+    try:
+      self.blackbox = subprocess.Popen(['blackbox'],
+                                       env={'DISPLAY': display_name})
+    except OSError, e:
+      if str(e) == '[Errno 2] No such file or directory':
+        raise common.BlackboxNotInstalledError
+      raise
+
     time.sleep(30)
     return display_name
 

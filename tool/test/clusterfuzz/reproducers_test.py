@@ -19,6 +19,7 @@ import mock
 
 from test import helpers
 from clusterfuzz import reproducers
+from clusterfuzz import common
 
 def patch_stacktrace_info(obj):
   """Patches get_stacktrace_info for initializing a Reproducer."""
@@ -393,6 +394,42 @@ class BlackboxTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['xvfbwrapper.Xvfb',
                          'subprocess.Popen',
                          'time.sleep'])
+
+  def test_correct_oserror_exception(self):
+    """Ensures the correct exception is raised when Blackbox is not found."""
+
+    def _raise_with_message(*_unused, **_kwunused):
+      del _unused, _kwunused #Not used by this method
+      raise OSError('[Errno 2] No such file or directory')
+
+    self.mock.Popen.side_effect = _raise_with_message
+    self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
+                                                      ':display'])
+
+    with self.assertRaises(common.BlackboxNotInstalledError):
+      with reproducers.Blackbox(
+          ['--disable-gl-drawing-for-tests']) as display_name:
+        self.assertNotEqual(display_name, ':display')
+
+    self.assert_n_calls(0, [self.mock.Popen.return_value.kill,
+                            self.mock.sleep,
+                            self.mock.Xvfb.return_value.stop])
+
+  def test_incorrect_oserror_exception(self):
+    """Ensures OSError raises when message is not Errno 2."""
+
+    self.mock.Popen.side_effect = OSError
+    self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
+                                                      ':display'])
+
+    with self.assertRaises(OSError):
+      with reproducers.Blackbox(
+          ['--disable-gl-drawing-for-tests']) as display_name:
+        self.assertNotEqual(display_name, ':display')
+
+    self.assert_n_calls(0, [self.mock.Popen.return_value.kill,
+                            self.mock.sleep,
+                            self.mock.Xvfb.return_value.stop])
 
   def test_start_stop_blackbox(self):
     """Tests that the context manager starts/stops xvfbwrapper and blackbox."""

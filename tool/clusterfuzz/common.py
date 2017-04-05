@@ -139,6 +139,15 @@ class BlackboxNotInstalledError(ExpectedException):
     super(BlackboxNotInstalledError, self).__init__(message)
 
 
+class BadJobTypeDefinitionError(ExpectedException):
+  """An exception raised when a job type description is malformed."""
+
+  def __init__(self, job_type):
+    message = ('The definition for the %s job type is incorrectly formatted or'
+               ' missing crucial information.' % job_type)
+    super(BadJobTypeDefinitionError, self).__init__(message)
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 

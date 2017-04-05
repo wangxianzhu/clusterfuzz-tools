@@ -1,0 +1,51 @@
+presets: #Any parameters in a preset can be overridden in the actual definition
+         #but are taken as default otherwise
+        pdfium:
+            builder: Pdfium
+            source: PDFIUM_SRC
+            binary: pdfium_test
+            reproducer: Base
+        pdfium_chromium:
+            preset: pdfium
+            builder: Chromium
+            source: CHROMIUM_SRC
+        d8:
+            builder: V8
+            source: V8_SRC
+            binary: d8
+            reproducer: Base
+            sanitizer: ASAN
+        chromium:
+            builder: Chromium
+            source: CHROMIUM_SRC
+            reproducer: Base
+        linux_chromium:
+            preset: chromium
+            reproducer: LinuxChromeJob
+            binary: chrome
+            target: chromium_builder_asan
+        linux_asan_chromium:
+            preset: linux_chromium
+            sanitizer: ASAN
+standalone:
+        linux_asan_d8_dbg: { preset: d8 }
+        linux_asan_d8: { preset: d8 }
+        linux_asan_d8_v8_mipsel_db: { preset: d8 }
+        linux_asan_pdfium: { preset: pdfium, sanitizer: ASAN }
+        linux_msan_pdfium: { preset: pdfium, sanitizer: MSAN }
+        linux_v8_d8_tot: { preset: d8 }
+chromium:
+        libfuzzer_chrome_asan: { preset: chromium, sanitizer: ASAN }
+        libfuzzer_chrome_asan_debug: { preset: chromium, sanitizer: ASAN }
+        libfuzzer_chrome_msan: { preset: chromium, builder: LibfuzzerMsan, sanitizer: MSAN }
+        libfuzzer_chrome_ubsan: { preset: chromium, sanitizer: UBSAN }
+        linux_asan_chrome_chromeos: { preset: linux_asan_chromium }
+        linux_asan_chrome_gpu: { preset: linux_asan_chromium }
+        linux_asan_chrome_mp: { preset: linux_asan_chromium }
+        linux_asan_chrome_media: { preset: linux_asan_chromium }
+        linux_asan_pdfium: { preset: pdfium_chromium, sanitizer: ASAN }
+        linux_cfi_chrome: { preset: linux_asan_chromium, builder: CfiChromium }
+        linux_msan_chrome: { preset: linux_chromium, builder: MsanChromium, sanitizer: MSAN }
+        linux_msan_pdfium: { preset: pdfium_chromium, sanitizer: MSAN }
+        linux_ubsan_chrome: { preset: linux_chromium, sanitizer: UBSAN }
+

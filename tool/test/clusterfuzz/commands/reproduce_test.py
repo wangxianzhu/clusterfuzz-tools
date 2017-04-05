@@ -21,6 +21,7 @@ import mock
 
 from clusterfuzz import common
 from clusterfuzz import binary_providers
+from clusterfuzz import reproducers
 from clusterfuzz.commands import reproduce
 from test import helpers
 
@@ -426,6 +427,15 @@ class SuppressOutputTest(helpers.ExtendedTestCase):
 class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
   """Tests getting binary definitions."""
 
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.commands.reproduce.get_supported_jobs'])
+    self.mock.get_supported_jobs.return_value = {
+        'chromium': {
+            'libfuzzer_chrome_msan': common.BinaryDefinition(
+                binary_providers.LibfuzzerMsanBuilder, 'CHROMIUM_SRC',
+                reproducers.BaseReproducer, sanitizer='MSAN')},
+        'standalone': {}}
+
   def test_download_param(self):
     """Tests when the build_param is download"""
 
@@ -445,3 +455,18 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
 
     with self.assertRaises(common.JobTypeNotSupportedError):
       result = reproduce.get_binary_definition('fuzzlibber_nasm', 'chromium')
+
+
+class GetSupportedJobsTest(helpers.ExtendedTestCase):
+  """Tests the get_supported_jobs method."""
+
+  def setUp(self):
+    helpers.patch(self,
+                  ['clusterfuzz.commands.reproduce.build_binary_definition'])
+    self.mock.build_binary_definition.side_effect = KeyError
+
+  def test_raise_from_key_error(self):
+    """Tests that a BadJobTypeDefinition error is raised when parsing fails."""
+
+    with self.assertRaises(common.BadJobTypeDefinitionError):
+      reproduce.get_supported_jobs()

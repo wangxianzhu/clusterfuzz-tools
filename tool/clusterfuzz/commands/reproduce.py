@@ -20,6 +20,7 @@ import json
 import urllib
 import webbrowser
 import logging
+import yaml
 
 import requests
 
@@ -41,73 +42,6 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
                       'c7bn50f.apps.googleusercontent.com'),
         'response_type': 'code',
         'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'}))
-SUPPORTED_JOBS = {
-    'standalone': {
-        'linux_asan_pdfium': common.BinaryDefinition(
-            binary_providers.PdfiumBuilder, 'PDFIUM_SRC',
-            reproducers.BaseReproducer, 'pdfium_test', sanitizer='ASAN'),
-        'linux_msan_pdfium': common.BinaryDefinition(
-            binary_providers.PdfiumBuilder, 'PDFIUM_SRC',
-            reproducers.BaseReproducer, 'pdfium_test', sanitizer='MSAN'),
-        'linux_asan_d8_dbg': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
-            'd8', sanitizer='ASAN'),
-        'linux_asan_d8': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
-            'd8', sanitizer='ASAN'),
-        'linux_asan_d8_v8_mipsel_db': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
-            'd8', sanitizer='ASAN'),
-        'linux_v8_d8_tot': common.BinaryDefinition(
-            binary_providers.V8Builder, 'V8_SRC', reproducers.BaseReproducer,
-            'd8', sanitizer='ASAN')},
-    'chromium': {
-        'linux_asan_pdfium': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.BaseReproducer, 'pdfium_test', sanitizer='ASAN'),
-        'linux_msan_pdfium': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.BaseReproducer, 'pdfium_test', sanitizer='MSAN'),
-        'libfuzzer_chrome_asan': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.BaseReproducer, sanitizer='ASAN'),
-        'libfuzzer_chrome_asan_debug': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.BaseReproducer, sanitizer='ASAN'),
-        'libfuzzer_chrome_msan': common.BinaryDefinition(
-            binary_providers.LibfuzzerMsanBuilder, 'CHROMIUM_SRC',
-            reproducers.BaseReproducer, sanitizer='MSAN'),
-        'libfuzzer_chrome_ubsan': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.BaseReproducer, sanitizer='UBSAN'),
-        'linux_ubsan_chrome': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='UBSAN', target='chromium_builder_asan'),
-        'linux_msan_chrome': common.BinaryDefinition(
-            binary_providers.MsanChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='MSAN', target='chromium_builder_asan'),
-        'linux_asan_chrome_mp': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='ASAN', target='chromium_builder_asan'),
-        'linux_asan_chrome_chromeos': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='ASAN', target='chromium_builder_asan'),
-        'linux_asan_chrome_media': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='ASAN', target='chromium_builder_asan'),
-        'linux_cfi_chrome': common.BinaryDefinition(
-            binary_providers.CfiChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='ASAN', target='chromium_builder_asan'),
-        'linux_asan_chrome_gpu': common.BinaryDefinition(
-            binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-            reproducers.LinuxChromeJobReproducer, 'chrome',
-            sanitizer='ASAN', target='chromium_builder_asan')}}
 logger = logging.getLogger('clusterfuzz')
 
 class SuppressOutput(object):
@@ -193,14 +127,71 @@ def ensure_goma():
   return goma_dir
 
 
+def parse_job_definition(job_definition, presets):
+  """Reads in a job definition hash and parses it."""
+
+  to_return = {}
+  if 'preset' in job_definition:
+    to_return = parse_job_definition(presets[job_definition['preset']], presets)
+  for key, val in job_definition.iteritems():
+    if key == 'preset':
+      continue
+    to_return[key] = val
+
+  return to_return
+
+
+def build_binary_definition(job_definition, presets):
+  """Converts a job definition hash into a binary definition."""
+
+  builders = {'Pdfium': binary_providers.PdfiumBuilder,
+              'V8': binary_providers.V8Builder,
+              'Chromium': binary_providers.ChromiumBuilder,
+              'LibfuzzerMsan': binary_providers.LibfuzzerMsanBuilder,
+              'MsanChromium': binary_providers.MsanChromiumBuilder,
+              'CfiChromium': binary_providers.CfiChromiumBuilder}
+  reproducer_map = {'Base': reproducers.BaseReproducer,
+                    'LinuxChromeJob': reproducers.LinuxChromeJobReproducer}
+
+  result = parse_job_definition(job_definition, presets)
+
+  return common.BinaryDefinition(
+      builders[result['builder']], result['source'],
+      reproducer_map[result['reproducer']], result.get('binary'),
+      result.get('sanitizer'), result.get('target'))
+
+
+def get_supported_jobs():
+  """Reads in supported jobs from supported_jobs.yml."""
+
+  to_return = {
+      'standalone': {},
+      'chromium': {}}
+
+  with open(common.get_location('supported_job_types.yml')) as stream:
+    job_types_yaml = yaml.load(stream)
+
+  for build_type in ['standalone', 'chromium']:
+    for job_type, job_definition in job_types_yaml[build_type].iteritems():
+      try:
+        to_return[build_type][job_type] = build_binary_definition(
+            job_definition, job_types_yaml['presets'])
+      except KeyError:
+        raise common.BadJobTypeDefinitionError(
+            '%s %s' % (build_type, job_type))
+
+  return to_return
+
+
 def get_binary_definition(job_type, build_param):
+  supported_jobs = get_supported_jobs()
   if build_param == 'download':
     for i in ['chromium', 'standalone']:
-      if job_type in SUPPORTED_JOBS[i]:
-        return SUPPORTED_JOBS[i][job_type]
+      if job_type in supported_jobs[i]:
+        return supported_jobs[i][job_type]
   else:
-    if job_type in SUPPORTED_JOBS[build_param]:
-      return SUPPORTED_JOBS[build_param][job_type]
+    if job_type in supported_jobs[build_param]:
+      return supported_jobs[build_param][job_type]
   raise common.JobTypeNotSupportedError(job_type)
 
 

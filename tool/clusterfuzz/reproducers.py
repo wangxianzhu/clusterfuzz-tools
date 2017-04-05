@@ -21,6 +21,7 @@ import subprocess
 import logging
 import json
 import HTMLParser
+import sys
 import requests
 import xvfbwrapper
 import psutil
@@ -177,6 +178,7 @@ class BaseReproducer(object):
                    self.crash_type)
       iterations += 1
       time.sleep(3)
+    sys.exit(1)
 
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""

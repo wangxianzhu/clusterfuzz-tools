@@ -1,3 +1,4 @@
 include clusterfuzz/clusterfuzz-tools-logging.json
+include clusterfuzz/supported_job_types.yml
 include clusterfuzz/llvm-symbolizer
 include clusterfuzz/suppressions/*.txt

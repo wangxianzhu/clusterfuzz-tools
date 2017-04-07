@@ -13,17 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-
-import pip
 import setuptools
-
-
-if pip.__version__ < '9':
-  print (
-      'You are using pip %s. Please update to pip version 9. If you are on '
-      'Goobuntu, please follow the instruction in README.md' % pip.__version__)
-  sys.exit(1)
 
 
 setuptools.setup(

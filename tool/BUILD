@@ -1,6 +1,6 @@
 
 python_binary(
-    name='clusterfuzz-0.2.2rc4',
+    name='clusterfuzz-0.2.2rc5',
     entry_point='clusterfuzz.main:execute',
     dependencies=[':src'],
     zip_safe=False

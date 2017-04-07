@@ -1,5 +1,6 @@
 dependencies:
   override:
+    - pip install -U pip
     - pip install -r tool/requirements.txt
     - pip install -e tool/.
 test:

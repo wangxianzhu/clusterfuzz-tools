@@ -13,13 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 
-from setuptools import setup
+import pip
+import setuptools
 
 
-setup(
+if pip.__version__ < '9':
+  print (
+      'You are using pip %s. Please update to pip version 9. If you are on '
+      'Goobuntu, please follow the instruction in README.md' % pip.__version__)
+  sys.exit(1)
+
+
+setuptools.setup(
     name='clusterfuzz',
-    version='0.2.2rc3',
+    version='0.2.2rc4',
     description="The command-line tools for ClusterFuzz's users",
     author='Google Inc.',
     license='Apache 2.0',

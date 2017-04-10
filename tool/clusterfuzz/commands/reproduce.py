@@ -185,13 +185,12 @@ def get_supported_jobs():
 
 def get_binary_definition(job_type, build_param):
   supported_jobs = get_supported_jobs()
-  if build_param == 'download':
+  if build_param != 'download' and job_type in supported_jobs[build_param]:
+    return supported_jobs[build_param][job_type]
+  else:
     for i in ['chromium', 'standalone']:
       if job_type in supported_jobs[i]:
         return supported_jobs[i][job_type]
-  else:
-    if job_type in supported_jobs[build_param]:
-      return supported_jobs[build_param][job_type]
   raise common.JobTypeNotSupportedError(job_type)
 
 

@@ -19,6 +19,7 @@ import zipfile
 import multiprocessing
 import urllib
 import json
+import sys
 import base64
 import string
 import logging
@@ -156,6 +157,13 @@ class GenericBuilder(BinaryProvider):
       raise
     return current_sha.strip()
 
+  def source_dir_is_dirty(self):
+    """Returns true if the source dir has uncommitted changes."""
+
+    _, diff_result = common.execute('git diff', self.source_directory,
+                                    print_output=False)
+    return bool(diff_result)
+
   def out_dir_name(self):
     """Returns the correct out dir in which to build the revision.
 
@@ -166,9 +174,7 @@ class GenericBuilder(BinaryProvider):
     dir_name = os.path.join(self.source_directory, 'out',
                             'clusterfuzz_%s_%s' % (str(self.testcase_id),
                                                    self.get_current_sha()))
-    _, diff_result = common.execute('git diff', self.source_directory,
-                                    print_output=False)
-    if diff_result:
+    if self.source_dir_is_dirty():
       dir_name += '_dirty'
     return dir_name
 
@@ -181,6 +187,10 @@ class GenericBuilder(BinaryProvider):
     command = 'git fetch && git checkout %s' % self.git_sha
     common.check_confirm('Proceed with the following command:\n%s in %s?' %
                          (command, self.source_directory))
+    if self.source_dir_is_dirty():
+      logger.info(('Your source directory has uncommitted changes: please'
+                   'commit or stash these changes and re-run this tool'))
+      sys.exit(1)
     common.execute(command, self.source_directory)
 
   def deserialize_gn_args(self, args):

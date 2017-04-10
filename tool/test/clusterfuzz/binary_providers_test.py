@@ -366,7 +366,8 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.common.check_confirm',
-        'clusterfuzz.binary_providers.sha_from_revision'])
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.GenericBuilder.source_dir_is_dirty'])
     self.chrome_source = '/usr/local/google/home/user/repos/chromium/src'
     self.command = ('git fetch && git checkout 1a2s3d4f'
                     ' in %s' % self.chrome_source)
@@ -377,9 +378,28 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
         testcase, binary_definition, False, '/goma/dir', None)
     self.builder.git_sha = '1a2s3d4f'
 
+  def test_dirty_dir(self):
+    """Tests when the correct git sha is not already checked out."""
+
+    self.mock.source_dir_is_dirty.return_value = True
+    self.mock.execute.return_value = [0, 'not_the_same']
+    with self.assertRaises(SystemExit):
+      self.builder.checkout_source_by_sha()
+
+    self.assert_exact_calls(
+        self.mock.execute,
+        [mock.call('git rev-parse HEAD',
+                   self.chrome_source,
+                   print_output=False)])
+    self.assert_exact_calls(self.mock.check_confirm,
+                            [mock.call(
+                                'Proceed with the following command:\n%s?' %
+                                self.command)])
+
   def test_not_already_checked_out(self):
     """Tests when the correct git sha is not already checked out."""
 
+    self.mock.source_dir_is_dirty.return_value = False
     self.mock.execute.return_value = [0, 'not_the_same']
     self.builder.checkout_source_by_sha()
 

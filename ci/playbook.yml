@@ -12,8 +12,8 @@
         image: ubuntu-1404
         name: "ci-test-boot"
         state: present
-        service_account_email: "ci-test-tanin@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "clusterfuzz-tools-ci-credentials.json"
+        service_account_email: "ci-test@clusterfuzz-tools.iam.gserviceaccount.com"
+        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
     - name: Create the instance
       gce:
         disks:
@@ -21,8 +21,8 @@
             mode: READ_WRITE
         instance_names: continuous-integration-test
         machine_type: n1-standard-32
-        service_account_email: "ci-test-tanin@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "clusterfuzz-tools-ci-credentials.json"
+        service_account_email: "ci-test@clusterfuzz-tools.iam.gserviceaccount.com"
+        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
         project_id: "981641712411"
         zone: "us-central1-f"
       register: gce
@@ -105,7 +105,7 @@
         - {'src': 'python_daemon/run', 'dest': '/etc/sv/python-daemon/run'}
         - {'src': 'python_daemon/log_run', 'dest': '/etc/sv/python-daemon/log/run'}
         - {'src': 'continuous_integration/ci', 'dest': '/python-daemon'}
-        - {'src': 'clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
+        - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
     - file:
         src: '{{ item.src }}'

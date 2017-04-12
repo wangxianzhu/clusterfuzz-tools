@@ -39,7 +39,7 @@ def load_sanity_check_testcases():
 def run_testcase(testcase_id):
   """Attempts to reproduce a testcase."""
 
-  command = ('source %s/bin/activate && %s reproduce %s -i 3 --disable-goma'
+  command = ('source %s/bin/activate && %s reproduce %s -i 3'
              % (RELEASE_ENV, os.path.join(RELEASE_ENV, 'bin', 'clusterfuzz'),
                 testcase_id))
   command = '/bin/bash -c "export PATH=$PATH:%s && %s"' % (DEPOT_TOOLS, command)
@@ -47,6 +47,7 @@ def run_testcase(testcase_id):
   environment['CF_QUIET'] = '1'
   environment['USER'] = 'CI'
   environment['CHROMIUM_SRC'] = CHROMIUM_SRC
+  environment['GOMA_GCE_SERVICE_ACCOUNT'] = 'default'
   print environment
   print command
   proc = subprocess.Popen(

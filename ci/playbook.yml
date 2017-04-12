@@ -106,6 +106,7 @@
         - {'src': 'python_daemon/log_run', 'dest': '/etc/sv/python-daemon/log/run'}
         - {'src': 'continuous_integration/ci', 'dest': '/python-daemon'}
         - {'src': 'clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
+        - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
     - file:
         src: '{{ item.src }}'
         dest: '{{ item.dest }}'

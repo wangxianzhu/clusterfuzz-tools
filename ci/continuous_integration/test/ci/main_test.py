@@ -72,7 +72,7 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
 
     command = ('/bin/bash -c "export PATH=$PATH:%s/depot_tools && source'
                ' %s/RELEASE_ENV/bin/activate && %s/RELEASE_ENV/bin/clusterfuzz'
-               ' reproduce 1234 -i 3 --disable-goma"' % (home, home, home))
+               ' reproduce 1234 -i 3"' % (home, home, home))
 
     self.assertFalse(result)
     self.assert_exact_calls(self.mock.Popen, [mock.call(
@@ -84,7 +84,8 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
             'OS': 'ENVIRON',
             'CF_QUIET': '1',
             'USER': 'CI',
-            'CHROMIUM_SRC': main.CHROMIUM_SRC},
+            'CHROMIUM_SRC': main.CHROMIUM_SRC,
+            'GOMA_GCE_SERVICE_ACCOUNT': 'default'},
         shell=True)])
 
 

@@ -286,12 +286,7 @@ class GenericBuilder(BinaryProvider):
     self.download_build_data()
     self.build_directory = self.build_dir_name()
     if not self.source_directory:
-      message = ('This is a %(name)s testcase, please define $%(env_name)s_SRC'
-                 ' or enter your %(name)s source location here' %
-                 {'name': self.name, 'env_name': self.name.upper()})
-      self.source_directory = os.path.expanduser(
-          common.ask(message, 'Please enter a valid directory',
-                     lambda x: x and os.path.isdir(os.path.expanduser(x))))
+      self.source_directory = common.get_source_directory(self.name)
     if not self.current:
       self.checkout_source_by_sha()
     self.build_directory = self.out_dir_name()

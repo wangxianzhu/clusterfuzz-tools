@@ -169,7 +169,8 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.V8Builder.build_target',
         'clusterfuzz.common.ask',
         'clusterfuzz.binary_providers.V8Builder.get_current_sha',
-        'clusterfuzz.common.execute'])
+        'clusterfuzz.common.execute',
+        'clusterfuzz.common.get_source_directory'])
 
     self.setup_fake_filesystem()
     self.build_url = 'https://storage.cloud.google.com/abc.zip'
@@ -205,7 +206,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
     provider = binary_providers.V8Builder(
         testcase, binary_definition, False, '/goma/dir', None)
 
-    self.mock.ask.return_value = self.chrome_source
+    self.mock.get_source_directory.return_value = self.chrome_source
 
     result = provider.get_build_directory()
     self.assertEqual(result, os.path.join(self.chrome_source, 'out',
@@ -215,11 +216,6 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.build_target, [mock.call(provider)])
     self.assert_exact_calls(self.mock.checkout_source_by_sha,
                             [mock.call(provider)])
-    self.assert_exact_calls(self.mock.ask, [
-        mock.call(('This is a V8 testcase, please define $V8_SRC or enter '
-                   'your V8 source location here'),
-                  'Please enter a valid directory',
-                  mock.ANY)])
 
   def test_parameter_already_set(self):
     """Tests functionality when build_directory parameter is already set."""

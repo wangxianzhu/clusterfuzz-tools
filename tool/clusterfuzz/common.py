@@ -25,6 +25,7 @@ import re
 import signal
 import shutil
 import pkg_resources
+import yaml
 
 from backports.shutil_get_terminal_size import get_terminal_size
 from clusterfuzz import local_logging
@@ -34,6 +35,7 @@ AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
 DOMAIN_NAME = 'clusterfuzz.com'
 DEBUG_PRINT = os.environ.get('CF_DEBUG')
 TERMINAL_WIDTH = get_terminal_size().columns
+SOURCE_CACHE = os.path.join(CLUSTERFUZZ_DIR, 'source_cache')
 logger = logging.getLogger('clusterfuzz')
 
 def get_binary_name(stacktrace):
@@ -336,3 +338,34 @@ def delete_if_exists(path):
 
   if os.path.exists(path):
     shutil.rmtree(path)
+
+
+def get_source_directory(source_name):
+  """Returns the location of the source directory."""
+
+  source_env = '%s_SRC' % source_name.upper()
+
+  if os.environ.get(source_env):
+    return os.environ.get(source_env)
+
+  if os.path.exists(SOURCE_CACHE):
+    with open(SOURCE_CACHE) as stream:
+      source_locations = yaml.load(stream)
+
+    if source_env in source_locations:
+      return source_locations[source_env]
+  else:
+    source_locations = {}
+
+  message = ('This is a %(name)s testcase, please define %(env_name)s'
+             ' or enter your %(name)s source location here' %
+             {'name': source_name, 'env_name': source_env})
+  source_directory = os.path.expanduser(
+      ask(message, 'Please enter a valid directory',
+          lambda x: x and os.path.isdir(os.path.expanduser(x))))
+
+  with open(SOURCE_CACHE, 'w') as f:
+    source_locations[source_env] = source_directory
+    f.write(yaml.dump(source_locations))
+
+  return source_directory

@@ -18,6 +18,7 @@ import subprocess
 import os
 import stat
 import mock
+import yaml
 
 from clusterfuzz import common
 import helpers
@@ -400,3 +401,48 @@ class DeleteIfExistsTest(helpers.ExtendedTestCase):
     common.delete_if_exists(directory)
 
     self.assertFalse(os.path.exists(directory))
+
+
+class GetSourceDirectoryTest(helpers.ExtendedTestCase):
+  """Tests the get_source_directory method."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.ask'])
+    self.source_dir = '~/chromium/src'
+
+  def test_get_froim_environment(self):
+    """Tests getting the source directory from the os environment."""
+
+    self.mock_os_environment({'CHROMIUM_SRC': self.source_dir})
+    result = common.get_source_directory('chromium')
+
+    self.assertEqual(result, self.source_dir)
+
+  def test_get_from_file(self):
+    """Tests getting the source directory from the cache file."""
+
+    self.mock_os_environment({'CHROMIUM_SRC': ''})
+    self.setup_fake_filesystem()
+    os.makedirs(os.path.expanduser('~/.clusterfuzz'))
+    self.assertFalse(os.path.exists(common.SOURCE_CACHE))
+    with open(common.SOURCE_CACHE, 'w') as f:
+      f.write(yaml.dump({'CHROMIUM_SRC': self.source_dir}))
+
+    result = common.get_source_directory('chromium')
+    self.assertEqual(result, self.source_dir)
+
+  def test_write_to_file(self):
+    """Tests getting the directory from user and writing to a file."""
+
+    self.mock_os_environment({'CHROMIUM_SRC': ''})
+    self.setup_fake_filesystem()
+    os.makedirs(os.path.expanduser('~/.clusterfuzz'))
+
+    self.mock.ask.return_value = self.source_dir
+
+    result = common.get_source_directory('chromium')
+    self.assertEqual(result, os.path.expanduser(self.source_dir))
+
+    with open(common.SOURCE_CACHE, 'r') as f:
+      self.assertEqual(f.read(), ('{CHROMIUM_SRC: %s}\n' %
+                                  os.path.expanduser(self.source_dir)))

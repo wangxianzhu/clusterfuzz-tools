@@ -15,7 +15,6 @@
 
 import os
 import json
-import zipfile
 import mock
 
 from clusterfuzz import binary_providers
@@ -80,15 +79,18 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
   """Tests the download_build_data test."""
 
   def setUp(self):
-    helpers.patch(self, ['clusterfuzz.common.execute'])
+    helpers.patch(self, ['clusterfuzz.common.execute',
+                         'clusterfuzz.common.get_source_directory',
+                         'os.remove',
+                         'os.rename'])
 
-    self.setup_fake_filesystem()
     self.build_url = 'https://storage.cloud.google.com/abc.zip'
     self.provider = binary_providers.BinaryProvider(1234, self.build_url, 'd8')
 
   def test_build_data_already_downloaded(self):
     """Tests the exit when build data is already returned."""
 
+    self.setup_fake_filesystem()
     build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
     os.makedirs(build_dir)
     self.provider.build_dir = build_dir
@@ -99,44 +101,26 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
   def test_get_build_data(self):
     """Tests extracting, moving and renaming the build data.."""
 
-    os.makedirs(self.clusterfuzz_dir)
-    cf_builds_dir = os.path.join(self.clusterfuzz_dir, 'builds')
-
-    with open(os.path.join(self.clusterfuzz_dir, 'args.gn'), 'w') as f:
-      f.write('use_goma = True')
-    with open(os.path.join(self.clusterfuzz_dir, 'd8'), 'w') as f:
-      f.write('fake d8')
-    with open(os.path.join(self.clusterfuzz_dir, 'llvm-symbolizer'), 'w') as f:
-      f.write('fake llvm-symbolizer')
-    fakezip = zipfile.ZipFile(
-        os.path.join(self.clusterfuzz_dir, 'abc.zip'), 'w')
-    fakezip.write(os.path.join(self.clusterfuzz_dir, 'args.gn'),
-                  'abc//args.gn', zipfile.ZIP_DEFLATED)
-    fakezip.write(os.path.join(self.clusterfuzz_dir, 'd8'),
-                  'abc//d8', zipfile.ZIP_DEFLATED)
-    fakezip.write(os.path.join(self.clusterfuzz_dir, 'llvm-symbolizer'),
-                  'abc//llvm-symbolizer', zipfile.ZIP_DEFLATED)
-    fakezip.close()
-    self.assertTrue(
-        os.path.isfile(os.path.join(self.clusterfuzz_dir, 'abc.zip')))
+    helpers.patch(self, ['os.path.exists',
+                         'os.makedirs',
+                         'os.chmod',
+                         'os.stat',
+                         'clusterfuzz.binary_providers.os.remove'])
+    self.mock.stat.return_value = mock.Mock(st_mode=0000)
+    self.mock.exists.side_effect = [False, False]
 
     self.provider.download_build_data()
 
-    self.assert_exact_calls(self.mock.execute, [mock.call(
-        'gsutil cp gs://abc.zip .',
-        self.clusterfuzz_dir)])
-    self.assertFalse(
-        os.path.isfile(os.path.join(self.clusterfuzz_dir, 'abc.zip')))
-    self.assertTrue(os.path.isdir(
-        os.path.join(cf_builds_dir, '1234_build')))
-    self.assertTrue(os.path.isfile(os.path.join(
-        cf_builds_dir,
-        '1234_build',
-        'args.gn')))
-    with open(os.path.join(cf_builds_dir, '1234_build', 'args.gn'), 'r') as f:
-      self.assertEqual('use_goma = True', f.read())
-    with open(os.path.join(cf_builds_dir, '1234_build', 'd8'), 'r') as f:
-      self.assertEqual('fake d8', f.read())
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gsutil cp gs://abc.zip .',
+                  binary_providers.CLUSTERFUZZ_DIR),
+        mock.call(('unzip -q %s -d %s' %
+                   (os.path.join(binary_providers.CLUSTERFUZZ_DIR, 'abc.zip'),
+                    binary_providers.CLUSTERFUZZ_BUILDS_DIR)),
+                  cwd=binary_providers.CLUSTERFUZZ_DIR)])
+    self.assert_exact_calls(self.mock.chmod, [
+        mock.call(os.path.expanduser('~/.clusterfuzz/builds/1234_build/d8'),
+                  64)])
 
 
 class GetBinaryPathTest(helpers.ExtendedTestCase):
@@ -238,7 +222,8 @@ class DownloadedBuildGetBinaryDirectoryTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.binary_providers.DownloadedBinary.download_build_data'])
+        'clusterfuzz.binary_providers.DownloadedBinary.download_build_data',
+        'clusterfuzz.common.get_source_directory'])
 
     self.setup_fake_filesystem()
     self.build_url = 'https://storage.cloud.google.com/abc.zip'

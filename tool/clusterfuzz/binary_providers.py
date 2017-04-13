@@ -15,7 +15,6 @@
 
 import os
 import stat
-import zipfile
 import multiprocessing
 import urllib
 import json
@@ -92,10 +91,8 @@ class BinaryProvider(object):
     filename = os.path.split(gsutil_path)[1]
     saved_file = os.path.join(CLUSTERFUZZ_DIR, filename)
 
-    logger.info('Extracting...')
-    zipped_file = zipfile.ZipFile(saved_file, 'r')
-    zipped_file.extractall(CLUSTERFUZZ_BUILDS_DIR)
-    zipped_file.close()
+    common.execute('unzip -q %s -d %s' % (saved_file, CLUSTERFUZZ_BUILDS_DIR),
+                   cwd=CLUSTERFUZZ_DIR)
 
     logger.info('Cleaning up...')
     os.remove(saved_file)
@@ -123,6 +120,9 @@ class DownloadedBinary(BinaryProvider):
       return self.build_directory
 
     self.download_build_data()
+    #We need the source dir so we can use asan_symbolize.py from the
+    #chromium source directory.
+    self.source_directory = common.get_source_directory('chromium')
     self.build_directory = self.build_dir_name()
     return self.build_directory
 

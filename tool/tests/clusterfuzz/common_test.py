@@ -407,6 +407,12 @@ class GetSourceDirectoryTest(helpers.ExtendedTestCase):
   """Tests the get_source_directory method."""
 
   def setUp(self):
+    # Invoke yaml.dump before setup_fake_filesystem is essential. Otherwise,
+    # we would get "AttributeError: 'module' object has no attribute 'local'",
+    # when using yaml.dump later on. We have no idea why.
+    # It's definitely related to Pex/Pants' sandboxing.
+    yaml.dump({})
+    self.setup_fake_filesystem()
     helpers.patch(self, ['clusterfuzz.common.ask'])
     self.source_dir = '~/chromium/src'
 
@@ -422,7 +428,6 @@ class GetSourceDirectoryTest(helpers.ExtendedTestCase):
     """Tests getting the source directory from the cache file."""
 
     self.mock_os_environment({'CHROMIUM_SRC': ''})
-    self.setup_fake_filesystem()
     os.makedirs(os.path.expanduser('~/.clusterfuzz'))
     self.assertFalse(os.path.exists(common.SOURCE_CACHE))
     with open(common.SOURCE_CACHE, 'w') as f:
@@ -435,7 +440,6 @@ class GetSourceDirectoryTest(helpers.ExtendedTestCase):
     """Tests getting the directory from user and writing to a file."""
 
     self.mock_os_environment({'CHROMIUM_SRC': ''})
-    self.setup_fake_filesystem()
     os.makedirs(os.path.expanduser('~/.clusterfuzz'))
 
     self.mock.ask.return_value = self.source_dir

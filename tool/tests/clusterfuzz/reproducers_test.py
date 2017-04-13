@@ -58,7 +58,7 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     """Ensures all the setup methods work correctly."""
 
     self.mock.dirname.return_value = '/parent/dir'
-    self.reproducer.symbolizer_path = '/parent/dir/llvm-symbolizer'
+    self.reproducer.symbolizer_path = '/parent/dir/resources/llvm-symbolizer'
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
                           'option=1:suppressions=/not/correct/path'),
@@ -70,14 +70,16 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
         result[i] = self.reproducer.deserialize_sanitizer_options(result[i])
     self.assertEqual(result, {
         'UBSAN_OPTIONS': {
-            'external_symbolizer_path': '/parent/dir/llvm-symbolizer',
+            'external_symbolizer_path': '/parent/dir/resources/llvm-symbolizer',
             'other_option': '1',
-            'suppressions': '/parent/dir/suppressions/ubsan_suppressions.txt'},
+            'suppressions':
+                '/parent/dir/resources/suppressions/ubsan_suppressions.txt'},
         'LSAN_OPTIONS': {
             'other': '0',
-            'suppressions': '/parent/dir/suppressions/lsan_suppressions.txt',
+            'suppressions':
+                '/parent/dir/resources/suppressions/lsan_suppressions.txt',
             'option': '1'},
-        'UBSAN_SYMBOLIZER_PATH': '/parent/dir/llvm-symbolizer',
+        'UBSAN_SYMBOLIZER_PATH': '/parent/dir/resources/llvm-symbolizer',
         'DISPLAY': ':0.0'})
 
 

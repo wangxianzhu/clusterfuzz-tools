@@ -91,7 +91,3 @@ def main():
 
     stackdriver_logging.send_run(
         testcase, 'sanity', '0.2.2rc3', run_testcase(testcase))
-
-
-if __name__ == '__main__':
-  main()

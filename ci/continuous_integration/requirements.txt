@@ -1,7 +1,0 @@
-pyyaml==3.12
-mock==2.0.0
-httplib2==0.10.3
-oauth2client==4.0.0
-pyfakefs==2.9
-coveralls==1.1
-coverage==4.3.1

@@ -1,12 +1,14 @@
 dependencies:
   override:
-    - pip install -U pip
-    - pip install -r tool/requirements.txt
-    - pip install -e tool/.
+    - sudo apt-get install libpython2.7-dev
+    - ./pants -V
 test:
   override:
-    - python pylint.py
-    - cd tool && coverage run test.py
-    - cd ci/continuous_integration && coverage run test.py
-  post:
-    - cd tool && coveralls
+    - ./pants run tool:pylint
+    - ./pants binary tool:clusterfuzz
+    - ./pants test.pytest --coverage=1 tool:test
+    - ./pants run shared:coveralls -- --output=coverage_tool.json
+    - ./pants run ci/continuous_integration:pylint
+    - ./pants binary ci/continuous_integration:ci
+    - ./pants test.pytest --coverage=1 ci/continuous_integration:test
+    - ./pants run shared:coveralls -- --merge=coverage_tool.json

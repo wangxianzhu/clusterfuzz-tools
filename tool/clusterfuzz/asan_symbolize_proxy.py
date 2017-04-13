@@ -7,10 +7,8 @@ import pkg_resources
 
 def main(*argv):
   """Act as a proxy between asan_symbolize.py and llvm-symbolizer."""
-
-  resource_package = __name__
-  llvm_location = pkg_resources.resource_filename(resource_package,
-                                                  'llvm-symbolizer')
+  llvm_location = pkg_resources.resource_filename(
+      'clusterfuzz', 'resources/llvm-symbolizer')
   cmd = [llvm_location]
   for x in argv[1:]:
     if '--functions' in x:

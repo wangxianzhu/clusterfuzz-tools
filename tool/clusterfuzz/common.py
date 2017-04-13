@@ -327,10 +327,8 @@ def ask(question, error_message, validate_fn):
 
 def get_location(filepath):
   """Take a relative filepath and return the actual path."""
-
-  resource_package = __name__
-  resource_path = filepath
-  return   pkg_resources.resource_filename(resource_package, resource_path)
+  return pkg_resources.resource_filename(
+      'clusterfuzz', 'resources/%s' % filepath)
 
 
 def delete_if_exists(path):

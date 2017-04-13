@@ -1,6 +1,11 @@
 *.egg-info
 *.pyc
 .coverage
+.pants.d
+.pants.workdir.file_lock
+.pids
 /ENV
 /MANIFEST
 /htmlcov
+/.cache
+/dist

@@ -10,7 +10,6 @@ class TestSymbolizerProxying(helpers.ExtendedTestCase):
   """Tests to ensure symbolizer proxying is done correctly."""
 
   def setUp(self):
-    asan_symbolize_proxy.__name__ = 'module_name'
     helpers.patch(self, ['pkg_resources.resource_filename',
                          'subprocess.call'])
     self.mock.resource_filename.return_value = 'symbolizer_location'

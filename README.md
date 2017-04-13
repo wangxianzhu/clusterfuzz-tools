@@ -51,26 +51,25 @@ Here's the workflow (we think) might be appropriate when fixing a bug:
 Develop
 ------------
 
-1. Set up virtualenv with `python bootstrap.py`.
-2. Load the virtualenv's environment by running `source ENV/bin/activate`.
-3. Run the binary by running `clusterfuzz --help`.
+1. `./pants -V` to bootstrap [Pants](http://www.pantsbuild.org/)
+2. Run the tool's tests: `./pants test --coverage=1 tool:test`
+3. Run the ci's tests: `./pants test --coverage=1 ci/continuous_integration:test`
+4. Run the tool binary: `./pants run tool:clusterfuzz -- reproduce -h`
 
 
-Test
--------------------------
+Deploy CI
+------------
 
-1. Run tests with: `python test.py`.
-2. Run the tests with coverage `coverage run test.py`.
-3. Generate the report with `coverage html -d /tmp/coverage` and see `/tmp/coverage/index.html`.
+1. Build the CI Pex binary: `./pants binary ci/continuous_integration:ci`
+2. TODO(everestmz): Please fill in the ansible command.
 
 
 Publish
 ----------
 
-1. Create and merge a pull request to increase the version number.
-2. Clear previously built artifacts with `rm -rf dist`.
-3. Build artifact by running `python setup.py sdist bdist_wheel`.
-4. Upload to [pypi.python.org](https://pypi.python.org/pypi/clusterfuzz) by running `twine upload dist/*`.
-5. Tag the current version with `git tag -a <version> -m "Version <version>"`.
-6. Push the tag `git push --tags`.
+1. Create and merge a pull request to increase the version number
+2. Build the Pex binary: `./pants binary tool:clusterfuzz`
+3. Upload to the place where users can download
+4. Tag the current version with `git tag -a <version> -m "Version <version>"`
+5. Push the tag `git push --tags`
 

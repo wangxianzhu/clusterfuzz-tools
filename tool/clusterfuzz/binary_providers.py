@@ -230,9 +230,12 @@ class GenericBuilder(BinaryProvider):
     if not os.path.exists(self.build_directory):
       os.makedirs(self.build_directory)
 
-    lines = []
-    with open(os.path.join(self.build_dir_name(), 'args.gn'), 'r') as f:
-      lines = [l.strip() for l in f.readlines()]
+    if self.gn_args:
+      lines = self.gn_args.split('\n')
+    else:
+      lines = []
+      with open(os.path.join(self.build_dir_name(), 'args.gn'), 'r') as f:
+        lines = [l.strip() for l in f.readlines()]
 
     args_hash = self.deserialize_gn_args(lines)
     args_hash = self.setup_gn_goma_params(args_hash)
@@ -283,7 +286,8 @@ class GenericBuilder(BinaryProvider):
     if self.build_directory:
       return self.build_directory
 
-    self.download_build_data()
+    if not self.gn_args:
+      self.download_build_data()
     self.build_directory = self.build_dir_name()
     if not self.source_directory:
       self.source_directory = common.get_source_directory(self.name)
@@ -300,6 +304,7 @@ class PdfiumBuilder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
                goma_threads, disable_gclient_commands=False):
+    self.gn_args = testcase.gn_args
     super(PdfiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test',
@@ -316,7 +321,7 @@ class V8Builder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
                goma_threads, disable_gclient_commands=False):
-
+    self.gn_args = testcase.gn_args
     super(V8Builder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
         os.environ.get(binary_definition.source_var), 'd8', goma_threads,
@@ -336,7 +341,7 @@ class ChromiumBuilder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
                goma_threads, disable_gclient_commands=False):
-
+    self.gn_args = testcase.gn_args
     target_name = None
     binary_name = binary_definition.binary_name
     if binary_definition.target:

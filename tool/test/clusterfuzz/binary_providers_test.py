@@ -182,7 +182,8 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
     """Tests functionality when build has never been downloaded."""
 
     self.mock_os_environment({'V8_SRC': self.chrome_source})
-    testcase = mock.Mock(id=12345, build_url=self.build_url, revision=54321)
+    testcase = mock.Mock(id=12345, build_url=self.build_url, revision=54321,
+                         gn_args=None)
     binary_definition = mock.Mock(source_var='V8_SRC')
     provider = binary_providers.V8Builder(
         testcase, binary_definition, False, '/goma/dir', None)
@@ -201,7 +202,8 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
     """Tests when build is not downloaded & no valid source passed."""
 
     self.mock_os_environment({'V8_SRC': ''})
-    testcase = mock.Mock(id=12345, build_url=self.build_url, revision=54321)
+    testcase = mock.Mock(id=12345, build_url=self.build_url, revision=54321,
+                         gn_args=None)
     binary_definition = mock.Mock(source_var='V8_SRC')
     provider = binary_providers.V8Builder(
         testcase, binary_definition, False, '/goma/dir', None)
@@ -309,7 +311,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision'])
     self.testcase_dir = os.path.expanduser(os.path.join('~', 'test_dir'))
-    testcase = mock.Mock(id=1234, build_url='', revision=54321)
+    testcase = mock.Mock(id=1234, build_url='', revision=54321, gn_args=None)
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
     binary_definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.V8Builder(
@@ -463,7 +465,8 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.sha = '1a2s3d4f5g'
     self.mock.sha_from_revision.return_value = 'chrome_sha'
     self.mock.get_pdfium_sha = self.sha
-    testcase = mock.Mock(id=1234, build_url='', revision=54321)
+    testcase = mock.Mock(id=1234, build_url='', revision=54321,
+                         gn_args='use_goma = true')
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
     binary_definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.PdfiumBuilder(
@@ -488,8 +491,8 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [mock.call(
         'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(f.read(), ('use_goma = true\n'
-                                  'goma_dir = "/goma/dir"\n'
+      self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
+                                  'use_goma = true\n'
                                   'pdf_is_standalone = true\n'))
 
   def test_gn_args_no_goma(self):

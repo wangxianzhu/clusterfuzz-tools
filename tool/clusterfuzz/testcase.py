@@ -78,6 +78,9 @@ class Testcase(object):
     self.gestures = testcase_json['testcase'].get('gestures')
     self.crash_type = testcase_json['crash_type']
     self.crash_state = testcase_json['crash_state']
+    self.gn_args = testcase_json['metadata'].get('gn_args')
+    if self.gn_args:
+      self.gn_args = self.gn_args.rstrip('\n')
 
   def testcase_dir_name(self):
     """Returns a testcases' respective directory."""

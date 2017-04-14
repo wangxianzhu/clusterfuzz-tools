@@ -1,7 +1,5 @@
 backports.shutil_get_terminal_size==1.0.0
 coveralls==1.1
-crcmod==1.7
-gsutil==4.23
 httplib2==0.10.3
 mock==2.0.0
 oauth2client==4.0.0

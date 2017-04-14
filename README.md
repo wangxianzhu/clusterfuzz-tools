@@ -15,36 +15,40 @@ Currently, it supports reproducing a crash locally. In the future, it will
 support uploading a fuzzer, tailing fuzzer log, and uploading a testcase.
 
 
+Requirement
+---------------
+
+* [gsutil](https://cloud.google.com/storage/docs/gsutil_install)
+
+
 Installation
 -----------------
 
-`pip install -U clusterfuzz`
+ClusterFuzz tools is a single binary file built with [Pex](https://github.com/pantsbuild/pex).
+Therefore, you can simply copy the binary and run it.
 
 
-### For Goobuntu
+For Goobuntu:
 
-The default pip is of v1.5.4, which has known issues when installing dependencies. You *must* upgrade to the version 9.0+.
+1. Run `prodaccess`
+2. Run `/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz reproduce -h`
 
-Please be aware that the pip on Goobuntu is installed with apt-get. The binary is at `/usr/bin/pip`. When upgrading pip with `sudo pip install -U pip`, it installs to `/usr/local/bin/pip`, and `sudo pip` still points to `/usr/bin/pip` (which is of the version 1.5.4).
+For others:
 
-Therefore, you must perform the below steps instead:
-
-1. `sudo pip install -U pip`.
-2. `sudo /usr/local/bin/pip install -U clusterfuzz`.
-
-As a side note, it might be better if we uninstall `/usr/bin/pip` altogether with `sudo apt-get remove python-pip`.
+1. Download [the latest stable version](https://storage.cloud.google.com/clusterfuzz-tools)
+2. Run `clusterfuzz-<version>.pex reproduce -h`
 
 
 Usage
 ------
 
-See `clusterfuzz reproduce --help`. Run `clusterfuzz reproduce [testcase-id]`
+See `<binary> reproduce --help`. Run `clusterfuzz reproduce [testcase-id]`
 
 Here's the workflow (we think) might be appropriate when fixing a bug:
 
-1. Run `clusterfuzz reproduce [testcase-id]`
+1. Run `<binary> reproduce [testcase-id]`
 2. Make a new branch and make a code change
-3. Run against the code change with `clusterfuzz reproduce [testcase-id] --current`
+3. Run against the code change with `<binary> reproduce [testcase-id] --current`
 4. If the crash doesn’t occur anymore, it means your code change fixes the crash
 
 
@@ -67,9 +71,19 @@ Deploy CI
 Publish
 ----------
 
+We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googlers).
+
 1. Create and merge a pull request to increase the version number
-2. Build the Pex binary: `./pants binary tool:clusterfuzz`
-3. Upload to the place where users can download
-4. Tag the current version with `git tag -a <version> -m "Version <version>"`
-5. Push the tag `git push --tags`
+2. Increment the version number in `tool/BUILD`
+3. Set the new version in the env: `export VERSION=<version>`.
+4. Build the Pex binary: `./pants binary tool:clusterfuzz-$VERSION`
+5. Upload to our public storage: `gsutil cp dist/clusterfuzz-$VERSION.pex gs://clusterfuzz-tools/`
+6. Make the link public: `gsutil acl set public-read gs://clusterfuzz-tools/clusterfuzz-$VERSION.pex`
+7. Copy to X20: `cp dist/clusterfuzz-$VERSION.pex /google/data/rw/teams/clusterfuzz-tools/releases/`
+8. Change permission: `chmod 775 /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz-$VERSION.pex`
+9. Symlink: `ln -sf /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz-$VERSION.pex /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz`
+10. Confirm it with: `ls -l /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz`
+11. Test by running: `/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz reproduce -h`
+12. Tag the current version with `git tag -a $VERSION -m "Version $VERSION"`
+13. Push the tag `git push --tags`
 

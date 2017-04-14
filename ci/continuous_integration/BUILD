@@ -1,7 +1,7 @@
 
 python_binary(
-    name='ci',
-    entry_point='ci.main:main',
+    name='daemon',
+    entry_point='daemon.main:main',
     dependencies=[':src'],
     zip_safe=False
 )
@@ -9,13 +9,13 @@ python_binary(
 
 python_library(
     name='src',
-    sources=rglobs('ci/*.py'),
+    sources=rglobs('daemon/*.py'),
     dependencies=[
         '//3rdparty/python:pyyaml',
         '//3rdparty/python:httplib2',
         '//3rdparty/python:oauth2client'
     ],
-    resources=['ci/sanity_checks.yml'],
+    resources=['daemon/sanity_checks.yml'],
     compatibility=['>=2.7', '<3']
 )
 
@@ -45,7 +45,7 @@ python_binary(
 python_tests(
     name='test',
     sources=rglobs('tests/*.py'),
-    coverage='ci',
+    coverage='daemon',
     compatibility=['>=2.7','<3'],
     dependencies=[
         ':src',

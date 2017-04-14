@@ -18,7 +18,7 @@ import subprocess
 import os
 import mock
 
-from ci import main
+from daemon import main
 import helpers
 
 
@@ -26,12 +26,12 @@ class MainTest(helpers.ExtendedTestCase):
   """Test main."""
 
   def setUp(self):
-    helpers.patch(self, ['ci.main.install_latest_release',
-                         'ci.main.load_sanity_check_testcases',
-                         'ci.stackdriver_logging.send_run',
-                         'ci.main.run_testcase',
-                         'ci.clone_chromium.clone_chromium',
-                         'ci.main.update_auth_header'])
+    helpers.patch(self, ['daemon.main.install_latest_release',
+                         'daemon.main.load_sanity_check_testcases',
+                         'daemon.stackdriver_logging.send_run',
+                         'daemon.main.run_testcase',
+                         'daemon.clone_chromium.clone_chromium',
+                         'daemon.main.update_auth_header'])
     self.setup_fake_filesystem()
     self.mock.load_sanity_check_testcases.return_value = [1, 2]
 

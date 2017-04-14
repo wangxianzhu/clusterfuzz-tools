@@ -16,7 +16,7 @@
 import json
 import mock
 
-from ci import stackdriver_logging
+from daemon import stackdriver_logging
 import helpers
 
 
@@ -24,7 +24,8 @@ class SendLogTest(helpers.ExtendedTestCase):
   """Test the send_log method."""
 
   def setUp(self):
-    helpers.patch(self, ['ci.stackdriver_logging.ServiceAccountCredentials'])
+    helpers.patch(self, [
+        'daemon.stackdriver_logging.ServiceAccountCredentials'])
 
   def test_send_structure(self):
     """Ensures that the correct request structure is sent."""
@@ -57,7 +58,7 @@ class SendRunTest(helpers.ExtendedTestCase):
   """Tests the send_run method."""
 
   def setUp(self):
-    helpers.patch(self, ['ci.stackdriver_logging.send_log'])
+    helpers.patch(self, ['daemon.stackdriver_logging.send_log'])
 
   def test_send_params(self):
     stackdriver_logging.send_run(1234, 'sanity', '0.2.2rc3', True)

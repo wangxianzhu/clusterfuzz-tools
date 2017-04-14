@@ -16,7 +16,7 @@
 import os
 import mock
 
-from ci import clone_chromium
+from daemon import clone_chromium
 import helpers
 
 

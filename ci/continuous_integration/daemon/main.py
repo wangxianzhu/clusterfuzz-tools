@@ -5,8 +5,8 @@ import subprocess
 import shutil
 import yaml
 
-import stackdriver_logging #pylint: disable=relative-import
-import clone_chromium #pylint: disable=relative-import
+from daemon import stackdriver_logging
+from daemon import clone_chromium
 
 from oauth2client.client import GoogleCredentials
 

@@ -29,7 +29,8 @@ class TestSendLog(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.stackdriver_logging.ServiceAccountCredentials',
         'httplib2.Http',
-        'clusterfuzz.stackdriver_logging.get_session_id'])
+        'clusterfuzz.stackdriver_logging.get_session_id',
+    ])
 
   def test_send_stacktrace(self):
     """Test to ensure stacktrace and params are sent properly."""

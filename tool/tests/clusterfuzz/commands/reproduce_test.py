@@ -461,8 +461,8 @@ class GetSupportedJobsTest(helpers.ExtendedTestCase):
   """Tests the get_supported_jobs method."""
 
   def setUp(self):
-    helpers.patch(self,
-                  ['clusterfuzz.commands.reproduce.build_binary_definition'])
+    helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.build_binary_definition'])
     self.mock.build_binary_definition.side_effect = KeyError
 
   def test_raise_from_key_error(self):

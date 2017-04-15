@@ -325,10 +325,13 @@ def ask(question, error_message, validate_fn):
   return answer
 
 
-def get_location(filepath):
-  """Take a relative filepath and return the actual path."""
-  return pkg_resources.resource_filename(
+def get_location(filepath, chmod_permission):
+  """Take a relative filepath and return the actual path. chmod_permission is
+    needed because our packaging might destroy the permission."""
+  path = pkg_resources.resource_filename(
       'clusterfuzz', 'resources/%s' % filepath)
+  os.chmod(path, chmod_permission)
+  return path
 
 
 def delete_if_exists(path):

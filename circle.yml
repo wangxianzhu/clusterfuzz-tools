@@ -5,7 +5,7 @@ dependencies:
 test:
   override:
     - ./pants run tool:pylint
-    - ./pants binary tool:clusterfuzz-0.2.2rc5
+    - ./pants binary tool:clusterfuzz-0.2.2rc6
     - ./pants test.pytest --coverage=1 tool:test
     - ./pants run shared:coveralls -- --output=coverage_tool.json
     - ./pants run ci/continuous_integration:pylint

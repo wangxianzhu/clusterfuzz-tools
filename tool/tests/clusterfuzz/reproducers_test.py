@@ -17,6 +17,8 @@ import os
 import json
 import mock
 
+import pytest
+
 import helpers
 from clusterfuzz import reproducers
 from clusterfuzz import common
@@ -46,19 +48,34 @@ def create_chrome_reproducer():
 class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
   """Tests the set_up_symbolizers_suppressions method."""
 
+  @pytest.fixture(autouse=True)
+  def initdir(self, tmpdir):
+    resource_path = tmpdir.mkdir('resources')
+    resource_path.join('llvm-symbolizer').write('llvm-fake')
+
+    suppression_path = resource_path.mkdir('suppressions')
+    suppression_path.join('lsan_suppressions.txt').write('test')
+    suppression_path.join('ubsan_suppressions.txt').write('test')
+
+    self.root_path = tmpdir.strpath
+
   def setUp(self):
-    helpers.patch(self, ['os.path.dirname'])
+    helpers.patch(self, [
+        'pkg_resources.resource_filename'
+    ])
+
+  def test_set_up_correct_env(self):
+    """Ensures all the setup methods work correctly."""
+    def get(_, path):
+      return os.path.join(self.root_path, path)
+    self.mock.resource_filename.side_effect = get
+
     self.binary_provider = mock.Mock()
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
         {'content': 'line'}], job_type='job_type')
     self.reproducer = reproducers.BaseReproducer(
         self.binary_provider, self.testcase, 'UBSAN')
 
-  def test_set_up_correct_env(self):
-    """Ensures all the setup methods work correctly."""
-
-    self.mock.dirname.return_value = '/parent/dir'
-    self.reproducer.symbolizer_path = '/parent/dir/resources/llvm-symbolizer'
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
                           'option=1:suppressions=/not/correct/path'),
@@ -70,16 +87,21 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
         result[i] = self.reproducer.deserialize_sanitizer_options(result[i])
     self.assertEqual(result, {
         'UBSAN_OPTIONS': {
-            'external_symbolizer_path': '/parent/dir/resources/llvm-symbolizer',
+            'external_symbolizer_path':
+                '%s/resources/llvm-symbolizer' % self.root_path,
             'other_option': '1',
-            'suppressions':
-                '/parent/dir/resources/suppressions/ubsan_suppressions.txt'},
+            'suppressions': (
+                '%s/resources/suppressions/ubsan_suppressions.txt'
+                % self.root_path)
+        },
         'LSAN_OPTIONS': {
             'other': '0',
-            'suppressions':
-                '/parent/dir/resources/suppressions/lsan_suppressions.txt',
+            'suppressions': (
+                '%s/resources/suppressions/lsan_suppressions.txt'
+                % self.root_path),
             'option': '1'},
-        'UBSAN_SYMBOLIZER_PATH': '/parent/dir/resources/llvm-symbolizer',
+        'UBSAN_SYMBOLIZER_PATH':
+            '%s/resources/llvm-symbolizer' % self.root_path,
         'DISPLAY': ':0.0'})
 
 
@@ -148,7 +170,6 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                                 job_type='job_type')
     mocked_testcase.get_testcase_path.return_value = testcase_file
     mocked_provider = mock.Mock()
-    self.mock.get_location = '/chrome/source/folder/llvm-symbolizer'
     mocked_provider.get_binary_path.return_value = source
 
     reproducer = reproducers.BaseReproducer(mocked_provider, mocked_testcase,
@@ -207,9 +228,9 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
 
   def setUp(self):
-    self.setup_fake_filesystem()
-    helpers.patch(self,
-                  ['clusterfuzz.reproducers.BaseReproducer.pre_build_steps'])
+    helpers.patch(self, [
+        'clusterfuzz.reproducers.BaseReproducer.pre_build_steps',
+    ])
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
@@ -525,8 +546,7 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     self.reproducer = create_chrome_reproducer()
     self.reproducer.source_directory = '/path/to/chromium'
     helpers.patch(self, ['clusterfuzz.common.start_execute',
-                         'clusterfuzz.common.get_location',
-                         'os.chmod'])
+                         'clusterfuzz.common.get_location'])
     self.mock.get_location.return_value = 'asan_sym_proxy.py'
     (self.mock.start_execute.return_value.
      communicate.return_value) = ('symbolized', 0)
@@ -544,8 +564,6 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
                    'CHROMIUM_SRC': '/path/to/chromium'})])
     self.assert_exact_calls(self.mock.start_execute.return_value.communicate,
                             [mock.call(input='output_lines\x00')])
-    self.assert_exact_calls(self.mock.chmod, [
-        mock.call('asan_sym_proxy.py', 0755)])
     self.assertEqual(result, 'symbolized')
 
 

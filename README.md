@@ -5,8 +5,6 @@ Status: Early prototype phase
 
 [![CircleCI](https://circleci.com/gh/google/clusterfuzz-tools/tree/master.svg?style=shield)](https://circleci.com/gh/google/clusterfuzz-tools/tree/master)
 [![Coverage Status](https://coveralls.io/repos/github/google/clusterfuzz-tools/badge.svg?branch=master)](https://coveralls.io/github/google/clusterfuzz-tools?branch=master)
-[![Version](https://img.shields.io/pypi/v/clusterfuzz.svg)](https://pypi.python.org/pypi/clusterfuzz)
-[![Python](https://img.shields.io/pypi/pyversions/clusterfuzz.svg)](https://pypi.python.org/pypi/clusterfuzz)
 
 The tools supports various tasks (e.g. reproduce a crash locally)
 needed by ClusterFuzz's users.
@@ -73,8 +71,8 @@ Publish
 
 We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googlers).
 
-1. Create and merge a pull request to increase the version number
-2. Increment the version number in `tool/BUILD`
+1. Increment the version number in `tool/BUILD` and `circle.yml`
+2. Create and merge a pull request to increase the version number
 3. Set the new version in the env: `export VERSION=<version>`.
 4. Build the Pex binary: `./pants binary tool:clusterfuzz-$VERSION`
 5. Upload to our public storage: `gsutil cp dist/clusterfuzz-$VERSION.pex gs://clusterfuzz-tools/`

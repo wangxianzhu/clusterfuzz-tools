@@ -17,8 +17,6 @@ import os
 import json
 import mock
 
-import pytest
-
 import helpers
 from clusterfuzz import reproducers
 from clusterfuzz import common
@@ -48,26 +46,23 @@ def create_chrome_reproducer():
 class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
   """Tests the set_up_symbolizers_suppressions method."""
 
-  @pytest.fixture(autouse=True)
-  def initdir(self, tmpdir):
-    resource_path = tmpdir.mkdir('resources')
-    resource_path.join('llvm-symbolizer').write('llvm-fake')
-
-    suppression_path = resource_path.mkdir('suppressions')
-    suppression_path.join('lsan_suppressions.txt').write('test')
-    suppression_path.join('ubsan_suppressions.txt').write('test')
-
-    self.root_path = tmpdir.strpath
-
   def setUp(self):
+    self.setup_fake_filesystem()
     helpers.patch(self, [
         'pkg_resources.resource_filename'
     ])
 
   def test_set_up_correct_env(self):
     """Ensures all the setup methods work correctly."""
+    root_path = '/fake'
+    self.fs.CreateFile('/fake/resources/llvm-symbolizer', contents='t')
+    self.fs.CreateFile(
+        '/fake/resources/suppressions/lsan_suppressions.txt', contents='t')
+    self.fs.CreateFile(
+        '/fake/resources/suppressions/ubsan_suppressions.txt', contents='t')
+
     def get(_, path):
-      return os.path.join(self.root_path, path)
+      return os.path.join(root_path, path)
     self.mock.resource_filename.side_effect = get
 
     self.binary_provider = mock.Mock()
@@ -88,20 +83,18 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     self.assertEqual(result, {
         'UBSAN_OPTIONS': {
             'external_symbolizer_path':
-                '%s/resources/llvm-symbolizer' % self.root_path,
+                '%s/resources/llvm-symbolizer' % root_path,
             'other_option': '1',
             'suppressions': (
-                '%s/resources/suppressions/ubsan_suppressions.txt'
-                % self.root_path)
+                '%s/resources/suppressions/ubsan_suppressions.txt' % root_path)
         },
         'LSAN_OPTIONS': {
             'other': '0',
             'suppressions': (
-                '%s/resources/suppressions/lsan_suppressions.txt'
-                % self.root_path),
+                '%s/resources/suppressions/lsan_suppressions.txt' % root_path),
             'option': '1'},
         'UBSAN_SYMBOLIZER_PATH':
-            '%s/resources/llvm-symbolizer' % self.root_path,
+            '%s/resources/llvm-symbolizer' % root_path,
         'DISPLAY': ':0.0'})
 
 
@@ -228,9 +221,12 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
 
   def setUp(self):
+    self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.reproducers.BaseReproducer.pre_build_steps',
+        'clusterfuzz.common.get_location',
     ])
+    self.mock.get_location.return_value = 'llvm'
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()

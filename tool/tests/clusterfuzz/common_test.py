@@ -407,11 +407,6 @@ class GetSourceDirectoryTest(helpers.ExtendedTestCase):
   """Tests the get_source_directory method."""
 
   def setUp(self):
-    # Invoke yaml.dump before setup_fake_filesystem is essential. Otherwise,
-    # we would get "AttributeError: 'module' object has no attribute 'local'",
-    # when using yaml.dump later on. We have no idea why.
-    # It's definitely related to Pex/Pants' sandboxing.
-    yaml.dump({})
     self.setup_fake_filesystem()
     helpers.patch(self, ['clusterfuzz.common.ask'])
     self.source_dir = '~/chromium/src'

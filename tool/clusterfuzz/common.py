@@ -24,7 +24,6 @@ import time
 import re
 import signal
 import shutil
-import pkg_resources
 import yaml
 
 from backports.shutil_get_terminal_size import get_terminal_size
@@ -325,13 +324,12 @@ def ask(question, error_message, validate_fn):
   return answer
 
 
-def get_location(filepath, chmod_permission):
+def get_resource(chmod_permission, *paths):
   """Take a relative filepath and return the actual path. chmod_permission is
     needed because our packaging might destroy the permission."""
-  path = pkg_resources.resource_filename(
-      'clusterfuzz', 'resources/%s' % filepath)
-  os.chmod(path, chmod_permission)
-  return path
+  full_path = os.path.join(os.path.dirname(__file__), *paths)
+  os.chmod(full_path, chmod_permission)
+  return full_path
 
 
 def delete_if_exists(path):

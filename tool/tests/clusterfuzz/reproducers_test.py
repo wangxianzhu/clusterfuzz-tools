@@ -49,7 +49,7 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
   def setUp(self):
     self.setup_fake_filesystem()
     helpers.patch(self, [
-        'pkg_resources.resource_filename'
+        'clusterfuzz.common.get_resource'
     ])
 
   def test_set_up_correct_env(self):
@@ -61,9 +61,9 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     self.fs.CreateFile(
         '/fake/resources/suppressions/ubsan_suppressions.txt', contents='t')
 
-    def get(_, path):
-      return os.path.join(root_path, path)
-    self.mock.resource_filename.side_effect = get
+    def get(_, *paths):
+      return os.path.join(root_path, *paths)
+    self.mock.get_resource.side_effect = get
 
     self.binary_provider = mock.Mock()
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
@@ -139,10 +139,10 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.run_gestures',
         'clusterfuzz.reproducers.Blackbox.__enter__',
         'clusterfuzz.reproducers.Blackbox.__exit__',
-        'clusterfuzz.common.get_location',
+        'clusterfuzz.common.get_resource',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize'])
-    self.mock.get_location.return_value = ('/chrome/source/folder/'
-                                           'llvm-symbolizer')
+    self.mock.get_resource.return_value = (
+        '/chrome/source/folder/llvm-symbolizer')
     self.mock.wait_execute.return_value = (0, 'lines')
     self.mock.post_run_symbolize.return_value = 'symbolized'
 
@@ -224,9 +224,9 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.reproducers.BaseReproducer.pre_build_steps',
-        'clusterfuzz.common.get_location',
+        'clusterfuzz.common.get_resource',
     ])
-    self.mock.get_location.return_value = 'llvm'
+    self.mock.get_resource.return_value = 'llvm'
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     patch_stacktrace_info(self)
     self.reproducer = create_chrome_reproducer()
@@ -542,8 +542,8 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     self.reproducer = create_chrome_reproducer()
     self.reproducer.source_directory = '/path/to/chromium'
     helpers.patch(self, ['clusterfuzz.common.start_execute',
-                         'clusterfuzz.common.get_location'])
-    self.mock.get_location.return_value = 'asan_sym_proxy.py'
+                         'clusterfuzz.common.get_resource'])
+    self.mock.get_resource.return_value = 'asan_sym_proxy.py'
     (self.mock.start_execute.return_value.
      communicate.return_value) = ('symbolized', 0)
 

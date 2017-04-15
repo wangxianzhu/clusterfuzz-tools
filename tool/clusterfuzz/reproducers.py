@@ -75,7 +75,8 @@ class BaseReproducer(object):
     self.environment = testcase.environment
     self.args = testcase.reproduction_args
     self.binary_path = binary_provider.get_binary_path()
-    self.symbolizer_path = common.get_location('llvm-symbolizer', 0755)
+    self.symbolizer_path = common.get_resource(
+        0755, 'resources', 'llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
 
@@ -123,9 +124,9 @@ class BaseReproducer(object):
         options['external_symbolizer_path'] = self.symbolizer_path
       if 'suppressions' in options:
         suppressions_map = {'UBSAN_OPTIONS': 'ubsan', 'LSAN_OPTIONS': 'lsan'}
-        filename = common.get_location(
-            'suppressions/%s_suppressions.txt' % suppressions_map[variable],
-            0640)
+        filename = common.get_resource(
+            '0640', 'resources', 'suppressions',
+            '%s_suppressions.txt' % suppressions_map[variable])
         options['suppressions'] = filename
       env[variable] = self.serialize_sanitizer_options(options)
     self.environment = env
@@ -309,8 +310,8 @@ class LinuxChromeJobReproducer(BaseReproducer):
     asan_symbolizer_location = os.path.join(
         self.source_directory, os.path.join('tools', 'valgrind', 'asan',
                                             'asan_symbolize.py'))
-    symbolizer_proxy_location = common.get_location(
-        'asan_symbolize_proxy.py', 0755)
+    symbolizer_proxy_location = common.get_resource(
+        0755, 'asan_symbolize_proxy.py')
     x = common.start_execute(asan_symbolizer_location, os.path.expanduser('~'),
                              {'LLVM_SYMBOLIZER_PATH': symbolizer_proxy_location,
                               'CHROMIUM_SRC': self.source_directory})

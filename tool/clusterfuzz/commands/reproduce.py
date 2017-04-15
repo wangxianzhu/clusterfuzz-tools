@@ -168,7 +168,8 @@ def get_supported_jobs():
       'standalone': {},
       'chromium': {}}
 
-  with open(common.get_location('supported_job_types.yml', 0640)) as stream:
+  with open(common.get_resource(
+      0640, 'resources', 'supported_job_types.yml')) as stream:
     job_types_yaml = yaml.load(stream)
 
   for build_type in ['standalone', 'chromium']:

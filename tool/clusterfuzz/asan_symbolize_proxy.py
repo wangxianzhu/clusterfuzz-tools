@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-"""Called by asan_symbolize.py, mutates input, passes to llvm-symbolizer."""
+"""Called by asan_symbolize.py, mutates input, passes to llvm-symbolizer.
+  This file should be a standalone and must NOT depend on other file."""
 
+import os
 import subprocess
 import sys
-import pkg_resources
 
 def main(*argv):
   """Act as a proxy between asan_symbolize.py and llvm-symbolizer."""
-  llvm_location = pkg_resources.resource_filename(
-      'clusterfuzz', 'resources/llvm-symbolizer')
+  llvm_location = os.path.join(os.path.dirname(__file__), 'llvm-symbolizer')
   cmd = [llvm_location]
   for x in argv[1:]:
     if '--functions' in x:

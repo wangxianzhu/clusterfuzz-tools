@@ -19,7 +19,7 @@ class TestSymbolizerProxying(helpers.ExtendedTestCase):
       asan_symbolize_proxy.main('cmd', '--inlining=true', 'arg1',
                                 '--functions=short')
     expected_symbolizer_path = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', 'clusterfuzz',
+        os.path.dirname(__file__), '..', '..', 'clusterfuzz', 'resources',
         'llvm-symbolizer'))
     self.assert_exact_calls(self.mock.call, [
         mock.call(

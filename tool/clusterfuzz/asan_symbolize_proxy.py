@@ -8,7 +8,8 @@ import sys
 
 def main(*argv):
   """Act as a proxy between asan_symbolize.py and llvm-symbolizer."""
-  llvm_location = os.path.join(os.path.dirname(__file__), 'llvm-symbolizer')
+  llvm_location = os.path.join(
+      os.path.dirname(__file__), 'resources', 'llvm-symbolizer')
   cmd = [llvm_location]
   for x in argv[1:]:
     if '--functions' in x:

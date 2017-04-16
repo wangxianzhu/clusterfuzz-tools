@@ -45,14 +45,17 @@ def strip_html(lines):
   return new_lines
 
 
-def remove_unsymbolized_stacktrace(lines):
-  """Remove unsymbolized stacktrace because it interferes with stacktrace
-    parsing. See: https://chrome-internal.googlesource.com/chrome/tools/clusterfuzz/+/master/src/common/utils.py#220"""  # pylint: disable=line-too-long
+def get_only_first_stacktrace(lines):
+  """Get the first stacktrace because multiple stacktraces would make stacktrace
+    parsing wrong."""
   new_lines = []
   for line in lines:
-    if 'Release Build Unsymbolized Stacktrace' in line:
+    line = line.rstrip()
+    if line.startswith('+----') and new_lines:
       break
-    new_lines.append(line)
+    # We don't add the empty lines in the beginning.
+    if new_lines or line:
+      new_lines.append(line)
   return new_lines
 
 
@@ -82,7 +85,7 @@ class BaseReproducer(object):
 
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
-    stacktrace_lines = remove_unsymbolized_stacktrace(stacktrace_lines)
+    stacktrace_lines = get_only_first_stacktrace(stacktrace_lines)
     self.crash_state, self.crash_type = self.get_stacktrace_info(
         '\n'.join(stacktrace_lines))
 
@@ -174,8 +177,8 @@ class BaseReproducer(object):
         return True
       logger.info('Reproduction attempt %d unsuccessful. Press Ctrl+C to'
                   ' stop trying to reproduce.', iterations)
-      logger.debug('New crash state: %s, original: %s',
-                   ', '.join(new_crash_state), ', '.join(self.crash_state))
+      logger.debug('New crash state:\n  %s\nOriginal:\n  %s',
+                   '\n  '.join(new_crash_state), '\n  '.join(self.crash_state))
       logger.debug('New crash type: %s, original: %s', new_crash_type,
                    self.crash_type)
       iterations += 1

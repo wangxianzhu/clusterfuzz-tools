@@ -573,20 +573,22 @@ class StripHtmlTest(helpers.ExtendedTestCase):
         reproducers.strip_html(['aa <a href="sadfsd">test</a> &amp;']))
 
 
-class RemoveUnsymbolizedStacktraceTest(helpers.ExtendedTestCase):
-  """Test remove_unsymbolized_stacktrace."""
+class GetOnlyFirstStacktraceTest(helpers.ExtendedTestCase):
+  """Test get_only_first_stacktrace."""
 
-  def test_no_unsymbolized_stacktrace(self):
-    """Test no unsymbolized stacktrace."""
+  def test_one_trace(self):
+    """Test having only one trace."""
     self.assertEqual(
         ['aa', 'bb'],
-        reproducers.strip_html(['aa', 'bb']))
+        reproducers.get_only_first_stacktrace(['  ', 'aa  ', 'bb']))
 
   def test_unsymbolized_stacktrace(self):
     """Test unsymbolized stacktrace."""
     self.assertEqual(
-        ['aa', 'bb'],
-        reproducers.remove_unsymbolized_stacktrace([
+        ['+------- fake trace ----+', 'aa', 'bb'],
+        reproducers.get_only_first_stacktrace([
+            '   ',
+            '+------- fake trace ----+',
             'aa',
             'bb',
             '+------Release Build Unsymbolized Stacktrace (diff)------+',

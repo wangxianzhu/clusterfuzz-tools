@@ -120,10 +120,7 @@ def ensure_goma():
   if not os.path.isfile(os.path.join(goma_dir, 'goma_ctl.py')):
     raise common.GomaNotInstalledError()
 
-  common.execute(
-      'python goma_ctl.py ensure_start', goma_dir,
-      environment=os.environ.copy())
-
+  common.execute('python goma_ctl.py ensure_start', goma_dir)
   return goma_dir
 
 

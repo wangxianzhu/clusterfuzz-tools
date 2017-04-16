@@ -128,7 +128,7 @@ class BaseReproducer(object):
       if 'suppressions' in options:
         suppressions_map = {'UBSAN_OPTIONS': 'ubsan', 'LSAN_OPTIONS': 'lsan'}
         filename = common.get_resource(
-            '0640', 'resources', 'suppressions',
+            0640, 'resources', 'suppressions',
             '%s_suppressions.txt' % suppressions_map[variable])
         options['suppressions'] = filename
       env[variable] = self.serialize_sanitizer_options(options)
@@ -330,7 +330,6 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
     with Blackbox(self.args) as display_name:
       command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
-      logger.info('Running: %s', command)
       if display_name:
         self.environment['DISPLAY'] = display_name
       self.environment.pop('ASAN_SYMBOLIZER_PATH', None)

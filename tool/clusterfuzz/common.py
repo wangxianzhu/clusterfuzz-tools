@@ -220,8 +220,14 @@ def interpret_ninja_output(line):
   print_progress_bar(current, total, prefix='Ninja progress:')
 
 
-def start_execute(command, cwd, environment):
+def start_execute(command, cwd, environment, print_output=True):
   """Runs a command, and returns the subprocess.Popen object."""
+  if print_output:
+    env_str = ''
+    if environment:
+      env_str = ' '.join(
+          ['%s=%s' % (k, v) for k, v in environment.iteritems()])
+    logger.info('Running: %s %s', env_str, command)
 
   return subprocess.Popen(
       command,
@@ -278,10 +284,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
 def execute(command, cwd, print_output=True, capture_output=True,
             exit_on_error=True, environment=None):
   """Execute a bash command."""
-
-  if print_output:
-    logger.info('Running: %s', command)
-  proc = start_execute(command, cwd, environment)
+  proc = start_execute(command, cwd, environment, print_output)
   return wait_execute(proc, exit_on_error, capture_output, print_output,
                       ninja_command='ninja' in command)
 

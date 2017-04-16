@@ -103,8 +103,19 @@ class ExecuteTest(helpers.ExtendedTestCase):
     x.read.side_effect = ['part1', 'part2\n']
     self.mock.Popen.return_value = mock.Mock(stdout=x, returncode=0)
     common.execute('ninja do this plz', '~/working/directory',
-                   print_output=True, exit_on_error=True)
+                   print_output=True, exit_on_error=True,
+                   environment={'a': 'b'})
     self.assert_n_calls(1, [self.mock.interpret_ninja_output])
+    self.mock.Popen.assert_called_once_with(
+        'ninja do this plz',
+        shell=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd='~/working/directory',
+        env={'a': 'b'},
+        preexec_fn=os.setsid
+    )
 
   def run_execute(self, print_out, exit_on_err):
     return common.execute(

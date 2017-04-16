@@ -331,9 +331,12 @@ class V8Builder(GenericBuilder):
 
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
-      common.execute('GYP_DEFINES=asan=1 gclient runhooks',
-                     self.source_directory)
-    common.execute('GYP_DEFINES=asan=1 gypfiles/gyp_v8', self.source_directory)
+      common.execute(
+          'gclient runhooks', self.source_directory,
+          environment={'GYP_DEFINES': 'asan=1'})
+    common.execute(
+        'gypfiles/gyp_v8', self.source_directory,
+        environment={'GYP_DEFINES': 'asan=1'})
 
 
 class ChromiumBuilder(GenericBuilder):
@@ -375,11 +378,16 @@ class MsanChromiumBuilder(ChromiumBuilder):
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
       common.execute(
-          ("GYP_DEFINES='clang=1 component=static_library gomadir=%s "
-           'msan=1 msan_track_origins=0 sanitizer_coverage=edge '
-           "target_arch=x64 use_goma=1 use_prebuilt_instrumented_libraries=1' "
-           'gclient runhooks') % self.goma_dir,
-          self.source_directory)
+          'gclient runhooks',
+          self.source_directory,
+          environment={
+              'GYP_DEFINES': (
+                  'clang=1 component=static_library gomadir=%s msan=1 '
+                  'msan_track_origins=0 sanitizer_coverage=edge '
+                  'target_arch=x64 use_goma=1 '
+                  'use_prebuilt_instrumented_libraries=1'
+                  % self.goma_dir)
+          })
 
 
 class LibfuzzerMsanBuilder(ChromiumBuilder):
@@ -387,9 +395,13 @@ class LibfuzzerMsanBuilder(ChromiumBuilder):
 
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
-      common.execute(("GYP_DEFINES='clang=1 component=static_library "
-                      "gomadir=%s msan=1 msan_track_origins=2 "
-                      "proprietary_codecs=1 target_arch=x64 use_goma=1"
-                      " use_prebuilt_instrumented_libraries=1' gclient "
-                      "runhooks") % self.goma_dir,
-                     self.source_directory)
+      common.execute(
+          'gclient runhooks',
+          self.source_directory,
+          environment={
+              'GYP_DEFINES': (
+                  'clang=1 component=static_library gomadir=%s msan=1 '
+                  'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
+                  'use_goma=1 use_prebuilt_instrumented_libraries=1'
+                  % self.goma_dir)
+          })

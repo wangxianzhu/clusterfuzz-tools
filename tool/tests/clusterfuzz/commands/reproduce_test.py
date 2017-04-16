@@ -378,9 +378,7 @@ class EnsureGomaTest(helpers.ExtendedTestCase):
     result = reproduce.ensure_goma()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call(
-            'python goma_ctl.py ensure_start', goma_dir,
-            environment=os.environ)
+        mock.call('python goma_ctl.py ensure_start', goma_dir)
     ])
     self.assertEqual(result, goma_dir)
 

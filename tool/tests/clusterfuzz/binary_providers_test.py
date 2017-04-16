@@ -277,8 +277,12 @@ class BuildTargetTest(helpers.ExtendedTestCase):
     builder.build_target()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('GYP_DEFINES=asan=1 gclient runhooks', chrome_source),
-        mock.call('GYP_DEFINES=asan=1 gypfiles/gyp_v8', chrome_source),
+        mock.call(
+            'gclient runhooks', chrome_source,
+            environment={'GYP_DEFINES': 'asan=1'}),
+        mock.call(
+            'gypfiles/gyp_v8', chrome_source,
+            environment={'GYP_DEFINES': 'asan=1'}),
         mock.call('gclient sync', chrome_source),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
@@ -631,11 +635,15 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
 
     builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
-        mock.call(("GYP_DEFINES='clang=1 component=static_library "
-                   "gomadir=/goma/dir msan=1 msan_track"
-                   "_origins=2 proprietary_codecs=1 target_arch=x64 use_goma=1"
-                   " use_prebuilt_instrumented_libraries=1' gclient runhooks"),
-                  '/chrome/src')])
+        mock.call(
+            'gclient runhooks', '/chrome/src',
+            environment={
+                'GYP_DEFINES': (
+                    'clang=1 component=static_library gomadir=/goma/dir msan=1 '
+                    'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
+                    'use_goma=1 use_prebuilt_instrumented_libraries=1')
+            })
+    ])
 
 
 class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
@@ -679,12 +687,15 @@ class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
     builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
-            ("GYP_DEFINES='clang=1 component=static_library gomadir=/goma/dir "
-             'msan=1 msan_track_origins=0 sanitizer_coverage=edge '
-             "target_arch=x64 use_goma=1 "
-             "use_prebuilt_instrumented_libraries=1' "
-             'gclient runhooks'),
-            '/chrome/src')])
+            'gclient runhooks', '/chrome/src',
+            environment={
+                'GYP_DEFINES': (
+                    'clang=1 component=static_library gomadir=/goma/dir msan=1 '
+                    'msan_track_origins=0 sanitizer_coverage=edge '
+                    'target_arch=x64 use_goma=1 '
+                    'use_prebuilt_instrumented_libraries=1')
+            })
+    ])
 
 
 class GetCurrentShaTest(helpers.ExtendedTestCase):

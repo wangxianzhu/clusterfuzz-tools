@@ -59,6 +59,35 @@ def get_only_first_stacktrace(lines):
   return new_lines
 
 
+def maybe_fix_dict_args(args, build_dir):
+  """Fix the dict args of libfuzzer args if exists."""
+  dict_path = args.get('dict')
+  if dict_path:
+    args['dict'] = os.path.join(build_dir, os.path.basename(dict_path))
+  return args
+
+
+def deserialize_libfuzzer_args(args_str):
+  """Deserialize libfuzzer's args, e.g. -dict=something."""
+  args = {}
+  for kvs in args_str.split(' '):
+    kvs = kvs.strip()
+    if not kvs:
+      continue
+    tokens = kvs.split('=')
+    args[tokens[0].lstrip('-')] = tokens[1]
+  return args
+
+
+def serialize_libfuzzer_args(args):
+  """Serialize a dict to libfuzzer's args, e.g. -dict=something."""
+  args_list = []
+  for key, value in args.iteritems():
+    args_list.append('-%s=%s' % (key, value))
+
+  return ' '.join(sorted(args_list))
+
+
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
 
@@ -184,6 +213,19 @@ class BaseReproducer(object):
       iterations += 1
       time.sleep(3)
     sys.exit(1)
+
+
+class LibfuzzerJobReproducer(BaseReproducer):
+  """A reproducer for libfuzzer job types."""
+
+  def pre_build_steps(self):
+    """Steps to run before building."""
+    args = deserialize_libfuzzer_args(self.args)
+    maybe_fix_dict_args(args, os.path.dirname(self.binary_path))
+    self.args = serialize_libfuzzer_args(args)
+
+    super(LibfuzzerJobReproducer, self).pre_build_steps()
+
 
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""

@@ -148,6 +148,7 @@ def build_binary_definition(job_definition, presets):
               'MsanChromium': binary_providers.MsanChromiumBuilder,
               'CfiChromium': binary_providers.CfiChromiumBuilder}
   reproducer_map = {'Base': reproducers.BaseReproducer,
+                    'LibfuzzerJob': reproducers.LibfuzzerJobReproducer,
                     'LinuxChromeJob': reproducers.LinuxChromeJobReproducer}
 
   result = parse_job_definition(job_definition, presets)
@@ -238,5 +239,7 @@ def execute(testcase_id, current, build, disable_goma, j,
 
   reproducer = definition.reproducer(binary_provider, current_testcase,
                                      definition.sanitizer)
-  reproducer.reproduce(iterations)
-  maybe_warn_unreproducible(current_testcase)
+  try:
+    reproducer.reproduce(iterations)
+  finally:
+    maybe_warn_unreproducible(current_testcase)

@@ -32,15 +32,16 @@ def patch_stacktrace_info(obj):
   obj.addCleanup(patcher.stop)
 
 
-def create_chrome_reproducer():
+def create_reproducer(klass):
   """Creates a LinuxChromeJobReproducer for use in testing."""
 
   binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
+  binary_provider.get_binary_path.return_value = '/fake/path/test_binary'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
                        job_type='job_type')
-  reproducer = reproducers.LinuxChromeJobReproducer(
-      binary_provider, testcase, 'UBSAN')
+  reproducer = klass(binary_provider, testcase, 'UBSAN')
   reproducer.args = '--always-opt'
+  reproducer.environment = {}
   return reproducer
 
 class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
@@ -229,7 +230,7 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
     self.mock.get_resource.return_value = 'llvm'
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
   def test_reproduce_crash(self):
     """Ensures pre-build steps run correctly."""
@@ -250,7 +251,7 @@ class XdotoolCommandTest(helpers.ExtendedTestCase):
                          'clusterfuzz.common.wait_execute'])
     self.mock.start_execute.return_value = mock.Mock()
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
   def test_call(self):
     """Tests calling the method."""
@@ -273,7 +274,7 @@ class FindWindowsForProcessTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.execute',
         'time.sleep'])
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
   def test_no_pids(self):
     """Tests when no PIDs are available."""
@@ -302,7 +303,7 @@ class GetProcessIdsTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['psutil.Process',
                          'psutil.pid_exists'])
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
   def test_process_not_running(self):
     """Tests exiting when psutil is not supported."""
@@ -349,7 +350,7 @@ class RunGesturesTest(helpers.ExtendedTestCase):
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.xdotool_command',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.execute_gesture'])
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     self.mock.get_gesture_start_time.return_value = 5
     self.mock.find_windows_for_process.return_value = ['123']
     self.reproducer.gestures = ['windowsize,2', 'type,\'ValeM1khbW4Gt!\'',
@@ -371,7 +372,7 @@ class GetGestureStartTimeTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
   def test_with_trigger(self):
     self.reproducer.gestures = ['windowsize,2', 'type,\'ValeM1khbW4Gt!\'',
@@ -392,7 +393,7 @@ class ExecuteGestureTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.xdotool_command'])
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     self.reproducer.gestures = ['windowsize,2', 'type,\'ValeM1khbW4Gt!\'']
 
   def test_call_execute_gesture(self):
@@ -492,7 +493,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
 
   def setUp(self): #pylint: disable=missing-docstring
     patch_stacktrace_info(self)
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize',
@@ -539,7 +540,7 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
   """Tests the post_run_symbolize method."""
 
   def setUp(self):
-    self.reproducer = create_chrome_reproducer()
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     self.reproducer.source_directory = '/path/to/chromium'
     helpers.patch(self, ['clusterfuzz.common.start_execute',
                          'clusterfuzz.common.get_resource'])
@@ -594,3 +595,64 @@ class GetOnlyFirstStacktraceTest(helpers.ExtendedTestCase):
             '+------Release Build Unsymbolized Stacktrace (diff)------+',
             'cc'
         ]))
+
+
+class LibfuzzerJobReproducerPreBuildStepsTest(helpers.ExtendedTestCase):
+  """Test Libfuzzer.pre_build_steps."""
+
+  def test_set_args(self):
+    """Test fixing dict."""
+    reproducer = create_reproducer(reproducers.LibfuzzerJobReproducer)
+    reproducer.args = '-aaa=bbb -dict=/a/b/c/fuzzer.dict -ccc=ddd'
+    reproducer.pre_build_steps()
+
+    self.assertEqual(
+        '-aaa=bbb -ccc=ddd -dict=/fake/path/fuzzer.dict',
+        reproducer.args)
+
+
+class DeserializeLibfuzzerArgsTest(helpers.ExtendedTestCase):
+  """Test deserializer_libfuzzer_args."""
+
+  def test_empty(self):
+    """Test empty string."""
+    self.assertEqual({}, reproducers.deserialize_libfuzzer_args('   '))
+
+  def test_parse(self):
+    """Test parsing."""
+    self.assertEqual(
+        {'aaa': 'bbb', 'ccc': 'ddd', 'eee': 'fff'},
+        reproducers.deserialize_libfuzzer_args(' -aaa=bbb   -ccc=ddd  -eee=fff')
+    )
+
+
+class SerializeLibfuzzerArgsTest(helpers.ExtendedTestCase):
+  """Test serializer_libfuzzer_args."""
+
+  def test_empty(self):
+    """Test empty dict."""
+    self.assertEqual('', reproducers.serialize_libfuzzer_args({}))
+
+  def test_serialize(self):
+    """Test serializing."""
+    self.assertEqual(
+        '-aaa=bbb -ccc=ddd -eee=fff',
+        reproducers.serialize_libfuzzer_args(
+            {'aaa': 'bbb', 'eee': 'fff', 'ccc': 'ddd'})
+    )
+
+
+class MaybeFixDictArgTest(helpers.ExtendedTestCase):
+  """Test maybe_fix_dict_args."""
+
+  def test_no_dict_arg(self):
+    """Test no dict arg."""
+    args = reproducers.maybe_fix_dict_args({'aaa': 'bbb'}, '/fake/path')
+    self.assertEqual({'aaa': 'bbb'}, args)
+
+  def test_dict_arg(self):
+    """Test fix dict arg."""
+    args = reproducers.maybe_fix_dict_args(
+        {'aaa': 'bbb', 'dict': '/a/b/c/fuzzer.dict', 'c': 'd'}, '/fake/path')
+    self.assertEqual(
+        {'aaa': 'bbb', 'dict': '/fake/path/fuzzer.dict', 'c': 'd'}, args)

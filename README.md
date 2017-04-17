@@ -40,7 +40,7 @@ For others:
 Usage
 ------
 
-See `<binary> reproduce --help`. Run `clusterfuzz reproduce [testcase-id]`
+See `<binary> reproduce --help`. Run `<binary> reproduce [testcase-id]`
 
 Here's the workflow (we think) might be appropriate when fixing a bug:
 

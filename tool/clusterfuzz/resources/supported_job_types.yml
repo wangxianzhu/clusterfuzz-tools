@@ -19,6 +19,9 @@ presets: #Any parameters in a preset can be overridden in the actual definition
             builder: Chromium
             source: CHROMIUM_SRC
             reproducer: Base
+        libfuzzer:
+            preset: chromium
+            reproducer: LibfuzzerJob
         linux_chromium:
             preset: chromium
             reproducer: LinuxChromeJob
@@ -35,10 +38,10 @@ standalone:
         linux_msan_pdfium: { preset: pdfium, sanitizer: MSAN }
         linux_v8_d8_tot: { preset: d8 }
 chromium:
-        libfuzzer_chrome_asan: { preset: chromium, sanitizer: ASAN }
-        libfuzzer_chrome_asan_debug: { preset: chromium, sanitizer: ASAN }
-        libfuzzer_chrome_msan: { preset: chromium, builder: LibfuzzerMsan, sanitizer: MSAN }
-        libfuzzer_chrome_ubsan: { preset: chromium, sanitizer: UBSAN }
+        libfuzzer_chrome_asan: { preset: libfuzzer, sanitizer: ASAN }
+        libfuzzer_chrome_asan_debug: { preset: libfuzzer, sanitizer: ASAN }
+        libfuzzer_chrome_msan: { preset: libfuzzer, builder: LibfuzzerMsan, sanitizer: MSAN }
+        libfuzzer_chrome_ubsan: { preset: libfuzzer, sanitizer: UBSAN }
         linux_asan_chrome_chromeos: { preset: linux_asan_chromium }
         linux_asan_chrome_gpu: { preset: linux_asan_chromium }
         linux_asan_chrome_mp: { preset: linux_asan_chromium }

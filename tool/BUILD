@@ -1,10 +1,19 @@
+import os
 
-python_binary(
-    name='clusterfuzz-0.2.2rc7',
-    entry_point='clusterfuzz.main:execute',
-    dependencies=[':src'],
-    zip_safe=False
-)
+
+def get_version():
+  """Get version from VERSION."""
+  with open(os.path.join('tool', 'clusterfuzz', 'resources', 'VERSION')) as f:
+    return f.read().strip()
+
+
+for name in ['clusterfuzz-%s' % get_version(), 'clusterfuzz-ci']:
+  python_binary(
+      name=name,
+      entry_point='clusterfuzz.main:execute',
+      dependencies=[':src'],
+      zip_safe=False
+  )
 
 
 python_library(

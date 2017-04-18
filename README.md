@@ -71,7 +71,7 @@ Publish
 
 We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googlers).
 
-1. Increment the version number in `tool/BUILD` and `circle.yml`
+1. Increment the version number in `tool/clusterfuzz/resources/VERSION`
 2. Create and merge a pull request to increase the version number
 3. Set the new version in the env: `export VERSION=<version>`.
 4. Build the Pex binary: `./pants binary tool:clusterfuzz-$VERSION`

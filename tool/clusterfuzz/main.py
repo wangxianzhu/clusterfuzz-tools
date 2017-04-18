@@ -16,10 +16,22 @@
 import argparse
 import importlib
 
+from clusterfuzz import common
 from clusterfuzz import local_logging
+
+
+def print_version():
+  """Print version."""
+  version = 'Unknown'
+  with open(common.get_resource(0640, 'resources', 'VERSION')) as f:
+    version = f.read()
+  print 'Version: %s' % version
+
 
 def execute(argv=None):
   """The main entry point."""
+  print_version()
+
   local_logging.start_loggers()
   parser = argparse.ArgumentParser(description='ClusterFuzz tools')
   subparsers = parser.add_subparsers(dest='command')

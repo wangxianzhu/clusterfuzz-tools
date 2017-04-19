@@ -79,12 +79,14 @@ class ConfirmTest(helpers.ExtendedTestCase):
 class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the execute method."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, ['subprocess.Popen',
                          'logging.getLogger',
                          'logging.config.dictConfig',
                          'clusterfuzz.common.wait_timeout',
-                         'clusterfuzz.common.interpret_ninja_output'])
+                         'clusterfuzz.common.interpret_ninja_output',
+                         'os.environ.copy'])
+    self.mock.copy.return_value = {'OS': 'ENVIRON'}
     self.mock.dictConfig.return_value = {}
     from clusterfuzz import local_logging
     local_logging.start_loggers()
@@ -113,7 +115,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd='~/working/directory',
-        env={'a': 'b'},
+        env={'a': 'b', 'OS': 'ENVIRON'},
         preexec_fn=os.setsid
     )
 
@@ -149,7 +151,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         stderr=subprocess.STDOUT,
         stdin=subprocess.PIPE,
         cwd='~/working/directory',
-        env=None,
+        env={'OS': 'ENVIRON'},
         preexec_fn=os.setsid)])
 
   def test_process_runs_successfully(self):

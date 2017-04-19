@@ -395,13 +395,8 @@ class LibfuzzerMsanBuilder(ChromiumBuilder):
 
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
-      common.execute(
-          'gclient runhooks',
-          self.source_directory,
-          environment={
-              'GYP_DEFINES': (
-                  'clang=1 component=static_library gomadir=%s msan=1 '
-                  'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
-                  'use_goma=1 use_prebuilt_instrumented_libraries=1'
-                  % self.goma_dir)
-          })
+      env = {'GYP_DEFINES': ('clang=1 component=static_library gomadir=%s '
+                             'msan=1 msan_track_origins=2 proprietary_codecs=1'
+                             ' target_arch=x64 use_goma=1 use_prebuilt_'
+                             'instrumented_libraries=1' % self.goma_dir)}
+      common.execute('gclient runhooks', self.source_directory, environment=env)

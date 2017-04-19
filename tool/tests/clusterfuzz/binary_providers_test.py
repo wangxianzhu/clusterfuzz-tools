@@ -625,8 +625,9 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
 
     helpers.patch(self, [
         'clusterfuzz.common.execute',
-        'clusterfuzz.binary_providers.sha_from_revision'])
-
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'os.environ.copy'])
+    self.mock.copy.return_value = {'OS': 'ENVIRON'}
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
@@ -634,16 +635,15 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
         testcase, binary_definition, False, '/goma/dir', None)
 
     builder.pre_build_steps()
+    env = {
+        'GYP_DEFINES': ('clang=1 component=static_library gomadir=/goma/dir '
+                        'msan=1 msan_track_origins=2 proprietary_codecs=1 '
+                        'target_arch=x64 use_goma=1 '
+                        'use_prebuilt_instrumented_libraries=1')}
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
             'gclient runhooks', '/chrome/src',
-            environment={
-                'GYP_DEFINES': (
-                    'clang=1 component=static_library gomadir=/goma/dir msan=1 '
-                    'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
-                    'use_goma=1 use_prebuilt_instrumented_libraries=1')
-            })
-    ])
+            environment=env)])
 
 
 class CfiChromiumBuilderTest(helpers.ExtendedTestCase):

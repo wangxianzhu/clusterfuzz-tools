@@ -229,6 +229,10 @@ def start_execute(command, cwd, environment, print_output=True):
           ['%s=%s' % (k, v) for k, v in environment.iteritems()])
     logger.info('Running: %s %s', env_str, command)
 
+  env = os.environ.copy()
+  if environment:
+    env.update(environment)
+
   return subprocess.Popen(
       command,
       shell=True,
@@ -236,7 +240,7 @@ def start_execute(command, cwd, environment, print_output=True):
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd,
-      env=environment,
+      env=env,
       preexec_fn=os.setsid)
 
 

@@ -12,8 +12,8 @@
         image: ubuntu-1404
         name: "ci-test-boot"
         state: present
-        service_account_email: "ci-test@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
+        service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
+        credentials_file: "credentials.json"
     - name: Create the instance
       gce:
         disks:
@@ -21,8 +21,8 @@
             mode: READ_WRITE
         instance_names: continuous-integration-test
         machine_type: n1-standard-32
-        service_account_email: "ci-test@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
+        service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
+        credentials_file: "credentials.json"
         project_id: "981641712411"
         zone: "us-central1-f"
       register: gce
@@ -58,21 +58,20 @@
       with_items:
         - python
         - python-pip
-        - python-dev
         - runit
         - git
         - pkg-config
         - blackbox
+        - unzip
     - name: Upgrade PIP
       pip: name={{item}} state=latest
       with_items:
         - pip
-        - wheel
-        - setuptools
         - oauth2client
-        - virtualenv
         - httplib2
         - pyyaml
+        - crcmod
+        - requests
 - name: Setup python-daemon (runit service, folder, log folder, and service)
   hosts: continuous-integration-instances
   connection: ssh
@@ -104,9 +103,10 @@
       with_items:
         - {'src': 'python_daemon/run', 'dest': '/etc/sv/python-daemon/run'}
         - {'src': 'python_daemon/log_run', 'dest': '/etc/sv/python-daemon/log/run'}
-        - {'src': 'continuous_integration/ci', 'dest': '/python-daemon'}
-        - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
+        - {'src': 'continuous_integration/daemon', 'dest': '/python-daemon'}
+        - {'src': 'credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
+        - {'src': '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz-rc', 'dest': '/python-daemon/clusterfuzz'}
     - file:
         src: '{{ item.src }}'
         dest: '{{ item.dest }}'

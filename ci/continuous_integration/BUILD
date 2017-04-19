@@ -51,6 +51,7 @@ python_tests(
         ':src',
         '//shared',
         '//3rdparty/python:pyfakefs',
-        '//3rdparty/python:mock'
+        '//3rdparty/python:mock',
+        '//3rdparty/python:requests'
     ]
 )

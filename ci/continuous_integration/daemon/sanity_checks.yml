@@ -1,11 +1,19 @@
 testcases:
+          #Linux_msan_chrome:
+        - 6650635488591872
           #Libfuzzer_chrome_ubsan:
         - 5899279404367872
+          #Linux_asan_chrome_media:
+        - 5695524545232896
+          #Linux_asan_chrome_mp:
+        - 6061368416665600
           #Libfuzzer_chrome_msan:
         - 6581818276184064
           #Libfuzzer_chrome_asan:
         - 5145840470720512
           #pdfium:
         - 6312423965589504
-          #Linux_ubsan_chrome:
+          #Linux_cfi_chrome
+        - 6184841394782208
+          #Linux_ubsan_chrome
         - 5844907341381632

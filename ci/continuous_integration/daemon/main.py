@@ -4,9 +4,10 @@ import os
 import subprocess
 import shutil
 import yaml
+import requests
 
-from daemon import stackdriver_logging
-from daemon import clone_chromium
+import stackdriver_logging #pylint: disable=relative-import
+import clone_chromium #pylint: disable=relative-import
 
 from oauth2client.client import GoogleCredentials
 
@@ -18,16 +19,8 @@ CHROMIUM_SRC = os.path.join(HOME, 'chromium', 'src')
 CHROMIUM_OUT = os.path.join(CHROMIUM_SRC, 'out')
 RELEASE_ENV = os.path.join(HOME, 'RELEASE_ENV')
 DEPOT_TOOLS = os.path.join(HOME, 'depot_tools')
-SANITY_CHECKS = '/python-daemon/ci/sanity_checks.yml'
-
-def install_latest_release():
-  """Ensures the installed release of clusterfuzz is up to date."""
-  subprocess.call('virtualenv %s' % RELEASE_ENV, shell=True)
-  subprocess.call(('/bin/bash -c "source %s/bin/activate && %s install '
-                   '--no-cache-dir clusterfuzz==0.2.2rc3"' %
-                   (RELEASE_ENV, os.path.join(RELEASE_ENV, 'bin', 'pip'))),
-                  shell=True)
-
+SANITY_CHECKS = '/python-daemon/daemon/sanity_checks.yml'
+BINARY_LOCATION = '/python-daemon/clusterfuzz'
 
 def load_sanity_check_testcases():
   """Return a list of all testcases to try."""
@@ -36,12 +29,16 @@ def load_sanity_check_testcases():
     return yaml.load(stream)['testcases']
 
 
+def build_command(args):
+  """Returns the command to run the binary."""
+
+  return '%s %s' % (BINARY_LOCATION, args)
+
+
 def run_testcase(testcase_id):
   """Attempts to reproduce a testcase."""
 
-  command = ('source %s/bin/activate && %s reproduce %s -i 3'
-             % (RELEASE_ENV, os.path.join(RELEASE_ENV, 'bin', 'clusterfuzz'),
-                testcase_id))
+  command = ('/python-daemon/clusterfuzz reproduce %s -i 3' % testcase_id)
   command = '/bin/bash -c "export PATH=$PATH:%s && %s"' % (DEPOT_TOOLS, command)
   environment = os.environ.copy()
   environment['CF_QUIET'] = '1'
@@ -78,16 +75,85 @@ def update_auth_header():
   os.chmod(AUTH_FILE_LOCATION, 0600)
 
 
+def get_version():
+  """Returns the version of the binary."""
+
+  out = subprocess.check_output(build_command('supported_job_types'),
+                                shell=True)
+  return yaml.load(out)['Version']
+
+
+def get_supported_jobtypes():
+  """Returns a hash of supported job types."""
+
+  out = subprocess.check_output(build_command('supported_job_types'),
+                                shell=True)
+  result = yaml.load(out)
+  result.pop('Version', None)
+  return result
+
+
+def load_new_testcases(latest_testcase=None):
+  """Returns a new list of testcases from clusterfuzz to run."""
+  with open(AUTH_FILE_LOCATION, 'r') as f:
+    auth_header = f.read()
+
+  testcases = None
+  page = 1
+  supported_jobtypes = get_supported_jobtypes()
+  while not testcases:
+    r = requests.post('https://clusterfuzz.com/v2/testcases/load',
+                      headers={'Authorization': auth_header},
+                      json={'page': page, 'reproducible': 'yes'})
+    testcases = r.json()['items']
+    testcases = [testcase['id'] for testcase in testcases
+                 if testcase['jobType'] in supported_jobtypes['chromium']]
+    if latest_testcase in testcases:
+      testcases = testcases[0:testcases.index(latest_testcase)]
+    page += 1
+  return testcases
+
+
+def delete_if_exists(filename):
+  """Delete filename if the file exists."""
+
+  if os.path.exists(filename):
+    shutil.rmtree(filename)
+
+
+def call_with_depot_tools(command, cwd=CHROMIUM_SRC):
+  """Run command with depot_tools in the path."""
+  environment = os.environ.copy()
+  path = environment.get('PATH')
+  environment['PATH'] = '%s:%s' % (path, DEPOT_TOOLS) if path else DEPOT_TOOLS
+  subprocess.check_call(command, cwd=cwd, env=environment, shell=True)
+
+
+def reset_and_run_testcase(testcase_id, test_type):
+  """Resets the chromium repo and runs the testcase."""
+
+  delete_if_exists(CHROMIUM_OUT)
+  delete_if_exists(CLUSTERFUZZ_DIR)
+  subprocess.check_call('git checkout -f master', shell=True, cwd=CHROMIUM_SRC)
+  call_with_depot_tools('gclient sync')
+  call_with_depot_tools('gclient runhooks')
+  update_auth_header()
+  stackdriver_logging.send_run(
+      testcase_id, test_type, get_version(), run_testcase(testcase_id))
+
+
 def main():
   clone_chromium.clone_chromium()
-  install_latest_release()
   testcases = load_sanity_check_testcases()
   for testcase in testcases:
-    if os.path.exists(CHROMIUM_OUT):
-      shutil.rmtree(CHROMIUM_OUT)
-    if os.path.exists(CLUSTERFUZZ_DIR):
-      shutil.rmtree(CLUSTERFUZZ_DIR)
+    reset_and_run_testcase(testcase, 'sanity')
+  latest_testcase = None
+  while True:
     update_auth_header()
+    testcases = load_new_testcases(latest_testcase)
+    latest_testcase = testcases[0]
+    for testcase in testcases:
+      reset_and_run_testcase(testcase, 'continuous')
 
-    stackdriver_logging.send_run(
-        testcase, 'sanity', '0.2.2rc3', run_testcase(testcase))
+if __name__ == '__main__':
+  main()

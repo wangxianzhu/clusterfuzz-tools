@@ -36,6 +36,8 @@ def execute(argv=None):
   parser = argparse.ArgumentParser(description='ClusterFuzz tools')
   subparsers = parser.add_subparsers(dest='command')
 
+  subparsers.add_parser('supported_job_types',
+                        help='List all supported job types')
   reproduce = subparsers.add_parser('reproduce', help='Reproduce a crash.')
   reproduce.add_argument('testcase_id', help='The testcase ID.')
   reproduce.add_argument(

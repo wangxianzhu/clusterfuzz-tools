@@ -74,7 +74,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     with self.assertRaises(SystemExit):
       reproduce.execute(testcase_id='1234', current=False, build='standalone',
                         disable_goma=False, j=None,
-                        disable_gclient_commands=False, iterations=None)
+                        disable_gclient_commands=False, iterations=None,
+                        disable_blackbox=False)
 
   def test_unsupported_job(self):
     """Tests to ensure an exception is thrown with an unsupported job type."""
@@ -86,7 +87,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     with self.assertRaises(SystemExit):
       reproduce.execute(testcase_id='1234', current=False, build='standalone',
                         disable_goma=False, j=None,
-                        disable_gclient_commands=False, iterations=None)
+                        disable_gclient_commands=False, iterations=None,
+                        disable_blackbox=False)
 
   def test_download_no_defined_binary(self):
     """Test what happens when no binary name is defined."""
@@ -109,7 +111,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='download',
                       disable_goma=False, j=None,
-                      disable_gclient_commands=False, iterations=None)
+                      disable_gclient_commands=False, iterations=None,
+                      disable_blackbox=False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
@@ -118,7 +121,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
                             [mock.call(1234, 'chrome_build_url', 'binary')])
     self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.reproducer,
-        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN')])
+        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN',
+                   False)])
 
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
@@ -141,7 +145,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='download',
                       disable_goma=False, j=None, disable_gclient_commands=True,
-                      iterations=None)
+                      iterations=None, disable_blackbox=False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
@@ -150,7 +154,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
                             [mock.call(1234, 'chrome_build_url', 'binary')])
     self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.reproducer,
-        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN')])
+        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN',
+                   False)])
 
   def test_grab_data_standalone(self):
     """Ensures all method calls are made correctly when building locally."""
@@ -169,7 +174,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Testcase.return_value = testcase
     reproduce.execute(testcase_id='1234', current=False, build='standalone',
                       disable_goma=False, j=22, disable_gclient_commands=False,
-                      iterations=None)
+                      iterations=None, disable_blackbox=False)
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
@@ -181,7 +186,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(
         self.mock.get_binary_definition.return_value.reproducer,
         [mock.call((self.mock.get_binary_definition.return_value.builder
-                    .return_value), testcase, 'ASAN')])
+                    .return_value), testcase, 'ASAN', False)])
 
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):

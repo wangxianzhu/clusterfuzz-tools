@@ -101,7 +101,7 @@ class BaseReproducer(object):
       gesture_start_time = DEFAULT_GESTURE_TIME
     return gesture_start_time
 
-  def __init__(self, binary_provider, testcase, sanitizer):
+  def __init__(self, binary_provider, testcase, sanitizer, disable_blackbox):
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
@@ -111,6 +111,7 @@ class BaseReproducer(object):
         0755, 'resources', 'llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
+    self.disable_blackbox = disable_blackbox
 
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
@@ -230,8 +231,8 @@ class LibfuzzerJobReproducer(BaseReproducer):
 class Blackbox(object):
   """Run commands within a virtual display using blackbox window manager."""
 
-  def __init__(self, args):
-    self.disable_blackbox = '--disable-gl-drawing-for-tests' not in args
+  def __init__(self, disable=False):
+    self.disable_blackbox = disable
 
   def __enter__(self):
     if self.disable_blackbox:
@@ -370,7 +371,15 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
     self.pre_build_steps()
 
-    with Blackbox(self.args) as display_name:
+    if (self.disable_blackbox and
+        '--disable-gl-drawing-for-tests' in self.args):
+      self.args = self.args.replace('--disable-gl-drawing-for-tests', '')
+    elif (not self.disable_blackbox and
+          '--disable-gl-drawing-for-tests' not in self.args):
+      self.args += ' --disable-gl-drawing-for-tests'
+
+
+    with Blackbox(self.disable_blackbox) as display_name:
       command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
       if display_name:
         self.environment['DISPLAY'] = display_name

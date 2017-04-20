@@ -31,7 +31,7 @@ class MainTest(unittest.TestCase):
 
   def test_parse_reproduce(self):
     """Test parse reproduce command."""
-    main.execute(['reproduce', '1234'])
+    main.execute(['reproduce', '1234', '--disable-blackbox'])
     main.execute(['reproduce', '1234', '-j', '25', '--current'])
     main.execute(['reproduce', '1234', '--disable-goma', '--build', 'download'])
     main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
@@ -42,19 +42,25 @@ class MainTest(unittest.TestCase):
     self.mock.execute.assert_has_calls([
         mock.call(build='chromium', current=False,
                   disable_gclient_commands=False, disable_goma=False,
-                  j=None, testcase_id='1234', iterations=10),
+                  j=None, testcase_id='1234', iterations=10,
+                  disable_blackbox=True),
         mock.call(build='chromium', current=True,
                   disable_gclient_commands=False, disable_goma=False,
-                  j=25, testcase_id='1234', iterations=10),
+                  j=25, testcase_id='1234', iterations=10,
+                  disable_blackbox=False),
         mock.call(build='download', current=False,
                   disable_gclient_commands=False, disable_goma=True,
-                  j=None, testcase_id='1234', iterations=10),
+                  j=None, testcase_id='1234', iterations=10,
+                  disable_blackbox=False),
         mock.call(build='standalone', current=True,
                   disable_gclient_commands=False, disable_goma=False,
-                  j=None, testcase_id='1234', iterations=10),
+                  j=None, testcase_id='1234', iterations=10,
+                  disable_blackbox=False),
         mock.call(build='chromium', current=False,
                   disable_gclient_commands=False, disable_goma=False,
-                  j=None, testcase_id='1234', iterations=500),
+                  j=None, testcase_id='1234', iterations=500,
+                  disable_blackbox=False),
         mock.call(build='chromium', current=False,
                   disable_gclient_commands=True, disable_goma=False,
-                  j=None, testcase_id='1234', iterations=10)])
+                  j=None, testcase_id='1234', iterations=10,
+                  disable_blackbox=False)])

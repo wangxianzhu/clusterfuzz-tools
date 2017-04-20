@@ -39,7 +39,7 @@ def create_reproducer(klass):
   binary_provider.get_binary_path.return_value = '/fake/path/test_binary'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
                        job_type='job_type')
-  reproducer = klass(binary_provider, testcase, 'UBSAN')
+  reproducer = klass(binary_provider, testcase, 'UBSAN', False)
   reproducer.args = '--always-opt'
   reproducer.environment = {}
   return reproducer
@@ -70,7 +70,7 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
         {'content': 'line'}], job_type='job_type')
     self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN')
+        self.binary_provider, self.testcase, 'UBSAN', False)
 
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
@@ -107,7 +107,7 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
         {'content': 'line'}], job_type='job_type')
     self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN')
+        self.binary_provider, self.testcase, 'UBSAN', False)
 
   def test_serialize(self):
     in_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
@@ -167,7 +167,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_binary_path.return_value = source
 
     reproducer = reproducers.BaseReproducer(mocked_provider, mocked_testcase,
-                                            'ASAN')
+                                            'ASAN', False)
     reproducer.reproduce_crash()
     self.assert_exact_calls(self.mock.execute, [mock.call(
         '%s %s %s' % (
@@ -200,14 +200,15 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_binary_path.return_value = source
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN')
+        mocked_provider, mocked_testcase, 'UBSAN', False)
     reproducer.gestures = ['gesture,1', 'gesture,2']
     err, text = reproducer.reproduce_crash()
     self.assertEqual(err, 0)
     self.assertEqual(text, 'symbolized')
     self.assert_exact_calls(self.mock.start_execute, [mock.call(
         ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
-         '--user-data-dir=/tmp/clusterfuzz-user-profile-data %s/.'
+         '--user-data-dir=/tmp/clusterfuzz-user-profile-data '
+         '--disable-gl-drawing-for-tests %s/.'
          'clusterfuzz/123456_testcase/testcase.js' % os.path.expanduser('~')),
         '/chrome/source/folder', environment={
             'DISPLAY': ':display',
@@ -217,6 +218,50 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         self.mock.start_execute.return_value, exit_on_error=False, timeout=15)])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])
+
+  def test_reproduce_crash_disable_blackbox(self):
+    """Ensures that disabling blackbox removes the correct args."""
+
+    self.mock_os_environment({'ASAN_SYMBOLIZER_PATH': '/llvm/sym/path'})
+    self.mock.start_execute.return_value = mock.Mock
+    self.mock.__enter__.return_value = ':display'
+    testcase_id = 123456
+    testcase_file = os.path.expanduser(
+        os.path.join('~', '.clusterfuzz', '%s_testcase' % testcase_id,
+                     'testcase.js'))
+    args = ('--turbo --always-opt --random-seed=12345 '
+            '--disable-gl-drawing-for-tests')
+    source = '/chrome/source/folder/d8'
+    env = {'ASAN_OPTIONS': 'option1=true:option2=false'}
+    mocked_testcase = mock.Mock(id=1234, reproduction_args=args,
+                                environment=env, gestures=None,
+                                stacktrace_lines=[{'content': 'line'}],
+                                job_type='job_type')
+    mocked_testcase.get_testcase_path.return_value = testcase_file
+    mocked_provider = mock.Mock(
+        symbolizer_path='/chrome/source/folder/llvm-symbolizer')
+    mocked_provider.get_binary_path.return_value = source
+
+    reproducer = reproducers.LinuxChromeJobReproducer(
+        mocked_provider, mocked_testcase, 'UBSAN', True)
+    reproducer.gestures = ['gesture,1', 'gesture,2']
+    err, text = reproducer.reproduce_crash()
+    self.assertEqual(err, 0)
+    self.assertEqual(text, 'symbolized')
+    self.assert_exact_calls(self.mock.start_execute, [mock.call(
+        ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
+         ' --user-data-dir=/tmp/clusterfuzz-user-profile-data %s/.'
+         'clusterfuzz/123456_testcase/testcase.js' % os.path.expanduser('~')),
+        '/chrome/source/folder', environment={
+            'DISPLAY': ':display',
+            'ASAN_OPTIONS': 'option2=false:option1=true',
+            'UBSAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer'})])
+    self.assert_exact_calls(self.mock.wait_execute, [mock.call(
+        self.mock.start_execute.return_value, exit_on_error=False, timeout=15)])
+    self.assert_exact_calls(self.mock.run_gestures, [mock.call(
+        reproducer, self.mock.start_execute.return_value, ':display')])
+
+
 
 class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
@@ -231,6 +276,7 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
+
 
   def test_reproduce_crash(self):
     """Ensures pre-build steps run correctly."""
@@ -427,8 +473,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
                                                       ':display'])
 
     with self.assertRaises(common.BlackboxNotInstalledError):
-      with reproducers.Blackbox(
-          ['--disable-gl-drawing-for-tests']) as display_name:
+      with reproducers.Blackbox(False) as display_name:
         self.assertNotEqual(display_name, ':display')
 
     self.assert_n_calls(0, [self.mock.Popen.return_value.kill,
@@ -443,8 +488,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
                                                       ':display'])
 
     with self.assertRaises(OSError):
-      with reproducers.Blackbox(
-          ['--disable-gl-drawing-for-tests']) as display_name:
+      with reproducers.Blackbox(False) as display_name:
         self.assertNotEqual(display_name, ':display')
 
     self.assert_n_calls(0, [self.mock.Popen.return_value.kill,
@@ -457,8 +501,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with reproducers.Blackbox(
-        ['--disable-gl-drawing-for-tests']) as display_name:
+    with reproducers.Blackbox(False) as display_name:
       self.assertEqual(display_name, ':display')
 
     self.assert_exact_calls(self.mock.Xvfb, [mock.call(
@@ -472,12 +515,12 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.sleep, [mock.call(30)])
 
   def test_no_blackbox(self):
-    """Tests that the manager doesnt start blackbox when incorrect args."""
+    """Tests that the manager doesnt start blackbox when disabled."""
 
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with reproducers.Blackbox(['incorrect']) as display_name:
+    with reproducers.Blackbox(True) as display_name:
       self.assertEqual(display_name, None)
 
     self.assert_n_calls(0, [self.mock.Xvfb,

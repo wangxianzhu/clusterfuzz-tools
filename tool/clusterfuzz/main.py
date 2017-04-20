@@ -60,6 +60,9 @@ def execute(argv=None):
   reproduce.add_argument(
       '-i', '--iterations', action='store', default=10, type=int,
       help='Specify the number of times to attempt reproduction')
+  reproduce.add_argument(
+      '-db', '--disable-blackbox', action='store_true', default=False,
+      help='Disable running testcases in a virtual display with Blackbox')
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

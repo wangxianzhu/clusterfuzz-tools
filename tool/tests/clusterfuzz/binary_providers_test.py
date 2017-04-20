@@ -649,12 +649,13 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
 class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of CfiChromiumBuilder."""
 
-  def test_prebuild_steps(self):
+  def test_gn_steps(self):
     """Test the prebuild_steps method."""
 
     helpers.patch(self, [
         'clusterfuzz.common.execute',
-        'clusterfuzz.binary_providers.sha_from_revision'])
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.ChromiumBuilder.setup_gn_args'])
 
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
@@ -662,10 +663,10 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     builder = binary_providers.CfiChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None)
 
-    builder.pre_build_steps()
+    builder.setup_gn_args()
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('build/download_gold_plugin.py', '/chrome/src'),
-        mock.call('gclient runhooks', '/chrome/src')])
+        mock.call('build/download_gold_plugin.py', '/chrome/src')])
+    self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
 
 class MsanChromiumBuilderTest(helpers.ExtendedTestCase):

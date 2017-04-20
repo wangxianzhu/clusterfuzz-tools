@@ -366,10 +366,10 @@ class ChromiumBuilder(GenericBuilder):
 class CfiChromiumBuilder(ChromiumBuilder):
   """Build a CFI chromium."""
 
-  def pre_build_steps(self):
-    """Pre-build steps for CFI."""
+  def setup_gn_args(self):
+    """Setup the gn args and then run download_gold_plugin.py."""
+    super(CfiChromiumBuilder, self).setup_gn_args()
     common.execute('build/download_gold_plugin.py', self.source_directory)
-    super(CfiChromiumBuilder, self).pre_build_steps()
 
 
 class MsanChromiumBuilder(ChromiumBuilder):

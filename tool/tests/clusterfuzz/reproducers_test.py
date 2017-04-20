@@ -553,7 +553,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
 
     wrong_response = {
         'crash_type': 'wrong type',
-        'crash_state': 'incorrect\nstate'}
+        'crash_state': 'incorrect\nstate2'}
     self.mock.post.side_effect = [
         mock.Mock(text=json.dumps(wrong_response)),
         mock.Mock(text=json.dumps(wrong_response))]
@@ -568,7 +568,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
         'crash_state': 'original\nstate'}
     wrong_response = {
         'crash_type': 'wrong type',
-        'crash_state': 'incorrect\nstate'}
+        'crash_state': 'incorrect\nstate2'}
     self.mock.post.side_effect = [
         mock.Mock(text=json.dumps(wrong_response)),
         mock.Mock(text=json.dumps(correct_response))]
@@ -699,3 +699,30 @@ class MaybeFixDictArgTest(helpers.ExtendedTestCase):
         {'aaa': 'bbb', 'dict': '/a/b/c/fuzzer.dict', 'c': 'd'}, '/fake/path')
     self.assertEqual(
         {'aaa': 'bbb', 'dict': '/fake/path/fuzzer.dict', 'c': 'd'}, args)
+
+
+class IsSimilarTest(helpers.ExtendedTestCase):
+  """Test is_similar."""
+
+  def test_match_0_out_of_1(self):
+    """Test not similar."""
+    self.assertFalse(reproducers.is_similar(['a'], ['b']))
+
+  def test_match_1_out_of_1(self):
+    """Test similar."""
+    self.assertTrue(reproducers.is_similar(['a'], ['a']))
+
+  def test_match_1_out_of_2(self):
+    """Test similar."""
+    self.assertTrue(reproducers.is_similar(['a', 'b'], ['a', 'c']))
+    self.assertTrue(reproducers.is_similar(['a'], ['a', 'c']))
+
+  def test_match_2_out_of_3(self):
+    """Test similar."""
+    self.assertTrue(reproducers.is_similar(['a', 'b', 'd'], ['a', 'b', 'c']))
+    self.assertTrue(reproducers.is_similar(['a', 'b'], ['a', 'b', 'c']))
+
+  def test_match_1_out_of_3(self):
+    """Test not similar."""
+    self.assertFalse(reproducers.is_similar(['a', 'b'], ['a', 'c', 'd']))
+    self.assertFalse(reproducers.is_similar(['a'], ['a', 'c', 'b']))

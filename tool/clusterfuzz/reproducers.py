@@ -88,6 +88,16 @@ def serialize_libfuzzer_args(args):
   return ' '.join(sorted(args_list))
 
 
+def is_similar(new_state_lines, original_state_lines):
+  """Check if the new state is similar enough to the original state."""
+  count = 0
+  for line in new_state_lines:
+    if line in original_state_lines:
+      count += 1
+
+  return count >= max(1, len(original_state_lines) - 1)
+
+
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
 
@@ -201,16 +211,23 @@ class BaseReproducer(object):
       logger.info(output)
 
       new_crash_state, new_crash_type = self.get_stacktrace_info(output)
-      if (new_crash_state == self.crash_state and
-          new_crash_type == self.crash_type):
-        logger.info('The stacktrace matches the original crash')
+
+      logger.info(
+          'New crash type: %s\n'
+          'New crash state:\n  %s\n\n'
+          'Original crash type: %s\n'
+          'Original crash state:\n  %s\n',
+          new_crash_type, '\n  '.join(new_crash_state), self.crash_type,
+          '\n  '.join(self.crash_state))
+
+      # The crash signature validation is intentionally forgiving.
+      if is_similar(new_crash_state, self.crash_state):
+        logger.info('The stacktrace seems similar to the original stacktrace.')
         return True
-      logger.info('Reproduction attempt %d unsuccessful. Press Ctrl+C to'
-                  ' stop trying to reproduce.', iterations)
-      logger.debug('New crash state:\n  %s\nOriginal:\n  %s',
-                   '\n  '.join(new_crash_state), '\n  '.join(self.crash_state))
-      logger.debug('New crash type: %s, original: %s', new_crash_type,
-                   self.crash_type)
+      else:
+        logger.info("The stacktrace doesn't match the original stacktrace.")
+        logger.info('Try again (%d times). Press Ctrl+C to stop trying to '
+                    'reproduce.', iterations)
       iterations += 1
       time.sleep(3)
     sys.exit(1)

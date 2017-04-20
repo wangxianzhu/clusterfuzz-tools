@@ -269,10 +269,10 @@ class GenericBuilder(BinaryProvider):
   def build_target(self):
     """Build the correct revision in the source directory."""
 
-    self.pre_build_steps()
+    #Note: gclient sync must be run before setting up the gn args
     if not self.disable_gclient_commands:
       common.execute('gclient sync', self.source_directory)
-    #Note: gclient sync must be run before setting up the gn args
+    self.pre_build_steps()
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()
     common.execute(
@@ -366,6 +366,18 @@ class ChromiumBuilder(GenericBuilder):
 class CfiChromiumBuilder(ChromiumBuilder):
   """Build a CFI chromium."""
 
+  def pre_build_steps(self):
+    if not self.disable_gclient_commands:
+      common.execute(
+          'gclient runhooks',
+          self.source_directory,
+          environment={
+              'GYP_DEFINES':
+                  'cfi_vptr=1 clang=1 component=static_library target_arch=x64',
+              'GYP_LINK_CONCURRENCY': '8',
+              'GYP_CHROMIUM_NO_ACTION': '1'
+          })
+
   def setup_gn_args(self):
     """Setup the gn args and then run download_gold_plugin.py."""
     super(CfiChromiumBuilder, self).setup_gn_args()
@@ -395,8 +407,13 @@ class LibfuzzerMsanBuilder(ChromiumBuilder):
 
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
-      env = {'GYP_DEFINES': ('clang=1 component=static_library gomadir=%s '
-                             'msan=1 msan_track_origins=2 proprietary_codecs=1'
-                             ' target_arch=x64 use_goma=1 use_prebuilt_'
-                             'instrumented_libraries=1' % self.goma_dir)}
-      common.execute('gclient runhooks', self.source_directory, environment=env)
+      common.execute(
+          'gclient runhooks',
+          self.source_directory,
+          environment={
+              'GYP_DEFINES': (
+                  'clang=1 component=static_library gomadir=%s msan=1 '
+                  'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
+                  'use_goma=1 use_prebuilt_instrumented_libraries=1'
+                  % self.goma_dir)
+          })

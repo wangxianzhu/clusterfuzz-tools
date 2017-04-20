@@ -226,7 +226,7 @@ def start_execute(command, cwd, environment, print_output=True):
     env_str = ''
     if environment:
       env_str = ' '.join(
-          ['%s=%s' % (k, v) for k, v in environment.iteritems()])
+          ['%s="%s"' % (k, v) for k, v in environment.iteritems()])
     logger.info('Running: %s %s', env_str, command)
 
   env = os.environ.copy()

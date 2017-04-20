@@ -277,13 +277,13 @@ class BuildTargetTest(helpers.ExtendedTestCase):
     builder.build_target()
 
     self.assert_exact_calls(self.mock.execute, [
+        mock.call('gclient sync', chrome_source),
         mock.call(
             'gclient runhooks', chrome_source,
             environment={'GYP_DEFINES': 'asan=1'}),
         mock.call(
             'gypfiles/gyp_v8', chrome_source,
             environment={'GYP_DEFINES': 'asan=1'}),
-        mock.call('gclient sync', chrome_source),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
              "-j 120 -l 120 d8"), chrome_source, capture_output=False)])
@@ -600,8 +600,8 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.get_goma_cores, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gclient runhooks', '/chrome/src'),
         mock.call('gclient sync', '/chrome/src'),
+        mock.call('gclient runhooks', '/chrome/src'),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
              "-j 120 -l 120 target"), '/chrome/src',
@@ -649,9 +649,7 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
 class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of CfiChromiumBuilder."""
 
-  def test_gn_steps(self):
-    """Test the prebuild_steps method."""
-
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',
@@ -660,13 +658,30 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    builder = binary_providers.CfiChromiumBuilder(
+    self.builder = binary_providers.CfiChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None)
 
-    builder.setup_gn_args()
+  def test_prebuild_steps(self):
+    """Test the prebuild_steps method."""
+    self.builder.pre_build_steps()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call(
+            'gclient runhooks', '/chrome/src',
+            environment={
+                'GYP_DEFINES': (
+                    'cfi_vptr=1 clang=1 component=static_library '
+                    'target_arch=x64'),
+                'GYP_LINK_CONCURRENCY': '8',
+                'GYP_CHROMIUM_NO_ACTION': '1'
+            })
+    ])
+
+  def test_gn_steps(self):
+    """Test the prebuild_steps method."""
+    self.builder.setup_gn_args()
     self.assert_exact_calls(self.mock.execute, [
         mock.call('build/download_gold_plugin.py', '/chrome/src')])
-    self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
+    self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
 
 
 class MsanChromiumBuilderTest(helpers.ExtendedTestCase):

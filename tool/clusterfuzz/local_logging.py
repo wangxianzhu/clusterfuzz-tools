@@ -16,6 +16,7 @@
 import os
 import logging
 from logging import config
+import sys
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 LOG_DIR = os.path.join(CLUSTERFUZZ_DIR, 'logs')
@@ -28,7 +29,8 @@ logging_config = dict(
     handlers={
         'console': {'class': 'logging.StreamHandler',
                     'formatter': 'message',
-                    'level': logging.DEBUG if DEBUG else logging.INFO},
+                    'level': logging.DEBUG if DEBUG else logging.INFO,
+                    'stream': sys.stdout},
         'file': {'class': 'logging.handlers.RotatingFileHandler',
                  'filename': os.path.join(LOG_DIR, 'output.log'),
                  'formatter': 'timestamp',

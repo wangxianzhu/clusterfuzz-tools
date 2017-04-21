@@ -186,7 +186,11 @@ def wait_timeout(proc, timeout):
     if proc.poll():
       break
   else:
-    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    try:
+      os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except OSError as e:
+      if e.errno != 3:  # No such process.
+        raise
 
 
 def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1,

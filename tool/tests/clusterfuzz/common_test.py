@@ -352,6 +352,45 @@ class WaitTimeoutTest(helpers.ExtendedTestCase):
     self.assert_n_calls(0, [self.mock.sleep, self.mock.getpgid,
                             self.mock.killpg])
 
+  def test_no_process(self):
+    """Tests when process died maturely."""
+    error = OSError()
+    error.errno = 3  # No such process.
+    self.mock.killpg.side_effect = error
+
+    self.mock.getpgid.return_value = 345
+    class ProcMock(object):
+      pid = 1234
+      def poll(self):
+        return None
+    proc = ProcMock()
+
+    common.wait_timeout(proc, 5)
+
+    self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
+    self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
+    self.assert_n_calls(10, [self.mock.sleep])
+
+  def test_kill_error(self):
+    """Test error when killing."""
+    error = OSError()
+    error.errno = 4
+    self.mock.killpg.side_effect = error
+
+    self.mock.getpgid.return_value = 345
+    class ProcMock(object):
+      pid = 1234
+      def poll(self):
+        return None
+    proc = ProcMock()
+
+    with self.assertRaises(OSError):
+      common.wait_timeout(proc, 5)
+
+    self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
+    self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
+    self.assert_n_calls(10, [self.mock.sleep])
+
 
 class InterpretNinjaOutputTest(helpers.ExtendedTestCase):
   """Tests the interpret_ninja_output method."""

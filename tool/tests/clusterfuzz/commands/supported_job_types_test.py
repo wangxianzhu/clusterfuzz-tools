@@ -23,8 +23,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the printing of supported job types."""
 
   def setUp(self):
-    helpers.patch(self, ['clusterfuzz.commands.reproduce.get_supported_jobs'])
-    self.mock.get_supported_jobs.return_value = {
+    helpers.patch(self, ['yaml.load'])
+    self.mock.load.return_value = {
         'chromium': {
             'chromium_job': 'stuff'},
         'standalone': {

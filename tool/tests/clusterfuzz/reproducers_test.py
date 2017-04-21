@@ -704,25 +704,19 @@ class MaybeFixDictArgTest(helpers.ExtendedTestCase):
 class IsSimilarTest(helpers.ExtendedTestCase):
   """Test is_similar."""
 
-  def test_match_0_out_of_1(self):
+  def test_not_similar(self):
     """Test not similar."""
-    self.assertFalse(reproducers.is_similar(['a'], ['b']))
+    self.assertFalse(reproducers.is_similar('t', ['a'], 'z', ['b']))
+    self.assertFalse(reproducers.is_similar(
+        't', ['a', 'b'], 't', ['a', 'c', 'd']))
+    self.assertFalse(reproducers.is_similar('t', ['a'], 't', ['a', 'c', 'b']))
 
-  def test_match_1_out_of_1(self):
+  def test_similar(self):
     """Test similar."""
-    self.assertTrue(reproducers.is_similar(['a'], ['a']))
-
-  def test_match_1_out_of_2(self):
-    """Test similar."""
-    self.assertTrue(reproducers.is_similar(['a', 'b'], ['a', 'c']))
-    self.assertTrue(reproducers.is_similar(['a'], ['a', 'c']))
-
-  def test_match_2_out_of_3(self):
-    """Test similar."""
-    self.assertTrue(reproducers.is_similar(['a', 'b', 'd'], ['a', 'b', 'c']))
-    self.assertTrue(reproducers.is_similar(['a', 'b'], ['a', 'b', 'c']))
-
-  def test_match_1_out_of_3(self):
-    """Test not similar."""
-    self.assertFalse(reproducers.is_similar(['a', 'b'], ['a', 'c', 'd']))
-    self.assertFalse(reproducers.is_similar(['a'], ['a', 'c', 'b']))
+    self.assertTrue(reproducers.is_similar('t', ['a'], 'z', ['a']))
+    self.assertTrue(reproducers.is_similar('t', ['a', 'b'], 't', ['a', 'c']))
+    self.assertTrue(reproducers.is_similar('t', ['a'], 't', ['a', 'c']))
+    self.assertTrue(reproducers.is_similar(
+        't', ['a', 'b', 'd'], 't', ['a', 'b', 'c']))
+    self.assertTrue(reproducers.is_similar(
+        't', ['a', 'b'], 't', ['a', 'b', 'c']))

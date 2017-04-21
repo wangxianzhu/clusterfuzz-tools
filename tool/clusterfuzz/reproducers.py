@@ -88,14 +88,17 @@ def serialize_libfuzzer_args(args):
   return ' '.join(sorted(args_list))
 
 
-def is_similar(new_state_lines, original_state_lines):
+def is_similar(new_type, new_state_lines, original_type, original_state_lines):
   """Check if the new state is similar enough to the original state."""
   count = 0
+  if new_type == original_type:
+    count += 1
+
   for line in new_state_lines:
     if line in original_state_lines:
       count += 1
 
-  return count >= max(1, len(original_state_lines) - 1)
+  return count >= len(original_state_lines)
 
 
 class BaseReproducer(object):
@@ -221,7 +224,8 @@ class BaseReproducer(object):
           '\n  '.join(self.crash_state))
 
       # The crash signature validation is intentionally forgiving.
-      if is_similar(new_crash_state, self.crash_state):
+      if is_similar(
+          new_crash_type, new_crash_state, self.crash_type, self.crash_state):
         logger.info('The stacktrace seems similar to the original stacktrace.')
         return True
       else:

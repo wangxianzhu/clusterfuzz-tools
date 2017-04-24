@@ -38,7 +38,7 @@ def build_command(args):
 def run_testcase(testcase_id):
   """Attempts to reproduce a testcase."""
 
-  command = ('/python-daemon/clusterfuzz reproduce %s -i 3' % testcase_id)
+  command = ('/python-daemon/clusterfuzz reproduce %s' % testcase_id)
   command = '/bin/bash -c "export PATH=$PATH:%s && %s"' % (DEPOT_TOOLS, command)
   environment = os.environ.copy()
   environment['CF_QUIET'] = '1'

@@ -72,7 +72,7 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
     home = os.path.expanduser('~')
 
     command = ('/bin/bash -c "export PATH=$PATH:%s/depot_tools && '
-               '/python-daemon/clusterfuzz reproduce 1234 -i 3"' % home)
+               '/python-daemon/clusterfuzz reproduce 1234"' % home)
 
     self.assertFalse(result)
     self.assert_exact_calls(self.mock.Popen, [mock.call(

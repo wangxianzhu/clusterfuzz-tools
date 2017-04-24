@@ -27,7 +27,7 @@ def get_version():
   """Print version."""
   version = 'Unknown'
   with open(common.get_resource(0640, 'resources', 'VERSION')) as f:
-    version = f.read()
+    version = f.read().strip()
   return version
 
 
@@ -35,6 +35,7 @@ def execute(argv=None):
   """The main entry point."""
   local_logging.start_loggers()
   logger.info('Version: %s', get_version())
+  logger.info('Path: %s', __file__)
 
   parser = argparse.ArgumentParser(description='ClusterFuzz tools')
   subparsers = parser.add_subparsers(dest='command')

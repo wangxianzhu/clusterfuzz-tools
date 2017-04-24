@@ -38,8 +38,8 @@ def create_reproducer(klass):
   binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
   binary_provider.get_binary_path.return_value = '/fake/path/test_binary'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
-                       job_type='job_type')
-  reproducer = klass(binary_provider, testcase, 'UBSAN', False)
+                       job_type='job_type', reproduction_args='--original')
+  reproducer = klass(binary_provider, testcase, 'UBSAN', False, '--test')
   reproducer.args = '--always-opt'
   reproducer.environment = {}
   return reproducer
@@ -68,9 +68,9 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
 
     self.binary_provider = mock.Mock()
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
-        {'content': 'line'}], job_type='job_type')
+        {'content': 'line'}], job_type='job_type', reproduction_args='--orig')
     self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN', False)
+        self.binary_provider, self.testcase, 'UBSAN', False, '--test')
 
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
@@ -105,9 +105,9 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
   def setUp(self):
     self.binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
-        {'content': 'line'}], job_type='job_type')
+        {'content': 'line'}], job_type='job_type', reproduction_args='--orig')
     self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN', False)
+        self.binary_provider, self.testcase, 'UBSAN', False, '--test')
 
   def test_serialize(self):
     in_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
@@ -166,11 +166,11 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider = mock.Mock()
     mocked_provider.get_binary_path.return_value = source
 
-    reproducer = reproducers.BaseReproducer(mocked_provider, mocked_testcase,
-                                            'ASAN', False)
+    reproducer = reproducers.BaseReproducer(
+        mocked_provider, mocked_testcase, 'ASAN', False, '--test')
     reproducer.reproduce_crash()
     self.assert_exact_calls(self.mock.execute, [mock.call(
-        '%s %s %s' % (
+        '%s %s --test %s' % (
             '/chrome/source/folder/d8', args, testcase_file),
         '/chrome/source/folder', environment={
             'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
@@ -200,14 +200,14 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_binary_path.return_value = source
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN', False)
+        mocked_provider, mocked_testcase, 'UBSAN', False, '--test')
     reproducer.gestures = ['gesture,1', 'gesture,2']
     err, text = reproducer.reproduce_crash()
     self.assertEqual(err, 0)
     self.assertEqual(text, 'symbolized')
     self.assert_exact_calls(self.mock.start_execute, [mock.call(
         ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
-         '--user-data-dir=/tmp/clusterfuzz-user-profile-data '
+         '--test --user-data-dir=/tmp/clusterfuzz-user-profile-data '
          '--disable-gl-drawing-for-tests %s/.'
          'clusterfuzz/123456_testcase/testcase.js' % os.path.expanduser('~')),
         '/chrome/source/folder', environment={
@@ -243,14 +243,14 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_binary_path.return_value = source
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN', True)
+        mocked_provider, mocked_testcase, 'UBSAN', True, '--test')
     reproducer.gestures = ['gesture,1', 'gesture,2']
     err, text = reproducer.reproduce_crash()
     self.assertEqual(err, 0)
     self.assertEqual(text, 'symbolized')
     self.assert_exact_calls(self.mock.start_execute, [mock.call(
         ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
-         ' --user-data-dir=/tmp/clusterfuzz-user-profile-data %s/.'
+         ' --test --user-data-dir=/tmp/clusterfuzz-user-profile-data %s/.'
          'clusterfuzz/123456_testcase/testcase.js' % os.path.expanduser('~')),
         '/chrome/source/folder', environment={
             'DISPLAY': ':display',

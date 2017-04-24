@@ -37,30 +37,36 @@ class MainTest(unittest.TestCase):
     main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
     main.execute(['reproduce', '1234', '--build', 'chromium', '-i', '500'])
     main.execute(['reproduce', '1234', '--disable-gclient-commands'])
+    main.execute(['reproduce', '1234', '--target-args', '--test --test2'])
 
     self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
         mock.call(build='chromium', current=False,
                   disable_gclient_commands=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_blackbox=True),
+                  disable_blackbox=True, target_args=''),
         mock.call(build='chromium', current=True,
                   disable_gclient_commands=False, disable_goma=False,
                   j=25, testcase_id='1234', iterations=10,
-                  disable_blackbox=False),
+                  disable_blackbox=False, target_args=''),
         mock.call(build='download', current=False,
                   disable_gclient_commands=False, disable_goma=True,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_blackbox=False),
+                  disable_blackbox=False, target_args=''),
         mock.call(build='standalone', current=True,
                   disable_gclient_commands=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_blackbox=False),
+                  disable_blackbox=False, target_args=''),
         mock.call(build='chromium', current=False,
                   disable_gclient_commands=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=500,
-                  disable_blackbox=False),
+                  disable_blackbox=False, target_args=''),
         mock.call(build='chromium', current=False,
                   disable_gclient_commands=True, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_blackbox=False)])
+                  disable_blackbox=False, target_args=''),
+        mock.call(build='chromium', current=False,
+                  disable_gclient_commands=False, disable_goma=False,
+                  j=None, testcase_id='1234', iterations=10,
+                  disable_blackbox=False, target_args='--test --test2')
+    ])

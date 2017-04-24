@@ -114,11 +114,12 @@ class BaseReproducer(object):
       gesture_start_time = DEFAULT_GESTURE_TIME
     return gesture_start_time
 
-  def __init__(self, binary_provider, testcase, sanitizer, disable_blackbox):
+  def __init__(self, binary_provider, testcase, sanitizer, disable_blackbox,
+               target_args):
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
-    self.args = testcase.reproduction_args
+    self.args = testcase.reproduction_args + ' ' + target_args
     self.binary_path = binary_provider.get_binary_path()
     self.symbolizer_path = common.get_resource(
         0755, 'resources', 'llvm-symbolizer')

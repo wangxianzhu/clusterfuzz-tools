@@ -23,18 +23,10 @@ from clusterfuzz import local_logging
 logger = logging.getLogger('clusterfuzz')
 
 
-def get_version():
-  """Print version."""
-  version = 'Unknown'
-  with open(common.get_resource(0640, 'resources', 'VERSION')) as f:
-    version = f.read().strip()
-  return version
-
-
 def execute(argv=None):
   """The main entry point."""
   local_logging.start_loggers()
-  logger.info('Version: %s', get_version())
+  logger.info('Version: %s', common.get_version())
   logger.info('Path: %s', __file__)
 
   parser = argparse.ArgumentParser(description='ClusterFuzz tools')

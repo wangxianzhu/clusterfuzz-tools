@@ -37,6 +37,7 @@ TERMINAL_WIDTH = get_terminal_size().columns
 SOURCE_CACHE = os.path.join(CLUSTERFUZZ_DIR, 'source_cache')
 logger = logging.getLogger('clusterfuzz')
 
+
 def get_binary_name(stacktrace):
   prefix = 'Running command: '
   stacktrace_lines = [l['content'] for l in stacktrace]
@@ -48,6 +49,12 @@ def get_binary_name(stacktrace):
 
   raise Exception("The stacktrace doesn't contain a line starting with '%s'" %
                   prefix)
+
+
+def get_version():
+  """Print version."""
+  with open(get_resource(0640, 'resources', 'VERSION')) as f:
+    return f.read().strip()
 
 
 class ExpectedException(Exception):

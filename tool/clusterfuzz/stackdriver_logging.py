@@ -49,6 +49,7 @@ def send_log(params, stacktrace=None):
 
   http_auth = credentials.authorize(Http())
 
+  params['version'] = common.get_version()
   params['user'] = os.environ.get('USER')
   params['sessionId'] = get_session_id()
   if 'success' in params:

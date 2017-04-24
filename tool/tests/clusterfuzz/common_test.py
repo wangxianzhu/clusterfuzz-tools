@@ -23,6 +23,21 @@ import yaml
 from clusterfuzz import common
 import helpers
 
+
+class GetVersionTest(helpers.ExtendedTestCase):
+  """Tests get_version."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_get_version(self):
+    """Test get_version."""
+    version_path = os.path.join(
+        os.path.dirname(common.__file__), 'resources', 'VERSION')
+    self.fs.CreateFile(version_path, contents='vvv')
+    self.assertEqual('vvv', common.get_version())
+
+
 class ConfirmTest(helpers.ExtendedTestCase):
   """Tests the confirm method."""
 

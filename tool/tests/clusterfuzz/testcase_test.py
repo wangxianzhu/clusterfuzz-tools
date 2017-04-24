@@ -144,19 +144,17 @@ class GetTrueTestcaseFileTest(helpers.ExtendedTestCase):
 
   def test_zipfile(self):
     """Tests when the file is a zipfile."""
-    self.test.absolute_path = '/absolute/path/to/wrong_testcase.js'
-    self.test.get_true_testcase_file('abcd.zip')
+    self.test.absolute_path = 'to/testcase.js'
+    self.assertEqual(
+        os.path.expanduser(
+            '~/.clusterfuzz/testcases/12345_testcase/to/testcase.js'),
+        self.test.get_true_testcase_file('abcd.zip'))
 
     self.mock.ZipFile.assert_has_calls([
         mock.call(os.path.expanduser(
             '~/.clusterfuzz/testcases/12345_testcase/abcd.zip'), 'r'),
         mock.call().extractall(
             os.path.expanduser('~/.clusterfuzz/testcases/12345_testcase'))])
-    testcase_dir = os.path.expanduser(
-        '~/.clusterfuzz/testcases/12345_testcase/')
-    self.assert_exact_calls(self.mock.rename, [
-        mock.call(os.path.join(testcase_dir, 'wrong_testcase.js'),
-                  os.path.join(testcase_dir, 'testcase.js'))])
 
   def test_no_zipfile(self):
     """Tests when the downloaded file is not zipped."""

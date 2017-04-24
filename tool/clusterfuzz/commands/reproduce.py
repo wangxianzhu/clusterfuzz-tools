@@ -197,8 +197,9 @@ def maybe_warn_unreproducible(current_testcase):
   """Print warning if the testcase is unreproducible."""
   if not current_testcase.reproducible:
     print
-    logger.info(('WARNING: The testcase %s is marked as unreproducible. '
-                 'Therefore, it might not be reproduced correctly here.'))
+    logger.info(
+        'WARNING: The testcase %s is marked as unreproducible. Therefore, it '
+        'might not be reproduced correctly here.', current_testcase.id)
     print
     # We need to return True to make the method testable because we can't mock
     # print.

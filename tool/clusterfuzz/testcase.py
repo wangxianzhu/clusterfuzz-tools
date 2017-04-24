@@ -91,18 +91,18 @@ class Testcase(object):
     """Unzips a testcase if required."""
 
     testcase_dir = self.testcase_dir_name()
-    true_filename = os.path.join(testcase_dir,
-                                 'testcase%s' % self.file_extension)
 
     if filename.endswith('.zip'):
       zipped_file = zipfile.ZipFile(os.path.join(testcase_dir, filename), 'r')
       zipped_file.extractall(testcase_dir)
       zipped_file.close()
-      filename = self.absolute_path.split('/')[-1]
-
-    filename = os.path.join(testcase_dir, filename)
-    os.rename(filename, true_filename)
-    return true_filename
+      return os.path.join(testcase_dir, self.absolute_path)
+    else:
+      true_filename = os.path.join(
+          testcase_dir, 'testcase%s' % self.file_extension)
+      filename = os.path.join(testcase_dir, filename)
+      os.rename(filename, true_filename)
+      return true_filename
 
   def get_testcase_path(self):
     """Downloads & returns the location of the testcase file."""

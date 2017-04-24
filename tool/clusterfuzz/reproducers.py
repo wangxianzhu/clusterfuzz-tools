@@ -399,7 +399,6 @@ class LinuxChromeJobReproducer(BaseReproducer):
           '--disable-gl-drawing-for-tests' not in self.args):
       self.args += ' --disable-gl-drawing-for-tests'
 
-
     with Blackbox(self.disable_blackbox) as display_name:
       command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
       if display_name:

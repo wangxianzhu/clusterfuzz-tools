@@ -237,6 +237,11 @@ def start_execute(command, cwd, environment, print_output=True):
   if environment:
     env.update(environment)
 
+  # See https://github.com/google/clusterfuzz-tools/issues/199 why we need this.
+  sanitized_env = {}
+  for k, v in env.iteritems():
+    sanitized_env[str(k)] = str(v)
+
   return subprocess.Popen(
       command,
       shell=True,
@@ -244,7 +249,7 @@ def start_execute(command, cwd, environment, print_output=True):
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd,
-      env=env,
+      env=sanitized_env,
       preexec_fn=os.setsid)
 
 

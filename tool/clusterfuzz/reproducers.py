@@ -321,7 +321,11 @@ class LinuxChromeJobReproducer(BaseReproducer):
     if not pids:
       return []
 
+    logger.info(
+        'Waiting for 20 seconds to ensure all windows (pid=%s, display=%s) '
+        'appear.', pids, display_name)
     time.sleep(20)
+
     visible_windows = set()
     for pid in pids:
       _, windows = common.execute(
@@ -333,6 +337,8 @@ class LinuxChromeJobReproducer(BaseReproducer):
         if not line.isdigit():
           continue
         visible_windows.add(line)
+
+    logger.info('Found windows: %s', visible_windows)
     return visible_windows
 
   def execute_gesture(self, gesture, window, display_name):
@@ -352,8 +358,8 @@ class LinuxChromeJobReproducer(BaseReproducer):
     time.sleep(self.gesture_start_time)
     logger.info('Running gestures...')
     windows = self.find_windows_for_process(proc.pid, display_name)
-    for index, window in enumerate(windows):
-      logger.debug('Window %s of %s', index, len(windows))
+    for _, window in enumerate(windows):
+      logger.info('Run gestures on window %s', window)
       self.xdotool_command('windowactivate --sync %s' % window, display_name)
 
       for gesture in self.gestures:
@@ -402,8 +408,8 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
     with Blackbox(self.disable_blackbox) as display_name:
       command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
-      if display_name:
-        self.environment['DISPLAY'] = display_name
+
+      self.environment['DISPLAY'] = display_name
       self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
       process = common.start_execute(command, os.path.dirname(self.binary_path),
                                      environment=self.environment)

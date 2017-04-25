@@ -121,7 +121,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Popen.return_value = mock.Mock(stdout=x, returncode=0)
     common.execute('ninja do this plz', '~/working/directory',
                    print_output=True, exit_on_error=True,
-                   environment={'a': 'b', 1: 2})
+                   environment={'a': 'b', 1: 2, 'c': None})
     self.assert_n_calls(1, [self.mock.interpret_ninja_output])
     self.mock.Popen.assert_called_once_with(
         'ninja do this plz',

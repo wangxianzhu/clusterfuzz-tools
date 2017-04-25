@@ -233,21 +233,22 @@ def interpret_ninja_output(line):
 
 def start_execute(command, cwd, environment, print_output=True):
   """Runs a command, and returns the subprocess.Popen object."""
-  if print_output:
-    env_str = ''
-    if environment:
-      env_str = ' '.join(
-          ['%s="%s"' % (k, v) for k, v in environment.iteritems()])
-    logger.info('Running: %s %s', env_str, command)
 
-  env = os.environ.copy()
-  if environment:
-    env.update(environment)
+  environment = environment or {}
 
   # See https://github.com/google/clusterfuzz-tools/issues/199 why we need this.
   sanitized_env = {}
-  for k, v in env.iteritems():
-    sanitized_env[str(k)] = str(v)
+  for k, v in environment.iteritems():
+    if v is not None:
+      sanitized_env[str(k)] = str(v)
+
+  if print_output:
+    env_str = ' '.join(
+        ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
+    logger.info('Running: %s %s', env_str, command)
+
+  final_env = os.environ.copy()
+  final_env.update(sanitized_env)
 
   return subprocess.Popen(
       command,
@@ -256,7 +257,7 @@ def start_execute(command, cwd, environment, print_output=True):
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd,
-      env=sanitized_env,
+      env=final_env,
       preexec_fn=os.setsid)
 
 

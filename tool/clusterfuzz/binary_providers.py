@@ -264,7 +264,7 @@ class GenericBuilder(BinaryProvider):
       return self.goma_threads
     else:
       cpu_count = multiprocessing.cpu_count()
-      return 10 * cpu_count if self.goma_dir else (3 * cpu_count) / 4
+      return 50 * cpu_count if self.goma_dir else (3 * cpu_count) / 4
 
   def build_target(self):
     """Build the correct revision in the source directory."""
@@ -276,9 +276,9 @@ class GenericBuilder(BinaryProvider):
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()
     common.execute(
-        ("ninja -w 'dupbuild=err' -C %s -j %i -l %i %s" % (
-            self.build_directory, goma_cores, goma_cores,
-            self.target)), self.source_directory, capture_output=False)
+        ("ninja -w 'dupbuild=err' -C %s -j %i -l 15 %s" % (
+            self.build_directory, goma_cores, self.target)),
+        self.source_directory, capture_output=False)
 
   def get_build_directory(self):
     """Returns the location of the correct build to use for reproduction."""

@@ -286,7 +286,7 @@ class BuildTargetTest(helpers.ExtendedTestCase):
             environment={'GYP_DEFINES': 'asan=1'}),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
-             "-j 120 -l 120 d8"), chrome_source, capture_output=False)])
+             "-j 120 -l 15 d8"), chrome_source, capture_output=False)])
 
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
@@ -534,7 +534,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient sync', '/source/dir'),
-        mock.call(("ninja -w 'dupbuild=err' -C /build/dir -j 120 -l 120"
+        mock.call(("ninja -w 'dupbuild=err' -C /build/dir -j 120 -l 15"
                    " pdfium_test"), '/source/dir', capture_output=False),])
 
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
@@ -571,7 +571,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
 
     builder.goma_dir = True
     result = builder.get_goma_cores()
-    self.assertEqual(result, 120)
+    self.assertEqual(result, 600)
 
   def test_no_binary_name(self):
     """Test the functionality when no binary name is provided."""
@@ -604,7 +604,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
         mock.call('gclient runhooks', '/chrome/src'),
         mock.call(
             ("ninja -w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
-             "-j 120 -l 120 target"), '/chrome/src',
+             "-j 120 -l 15 target"), '/chrome/src',
             capture_output=False)])
 
   def test_get_binary_path(self):
@@ -758,4 +758,4 @@ class GetGomaCoresTest(helpers.ExtendedTestCase):
 
     self.builder.goma_threads = None
     result = self.builder.get_goma_cores()
-    self.assertEqual(result, 640)
+    self.assertEqual(result, 3200)

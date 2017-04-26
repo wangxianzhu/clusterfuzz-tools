@@ -3,6 +3,7 @@
 import os
 import subprocess
 import shutil
+import sys
 import yaml
 import requests
 
@@ -21,6 +22,7 @@ RELEASE_ENV = os.path.join(HOME, 'RELEASE_ENV')
 DEPOT_TOOLS = os.path.join(HOME, 'depot_tools')
 SANITY_CHECKS = '/python-daemon/daemon/sanity_checks.yml'
 BINARY_LOCATION = '/python-daemon/clusterfuzz'
+TOOL_SOURCE = os.path.join(HOME, 'clusterfuzz-tools')
 
 def load_sanity_check_testcases():
   """Return a list of all testcases to try."""
@@ -129,31 +131,51 @@ def call_with_depot_tools(command, cwd=CHROMIUM_SRC):
   subprocess.check_call(command, cwd=cwd, env=environment, shell=True)
 
 
-def reset_and_run_testcase(testcase_id, test_type):
+def checkout_build_master():
+  """Checks out the latest master build and creates a new binary."""
+
+  if not os.path.exists(TOOL_SOURCE):
+    subprocess.check_call(('git clone https://github.com/google/clusterfuzz'
+                           '-tools.git'), shell=True, cwd=HOME)
+  subprocess.check_call('git pull', shell=True, cwd=TOOL_SOURCE)
+  subprocess.check_call('./pants binary tool:clusterfuzz-ci', shell=True,
+                        cwd=TOOL_SOURCE)
+  os.remove(BINARY_LOCATION)
+  shutil.copy(os.path.join(TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
+              BINARY_LOCATION)
+  return subprocess.check_output('git rev-parse HEAD', shell=True,
+                                 cwd=BINARY_LOCATION)
+
+
+def reset_and_run_testcase(testcase_id, test_type, release):
   """Resets the chromium repo and runs the testcase."""
 
   delete_if_exists(CHROMIUM_OUT)
   delete_if_exists(CLUSTERFUZZ_DIR)
+  version = get_version()
+  if release == 'master':
+    version = checkout_build_master()
   subprocess.check_call('git checkout -f master', shell=True, cwd=CHROMIUM_SRC)
   call_with_depot_tools('gclient sync')
   call_with_depot_tools('gclient runhooks')
   update_auth_header()
-  stackdriver_logging.send_run(
-      testcase_id, test_type, get_version(), run_testcase(testcase_id))
+  stackdriver_logging.send_run(testcase_id, test_type, version,
+                               run_testcase(testcase_id))
 
 
 def main():
+  release = sys.argv[1]
   clone_chromium.clone_chromium()
   testcases = load_sanity_check_testcases()
   for testcase in testcases:
-    reset_and_run_testcase(testcase, 'sanity')
+    reset_and_run_testcase(testcase, 'sanity', release)
   latest_testcase = None
   while True:
     update_auth_header()
     testcases = load_new_testcases(latest_testcase)
     latest_testcase = testcases[0]
     for testcase in testcases:
-      reset_and_run_testcase(testcase, 'continuous')
+      reset_and_run_testcase(testcase, 'continuous', release)
 
 if __name__ == '__main__':
   main()

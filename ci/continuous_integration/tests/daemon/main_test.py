@@ -16,6 +16,7 @@
 import cStringIO
 import subprocess
 import os
+import sys
 import mock
 import yaml
 
@@ -50,9 +51,11 @@ class MainTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.load_new_testcases, [mock.call(None),
                                                            mock.call(3)])
     self.assert_exact_calls(self.mock.reset_and_run_testcase, [
-        mock.call(1, 'sanity'), mock.call(2, 'sanity'),
-        mock.call(3, 'continuous'), mock.call(4, 'continuous'),
-        mock.call(5, 'continuous')])
+        mock.call(1, 'sanity', sys.argv[1]),
+        mock.call(2, 'sanity', sys.argv[1]),
+        mock.call(3, 'continuous', sys.argv[1]),
+        mock.call(4, 'continuous', sys.argv[1]),
+        mock.call(5, 'continuous', sys.argv[1])])
 
 
 class RunTestcaseTest(helpers.ExtendedTestCase):
@@ -250,8 +253,10 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
                          'daemon.stackdriver_logging.send_run',
                          'daemon.main.update_auth_header',
                          'daemon.main.get_version',
-                         'daemon.main.run_testcase'])
-    self.mock.get_version.return_value = '0.2.2rc11'
+                         'daemon.main.run_testcase',
+                         'daemon.main.checkout_build_master'])
+    self.mock.checkout_build_master.return_value = '0.2.2rc11'
+    self.mock.get_version.return_value = '0.2.2rc10'
     self.mock.run_testcase.return_value = 'run_testcase'
 
   def test_reset_run_testcase(self):
@@ -259,7 +264,7 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
 
     self.assertTrue(os.path.exists(main.CHROMIUM_OUT))
     self.assertTrue(os.path.exists(main.CLUSTERFUZZ_DIR))
-    main.reset_and_run_testcase(1234, 'sanity')
+    main.reset_and_run_testcase(1234, 'sanity', 'master')
     self.assertFalse(os.path.exists(main.CHROMIUM_OUT))
     self.assertFalse(os.path.exists(main.CLUSTERFUZZ_DIR))
     self.assert_exact_calls(self.mock.update_auth_header, [
@@ -268,9 +273,40 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
         mock.call(1234, 'sanity', '0.2.2rc11', 'run_testcase')])
     environment = os.environ.copy()
     environment['PATH'] += ':%s' % main.DEPOT_TOOLS
+    self.assert_exact_calls(self.mock.checkout_build_master, [mock.call()])
     self.assert_exact_calls(self.mock.check_call, [
         mock.call('git checkout -f master', shell=True, cwd=main.CHROMIUM_SRC),
         mock.call('gclient sync', shell=True, cwd=main.CHROMIUM_SRC,
                   env=environment),
         mock.call('gclient runhooks', shell=True, cwd=main.CHROMIUM_SRC,
                   env=environment)])
+
+
+class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
+  """Tests the checkout_build_master method."""
+
+  def setUp(self):
+    helpers.patch(self, ['subprocess.check_call',
+                         'subprocess.check_output',
+                         'os.remove',
+                         'shutil.copy',
+                         'os.path.exists'])
+    self.mock.exists.return_value = False
+
+  def test_run_checkout_build_master(self):
+    """Tests checking out & building from master."""
+
+    main.checkout_build_master()
+    self.assert_exact_calls(self.mock.check_call, [
+        mock.call('git clone https://github.com/google/clusterfuzz-tools.git',
+                  shell=True, cwd=main.HOME),
+        mock.call('git pull', shell=True, cwd=main.TOOL_SOURCE),
+        mock.call('./pants binary tool:clusterfuzz-ci', shell=True,
+                  cwd=main.TOOL_SOURCE)])
+    self.assert_exact_calls(self.mock.remove, [
+        mock.call(main.BINARY_LOCATION)])
+    self.assert_exact_calls(self.mock.copy, [
+        mock.call(os.path.join(main.TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
+                  main.BINARY_LOCATION)])
+    self.assert_exact_calls(self.mock.check_output, [
+        mock.call('git rev-parse HEAD', shell=True, cwd=main.BINARY_LOCATION)])

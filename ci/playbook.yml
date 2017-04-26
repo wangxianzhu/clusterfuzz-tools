@@ -6,25 +6,25 @@
     - name: Create storage disk
       gce_pd:
         disk_type: pd-ssd
-        zone: "us-central1-f"
+        zone: "us-central1-a"
         project_id: "981641712411"
         size_gb: 100
         image: ubuntu-1404
-        name: "ci-test-boot"
+        name: "{{ release }}-ci-boot"
         state: present
         service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "credentials.json"
+        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
     - name: Create the instance
       gce:
         disks:
-          - name: "ci-test-boot"
+          - name: "{{ release }}-ci-boot"
             mode: READ_WRITE
-        instance_names: continuous-integration-test
-        machine_type: n1-standard-32
+        instance_names: "{{ release }}-ci"
+        machine_type: n1-standard-64
         service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "credentials.json"
+        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
         project_id: "981641712411"
-        zone: "us-central1-f"
+        zone: "us-central1-a"
       register: gce
     - name: Wait for SSH to come up
       wait_for: host={{ gce.instance_data[0].public_ip }}
@@ -47,6 +47,12 @@
         state: present
         regexp: '^%clusterfuzz'
         line: '%clusterfuzz ALL=(ALL) NOPASSWD: ALL'
+    - name: Set release type environment variable
+      lineinfile:
+        dest: /etc/environment
+        state: present
+        regexp: 'RELEASE="([a-z])\w+"'
+        line: 'RELEASE="{{ release }}"'
     - user:
         name: clusterfuzz
         state: present
@@ -56,13 +62,14 @@
         update_cache: yes
     - apt: name={{item}} state=latest
       with_items:
-        - python
+        - python-dev
         - python-pip
         - runit
         - git
         - pkg-config
         - blackbox
         - unzip
+        - libssl-dev
     - name: Upgrade PIP
       pip: name={{item}} state=latest
       with_items:
@@ -71,7 +78,7 @@
         - httplib2
         - pyyaml
         - crcmod
-        - requests
+        - requests[security]
 - name: Setup python-daemon (runit service, folder, log folder, and service)
   hosts: continuous-integration-instances
   connection: ssh
@@ -104,9 +111,17 @@
         - {'src': 'python_daemon/run', 'dest': '/etc/sv/python-daemon/run'}
         - {'src': 'python_daemon/log_run', 'dest': '/etc/sv/python-daemon/log/run'}
         - {'src': 'continuous_integration/daemon', 'dest': '/python-daemon'}
-        - {'src': 'credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
+        - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
         - {'src': '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz-rc', 'dest': '/python-daemon/clusterfuzz'}
+    - copy:
+        src: '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz'
+        dest: '/python-daemon/clusterfuzz'
+        force: true
+        owner: root
+        group: root
+        mode:  'u=rwx,g=rwx,o=rwx'
+      when: release == "release"
     - file:
         src: '{{ item.src }}'
         dest: '{{ item.dest }}'

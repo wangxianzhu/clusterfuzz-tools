@@ -17,6 +17,7 @@ Requirement
 ---------------
 
 * [gsutil](https://cloud.google.com/storage/docs/gsutil_install)
+* `blackbox` and `xdotool`; these can be install with `apt-get`.
 
 
 Installation

@@ -137,14 +137,13 @@ class JobTypeNotSupportedError(ExpectedException):
     super(JobTypeNotSupportedError, self).__init__(message)
 
 
-class BlackboxNotInstalledError(ExpectedException):
+class NotInstalledError(ExpectedException):
   """An exception raised to tell the user to install Blackbox."""
 
-  def __init__(self):
-    message = ('The blackbox window manager is not installed. As this testcase'
-               'requires blackbox running in a virtual display to reproduce'
-               'correctly, please install blackbox and run this command again.')
-    super(BlackboxNotInstalledError, self).__init__(message)
+  def __init__(self, binary):
+    message = ('%s is not found. Please install it or ensure the path is '
+               'correct.' % binary)
+    super(NotInstalledError, self).__init__(message)
 
 
 class BadJobTypeDefinitionError(ExpectedException):
@@ -231,21 +230,36 @@ def interpret_ninja_output(line):
   print_progress_bar(current, total, prefix='Ninja progress:')
 
 
-def start_execute(command, cwd, environment, print_output=True):
+def check_binary(binary):
+  """Check if the binary exists."""
+  try:
+    subprocess.check_output(['which', binary])
+  except subprocess.CalledProcessError:
+    raise NotInstalledError(binary)
+
+
+def start_execute(binary, args, cwd, env=None, print_command=True):
   """Runs a command, and returns the subprocess.Popen object."""
 
-  environment = environment or {}
+  check_binary(binary)
+
+  command = (binary + ' ' + args).strip()
+  env = env or {}
 
   # See https://github.com/google/clusterfuzz-tools/issues/199 why we need this.
   sanitized_env = {}
-  for k, v in environment.iteritems():
+  for k, v in env.iteritems():
     if v is not None:
       sanitized_env[str(k)] = str(v)
 
-  if print_output:
-    env_str = ' '.join(
-        ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
-    logger.info('Running: %s %s', env_str, command)
+  env_str = ' '.join(
+      ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
+
+  log = ('Running: %s', ' '.join([env_str, command]).strip())
+  if print_command:
+    logger.info(*log)
+  else:
+    logger.debug(*log)
 
   final_env = os.environ.copy()
   final_env.update(sanitized_env)
@@ -302,12 +316,13 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
   return proc.returncode, ''.join(output_chunks)
 
 
-def execute(command, cwd, print_output=True, capture_output=True,
-            exit_on_error=True, environment=None):
+def execute(binary, args, cwd, print_command=True, print_output=True,
+            capture_output=True, exit_on_error=True, env=None):
   """Execute a bash command."""
-  proc = start_execute(command, cwd, environment, print_output)
+  proc = start_execute(binary, args, cwd, env=env, print_command=print_command)
   return wait_execute(proc, exit_on_error, capture_output, print_output,
-                      ninja_command='ninja' in command)
+                      ninja_command=binary == 'ninja')
+
 
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.

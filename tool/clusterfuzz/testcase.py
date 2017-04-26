@@ -118,9 +118,9 @@ class Testcase(object):
     os.makedirs(testcase_dir)
 
     auth_header = common.get_stored_auth_header()
-    command = 'wget --content-disposition --header="Authorization: %s" "%s"' % (
+    args = '--content-disposition --header="Authorization: %s" "%s"' % (
         auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id)
-    common.execute(command, testcase_dir)
+    common.execute('wget', args, testcase_dir)
     downloaded_filename = os.listdir(testcase_dir)[0]
 
     filename = self.get_true_testcase_file(downloaded_filename)

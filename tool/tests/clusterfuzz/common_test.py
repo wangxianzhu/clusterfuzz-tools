@@ -98,11 +98,13 @@ class ExecuteTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['subprocess.Popen',
                          'logging.getLogger',
                          'logging.config.dictConfig',
+                         'clusterfuzz.common.check_binary',
                          'clusterfuzz.common.wait_timeout',
                          'clusterfuzz.common.interpret_ninja_output',
                          'os.environ.copy'])
     self.mock.copy.return_value = {'OS': 'ENVIRON'}
     self.mock.dictConfig.return_value = {}
+
     from clusterfuzz import local_logging
     local_logging.start_loggers()
     self.lines = 'Line 1\nLine 2\nLine 3'
@@ -119,9 +121,9 @@ class ExecuteTest(helpers.ExtendedTestCase):
     x = mock.Mock()
     x.read.side_effect = ['part1', 'part2\n']
     self.mock.Popen.return_value = mock.Mock(stdout=x, returncode=0)
-    common.execute('ninja do this plz', '~/working/directory',
+    common.execute('ninja', 'do this plz', '~/working/directory',
                    print_output=True, exit_on_error=True,
-                   environment={'a': 'b', 1: 2, 'c': None})
+                   env={'a': 'b', 1: 2, 'c': None})
     self.assert_n_calls(1, [self.mock.interpret_ninja_output])
     self.mock.Popen.assert_called_once_with(
         'ninja do this plz',
@@ -134,14 +136,16 @@ class ExecuteTest(helpers.ExtendedTestCase):
         preexec_fn=os.setsid
     )
 
-  def run_execute(self, print_out, exit_on_err):
+  def run_execute(self, print_cmd, print_out, exit_on_err):
     return common.execute(
-        'cmd',
+        'cmd', '',
         '~/working/directory',
+        print_command=print_cmd,
         print_output=print_out,
         exit_on_error=exit_on_err)
 
-  def run_popen_assertions(self, code, print_out=True, exit_on_err=True):
+  def run_popen_assertions(
+      self, code, print_cmd=True, print_out=True, exit_on_err=True):
     """Runs the popen command and tests the output."""
 
     self.mock.Popen.reset_mock()
@@ -152,38 +156,81 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
     if will_exit:
       with self.assertRaises(SystemExit):
-        return_code, returned_lines = self.run_execute(print_out, exit_on_err)
+        return_code, returned_lines = self.run_execute(
+            print_cmd, print_out, exit_on_err)
     else:
-      return_code, returned_lines = self.run_execute(print_out, exit_on_err)
+      return_code, returned_lines = self.run_execute(
+          print_cmd, print_out, exit_on_err)
 
     self.assertEqual(return_code, None if will_exit else code)
     self.assertEqual(returned_lines, None if will_exit else self.lines)
     self.assert_exact_calls(self.mock.Popen.return_value.wait, [mock.call()])
-    self.assert_exact_calls(self.mock.Popen, [mock.call(
-        'cmd',
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        stdin=subprocess.PIPE,
-        cwd='~/working/directory',
-        env={'OS': 'ENVIRON'},
-        preexec_fn=os.setsid)])
+    self.assert_exact_calls(self.mock.Popen, [
+        mock.call(
+            'cmd',
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            cwd='~/working/directory',
+            env={'OS': 'ENVIRON'},
+            preexec_fn=os.setsid),
+    ])
 
   def test_process_runs_successfully(self):
     """Test execute when the process successfully runs."""
 
     return_code = 0
-    for print_out in [True, False]:
-      for exit_on_error in [True, False]:
-        self.run_popen_assertions(return_code, print_out, exit_on_error)
+    for print_cmd in [True, False]:
+      for print_out in [True, False]:
+        for exit_on_error in [True, False]:
+          self.run_popen_assertions(
+              return_code, print_cmd, print_out, exit_on_error)
 
   def test_process_run_fails(self):
     """Test execute when the process does not run successfully."""
 
     return_code = 1
-    for print_out in [True, False]:
-      for exit_on_error in [True, False]:
-        self.run_popen_assertions(return_code, print_out, exit_on_error)
+    for print_cmd in [True, False]:
+      for print_out in [True, False]:
+        for exit_on_error in [True, False]:
+          self.run_popen_assertions(
+              return_code, print_cmd, print_out, exit_on_error)
+
+  def test_check_binary_fail(self):
+    """Test check_binary fail."""
+    self.mock.check_binary.side_effect = common.NotInstalledError('cmd')
+
+    with self.assertRaises(common.NotInstalledError) as cm:
+      common.execute('cmd', 'aaa', '~/working/directory')
+
+    self.assert_exact_calls(self.mock.check_binary, [mock.call('cmd')])
+    self.assertEqual(
+        'cmd is not found. Please install it or ensure the path is correct.',
+        cm.exception.message)
+
+
+class CheckBinaryTest(helpers.ExtendedTestCase):
+  """Test check_binary."""
+
+  def setUp(self):
+    helpers.patch(self, ['subprocess.check_output'])
+
+  def test_valid(self):
+    """Test a valid binary."""
+    common.check_binary('test')
+    self.mock.check_output.assert_called_once_with(['which', 'test'])
+
+  def test_invalid(self):
+    """Test an invalid binary."""
+    self.mock.check_output.side_effect = subprocess.CalledProcessError(1, '')
+    with self.assertRaises(common.NotInstalledError) as cm:
+      common.check_binary('test')
+
+    self.mock.check_output.assert_called_once_with(['which', 'test'])
+    self.assertEqual(
+        'test is not found. Please install it or ensure the path is correct.',
+        cm.exception.message)
 
 
 class StoreAuthHeaderTest(helpers.ExtendedTestCase):

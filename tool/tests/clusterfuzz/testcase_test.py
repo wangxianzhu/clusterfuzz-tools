@@ -125,11 +125,14 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
 
     self.assertEqual(result, filename)
     self.assert_exact_calls(self.mock.get_stored_auth_header, [mock.call()])
-    self.assert_exact_calls(self.mock.execute, [mock.call(
-        ('wget --content-disposition --header="Authorization: %s" "%s"' %
-         (self.mock.get_stored_auth_header.return_value,
-          testcase.CLUSTERFUZZ_TESTCASE_URL % str(12345))),
-        self.testcase_dir)])
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call(
+            'wget',
+            '--content-disposition --header="Authorization: %s" "%s"' % (
+                self.mock.get_stored_auth_header.return_value,
+                testcase.CLUSTERFUZZ_TESTCASE_URL % str(12345)),
+            self.testcase_dir)
+    ])
     self.assertTrue(os.path.exists(self.testcase_dir))
 
 

@@ -187,9 +187,10 @@ class BaseReproducer(object):
 
     self.pre_build_steps()
 
-    command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
-    return common.execute(command, os.path.dirname(self.binary_path),
-                          environment=self.environment, exit_on_error=False)
+    return common.execute(
+        self.binary_path, '%s %s' % (self.args, self.testcase_path),
+        os.path.dirname(self.binary_path), env=self.environment,
+        exit_on_error=False)
 
   def get_stacktrace_info(self, trace):
     """Post a stacktrace, return (crash_state, crash_type)."""
@@ -271,7 +272,7 @@ class Blackbox(object):
                                        env={'DISPLAY': display_name})
     except OSError, e:
       if str(e) == '[Errno 2] No such file or directory':
-        raise common.BlackboxNotInstalledError
+        raise common.NotInstalledError('blackbox')
       raise
 
     time.sleep(3)
@@ -308,12 +309,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
   def xdotool_command(self, command, display_name):
     """Run a command, returning its output."""
-    proc = common.start_execute(
-        'xdotool %s' % command, os.path.expanduser('~'),
-        environment={'DISPLAY': display_name})
-
-    common.wait_execute(proc, exit_on_error=False, capture_output=False,
-                        print_output=False)
+    common.execute('xdotool', command, '.', env={'DISPLAY': display_name})
 
   def find_windows_for_process(self, process_id, display_name):
     """Return visible windows belonging to a process."""
@@ -322,23 +318,22 @@ class LinuxChromeJobReproducer(BaseReproducer):
       return []
 
     logger.info(
-        'Waiting for 20 seconds to ensure all windows (pid=%s, display=%s) '
-        'appear.', pids, display_name)
+        'Waiting for 20 seconds to ensure all windows appear: '
+        'pid=%s, display=%s', pids, display_name)
     time.sleep(20)
 
     visible_windows = set()
     for pid in pids:
       _, windows = common.execute(
-          ('xdotool search --all --pid %s --onlyvisible --name'
-           ' ".*"' % pid), os.path.expanduser('~'),
-          environment={'DISPLAY': display_name},
-          exit_on_error=False, print_output=False)
+          'xdotool', 'search --all --pid %s --onlyvisible --name ".*"' % pid,
+          '.', env={'DISPLAY': display_name}, exit_on_error=False,
+          print_command=False, print_output=False)
       for line in windows.splitlines():
         if not line.isdigit():
           continue
         visible_windows.add(line)
 
-    logger.info('Found windows: %s', visible_windows)
+    logger.info('Found windows: %s', ', '.join(list(visible_windows)))
     return visible_windows
 
   def execute_gesture(self, gesture, window, display_name):
@@ -363,7 +358,6 @@ class LinuxChromeJobReproducer(BaseReproducer):
       self.xdotool_command('windowactivate --sync %s' % window, display_name)
 
       for gesture in self.gestures:
-        logger.debug(gesture)
         self.execute_gesture(gesture, window, display_name)
 
   def pre_build_steps(self):
@@ -386,11 +380,12 @@ class LinuxChromeJobReproducer(BaseReproducer):
                                             'asan_symbolize.py'))
     symbolizer_proxy_location = common.get_resource(
         0755, 'asan_symbolize_proxy.py')
-    x = common.start_execute(asan_symbolizer_location, os.path.expanduser('~'),
-                             {'LLVM_SYMBOLIZER_PATH': symbolizer_proxy_location,
-                              'CHROMIUM_SRC': self.source_directory})
+    proc = common.start_execute(
+        asan_symbolizer_location, '', os.path.expanduser('~'),
+        env={'LLVM_SYMBOLIZER_PATH': symbolizer_proxy_location,
+             'CHROMIUM_SRC': self.source_directory})
     output += '\0'
-    out, _ = x.communicate(input=output)
+    out, _ = proc.communicate(input=output)
     return out
 
 
@@ -407,13 +402,15 @@ class LinuxChromeJobReproducer(BaseReproducer):
       self.args += ' --disable-gl-drawing-for-tests'
 
     with Blackbox(self.disable_blackbox) as display_name:
-      command = '%s %s %s' % (self.binary_path, self.args, self.testcase_path)
-
       self.environment['DISPLAY'] = display_name
       self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
-      process = common.start_execute(command, os.path.dirname(self.binary_path),
-                                     environment=self.environment)
+
+      process = common.start_execute(
+          self.binary_path, '%s %s' % (self.args, self.testcase_path),
+          os.path.dirname(self.binary_path), env=self.environment)
+
       if self.gestures:
         self.run_gestures(process, display_name)
+
       err, out = common.wait_execute(process, exit_on_error=False, timeout=15)
       return err, self.post_run_symbolize(out)

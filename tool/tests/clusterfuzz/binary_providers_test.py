@@ -112,11 +112,11 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
     self.provider.download_build_data()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gsutil cp gs://abc.zip .',
+        mock.call('gsutil', 'cp gs://abc.zip .',
                   binary_providers.CLUSTERFUZZ_DIR),
-        mock.call(('unzip -q %s -d %s' %
-                   (os.path.join(binary_providers.CLUSTERFUZZ_DIR, 'abc.zip'),
-                    binary_providers.CLUSTERFUZZ_BUILDS_DIR)),
+        mock.call('unzip', '-q %s -d %s' %
+                  (os.path.join(binary_providers.CLUSTERFUZZ_DIR, 'abc.zip'),
+                   binary_providers.CLUSTERFUZZ_BUILDS_DIR),
                   cwd=binary_providers.CLUSTERFUZZ_DIR)])
     self.assert_exact_calls(self.mock.chmod, [
         mock.call(os.path.expanduser('~/.clusterfuzz/builds/1234_build/d8'),
@@ -277,17 +277,18 @@ class BuildTargetTest(helpers.ExtendedTestCase):
     builder.build_target()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gclient sync', chrome_source),
+        mock.call('gclient', 'sync', chrome_source),
+        mock.call('gclient', 'runhooks', chrome_source,
+                  env={'GYP_DEFINES': 'asan=1'}),
+        mock.call('gypfiles/gyp_v8', '', chrome_source,
+                  env={'GYP_DEFINES': 'asan=1'}),
         mock.call(
-            'gclient runhooks', chrome_source,
-            environment={'GYP_DEFINES': 'asan=1'}),
-        mock.call(
-            'gypfiles/gyp_v8', chrome_source,
-            environment={'GYP_DEFINES': 'asan=1'}),
-        mock.call(
-            ("ninja -w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
-             "-j 120 -l 15 d8"), chrome_source, capture_output=False)])
-
+            'ninja',
+            ("-w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
+             '-j 120 -l 15 d8'),
+            chrome_source,
+            capture_output=False)
+    ])
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
 
@@ -319,7 +320,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.setup_gn_args()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gn gen --check %s' % self.testcase_dir,
+        mock.call('gn', 'gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), 'use_goma = true\ngoma_dir = "/goma/dir"\n')
@@ -339,7 +340,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.setup_gn_args()
 
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gn gen --check %s' % self.testcase_dir,
+        mock.call('gn', 'gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), 'use_goma = true\ngoma_dir = "/goma/dir"\n')
@@ -356,8 +357,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.GenericBuilder.source_dir_is_dirty'])
     self.chrome_source = '/usr/local/google/home/user/repos/chromium/src'
-    self.command = ('git fetch && git checkout 1a2s3d4f'
-                    ' in %s' % self.chrome_source)
+    self.command = 'git checkout 1a2s3d4f in %s' % self.chrome_source
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': self.chrome_source})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
@@ -373,15 +373,14 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     with self.assertRaises(SystemExit):
       self.builder.checkout_source_by_sha()
 
-    self.assert_exact_calls(
-        self.mock.execute,
-        [mock.call('git rev-parse HEAD',
-                   self.chrome_source,
-                   print_output=False)])
-    self.assert_exact_calls(self.mock.check_confirm,
-                            [mock.call(
-                                'Proceed with the following command:\n%s?' %
-                                self.command)])
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('git', 'rev-parse HEAD', self.chrome_source,
+                  print_command=False, print_output=False),
+        mock.call('git', 'fetch', self.chrome_source)
+    ])
+    self.assert_exact_calls(self.mock.check_confirm, [
+        mock.call('Proceed with the following command:\n%s?' % self.command)
+    ])
 
   def test_not_already_checked_out(self):
     """Tests when the correct git sha is not already checked out."""
@@ -392,24 +391,28 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(
         self.mock.execute,
-        [mock.call('git rev-parse HEAD',
-                   self.chrome_source,
-                   print_output=False),
-         mock.call('git fetch && git checkout 1a2s3d4f', self.chrome_source)])
-    self.assert_exact_calls(self.mock.check_confirm,
-                            [mock.call(
-                                'Proceed with the following command:\n%s?' %
-                                self.command)])
+        [
+            mock.call('git', 'rev-parse HEAD', self.chrome_source,
+                      print_command=False, print_output=False),
+            mock.call('git', 'fetch', self.chrome_source),
+            mock.call('git', 'checkout 1a2s3d4f', self.chrome_source)
+        ]
+    )
+    self.assert_exact_calls(self.mock.check_confirm, [
+        mock.call('Proceed with the following command:\n%s?' % self.command)
+    ])
+
   def test_already_checked_out(self):
     """Tests when the correct git sha is already checked out."""
 
     self.mock.execute.return_value = [0, '1a2s3d4f']
     self.builder.checkout_source_by_sha()
 
-    self.assert_exact_calls(self.mock.execute,
-                            [mock.call('git rev-parse HEAD',
-                                       self.chrome_source,
-                                       print_output=False)])
+    self.assert_exact_calls(
+        self.mock.execute,
+        [mock.call('git', 'rev-parse HEAD', self.chrome_source,
+                   print_command=False, print_output=False)]
+    )
     self.assert_n_calls(0, [self.mock.check_confirm])
 
 
@@ -478,7 +481,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.setup_gn_args()
 
     self.assert_exact_calls(self.mock.execute, [mock.call(
-        'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
+        'gn', 'gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), ('goma_dir = "/goma/dir"\n'
                                   'use_goma = true\n'
@@ -501,7 +504,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.builder.setup_gn_args()
 
     self.assert_exact_calls(self.mock.execute, [mock.call(
-        'gn gen  %s' % self.testcase_dir, '/chrome/source/dir')])
+        'gn', 'gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), ('use_goma = false\n'
                                   'pdf_is_standalone = true\n'))
@@ -533,9 +536,11 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     self.builder.build_target()
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gclient sync', '/source/dir'),
-        mock.call(("ninja -w 'dupbuild=err' -C /build/dir -j 120 -l 15"
-                   " pdfium_test"), '/source/dir', capture_output=False),])
+        mock.call('gclient', 'sync', '/source/dir'),
+        mock.call(
+            'ninja',
+            "-w 'dupbuild=err' -C /build/dir -j 120 -l 15 pdfium_test",
+            '/source/dir', capture_output=False)])
 
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the methods in ChromiumBuilder."""
@@ -600,11 +605,13 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.get_goma_cores, [mock.call(self.builder)])
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('gclient sync', '/chrome/src'),
-        mock.call('gclient runhooks', '/chrome/src'),
+        mock.call('gclient', 'sync', '/chrome/src'),
+        mock.call('gclient', 'runhooks', '/chrome/src'),
         mock.call(
-            ("ninja -w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
-             "-j 120 -l 15 target"), '/chrome/src',
+            'ninja',
+            ("-w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
+             '-j 120 -l 15 target'),
+            '/chrome/src',
             capture_output=False)])
 
   def test_get_binary_path(self):
@@ -641,9 +648,7 @@ class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
                         'target_arch=x64 use_goma=1 '
                         'use_prebuilt_instrumented_libraries=1')}
     self.assert_exact_calls(self.mock.execute, [
-        mock.call(
-            'gclient runhooks', '/chrome/src',
-            environment=env)])
+        mock.call('gclient', 'runhooks', '/chrome/src', env=env)])
 
 
 class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
@@ -666,8 +671,8 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     self.builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
-            'gclient runhooks', '/chrome/src',
-            environment={
+            'gclient', 'runhooks', '/chrome/src',
+            env={
                 'GYP_DEFINES': (
                     'cfi_vptr=1 clang=1 component=static_library '
                     'target_arch=x64'),
@@ -680,7 +685,7 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     """Test the prebuild_steps method."""
     self.builder.setup_gn_args()
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('build/download_gold_plugin.py', '/chrome/src')])
+        mock.call('build/download_gold_plugin.py', '', '/chrome/src')])
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
 
 
@@ -703,8 +708,8 @@ class UbsanVptrChromiumBuilderTest(helpers.ExtendedTestCase):
     builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
-            'gclient runhooks', '/chrome/src',
-            environment={
+            'gclient', 'runhooks', '/chrome/src',
+            env={
                 'GYP_CHROMIUM_NO_ACTION': '1',
                 'GYP_DEFINES': (
                     'clang=1 component=static_library gomadir=/goma/dir '
@@ -734,8 +739,8 @@ class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
     builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
-            'gclient runhooks', '/chrome/src',
-            environment={
+            'gclient', 'runhooks', '/chrome/src',
+            env={
                 'GYP_DEFINES': (
                     'clang=1 component=static_library gomadir=/goma/dir msan=1 '
                     'msan_track_origins=0 sanitizer_coverage=edge '

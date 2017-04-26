@@ -86,13 +86,14 @@ class BinaryProvider(object):
 
     gsutil_path = self.build_url.replace(
         'https://storage.cloud.google.com/', 'gs://')
-    common.execute('gsutil cp %s .' % gsutil_path, CLUSTERFUZZ_DIR)
+    common.execute('gsutil', 'cp %s .' % gsutil_path, CLUSTERFUZZ_DIR)
 
     filename = os.path.split(gsutil_path)[1]
     saved_file = os.path.join(CLUSTERFUZZ_DIR, filename)
 
-    common.execute('unzip -q %s -d %s' % (saved_file, CLUSTERFUZZ_BUILDS_DIR),
-                   cwd=CLUSTERFUZZ_DIR)
+    common.execute(
+        'unzip', '-q %s -d %s' % (saved_file, CLUSTERFUZZ_BUILDS_DIR),
+        cwd=CLUSTERFUZZ_DIR)
 
     logger.info('Cleaning up...')
     os.remove(saved_file)
@@ -148,9 +149,9 @@ class GenericBuilder(BinaryProvider):
 
   def get_current_sha(self):
     try:
-      _, current_sha = common.execute('git rev-parse HEAD',
-                                      self.source_directory,
-                                      print_output=False)
+      _, current_sha = common.execute(
+          'git', 'rev-parse HEAD', self.source_directory, print_command=False,
+          print_output=False)
     except SystemExit:
       logger.info(
           'Error: The selected directory is not a valid git repository.')
@@ -160,8 +161,9 @@ class GenericBuilder(BinaryProvider):
   def source_dir_is_dirty(self):
     """Returns true if the source dir has uncommitted changes."""
 
-    _, diff_result = common.execute('git diff', self.source_directory,
-                                    print_output=False)
+    _, diff_result = common.execute(
+        'git', 'diff', self.source_directory, print_command=False,
+        print_output=False)
     return bool(diff_result)
 
   def out_dir_name(self):
@@ -184,14 +186,18 @@ class GenericBuilder(BinaryProvider):
     if self.get_current_sha() == self.git_sha:
       return
 
-    command = 'git fetch && git checkout %s' % self.git_sha
-    common.check_confirm('Proceed with the following command:\n%s in %s?' %
-                         (command, self.source_directory))
+    common.execute('git', 'fetch', self.source_directory)
+
+    binary = 'git'
+    args = 'checkout %s' % self.git_sha
+    common.check_confirm(
+        'Proceed with the following command:\n'
+        '%s %s in %s?' % (binary, args, self.source_directory))
     if self.source_dir_is_dirty():
-      logger.info(('Your source directory has uncommitted changes: please'
-                   'commit or stash these changes and re-run this tool'))
+      logger.info('Your source directory has uncommitted changes: please'
+                  'commit or stash these changes and re-run this tool')
       sys.exit(1)
-    common.execute(command, self.source_directory)
+    common.execute(binary, args, self.source_directory)
 
   def deserialize_gn_args(self, args):
     """Convert gn args into a dict."""
@@ -249,7 +255,7 @@ class GenericBuilder(BinaryProvider):
         for k, v in self.gn_args_options.iteritems():
           f.write('%s = %s\n' % (k, v))
 
-    common.execute('gn gen %s %s' % (self.gn_flags, self.build_directory),
+    common.execute('gn', 'gen %s %s' % (self.gn_flags, self.build_directory),
                    self.source_directory)
 
   def pre_build_steps(self):
@@ -271,13 +277,14 @@ class GenericBuilder(BinaryProvider):
 
     #Note: gclient sync must be run before setting up the gn args
     if not self.disable_gclient_commands:
-      common.execute('gclient sync', self.source_directory)
+      common.execute('gclient', 'sync', self.source_directory)
     self.pre_build_steps()
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()
     common.execute(
-        ("ninja -w 'dupbuild=err' -C %s -j %i -l 15 %s" % (
-            self.build_directory, goma_cores, self.target)),
+        'ninja',
+        "-w 'dupbuild=err' -C %s -j %i -l 15 %s" % (
+            self.build_directory, goma_cores, self.target),
         self.source_directory, capture_output=False)
 
   def get_build_directory(self):
@@ -332,11 +339,11 @@ class V8Builder(GenericBuilder):
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
       common.execute(
-          'gclient runhooks', self.source_directory,
-          environment={'GYP_DEFINES': 'asan=1'})
+          'gclient', 'runhooks', self.source_directory,
+          env={'GYP_DEFINES': 'asan=1'})
     common.execute(
-        'gypfiles/gyp_v8', self.source_directory,
-        environment={'GYP_DEFINES': 'asan=1'})
+        'gypfiles/gyp_v8', '', self.source_directory,
+        env={'GYP_DEFINES': 'asan=1'})
 
 
 class ChromiumBuilder(GenericBuilder):
@@ -360,7 +367,7 @@ class ChromiumBuilder(GenericBuilder):
 
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
-      common.execute('gclient runhooks', self.source_directory)
+      common.execute('gclient', 'runhooks', self.source_directory)
 
 
 class CfiChromiumBuilder(ChromiumBuilder):
@@ -369,9 +376,8 @@ class CfiChromiumBuilder(ChromiumBuilder):
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
       common.execute(
-          'gclient runhooks',
-          self.source_directory,
-          environment={
+          'gclient', 'runhooks', self.source_directory,
+          env={
               'GYP_DEFINES':
                   'cfi_vptr=1 clang=1 component=static_library target_arch=x64',
               'GYP_LINK_CONCURRENCY': '8',
@@ -381,7 +387,7 @@ class CfiChromiumBuilder(ChromiumBuilder):
   def setup_gn_args(self):
     """Setup the gn args and then run download_gold_plugin.py."""
     super(CfiChromiumBuilder, self).setup_gn_args()
-    common.execute('build/download_gold_plugin.py', self.source_directory)
+    common.execute('build/download_gold_plugin.py', '', self.source_directory)
 
 
 class MsanChromiumBuilder(ChromiumBuilder):
@@ -390,9 +396,8 @@ class MsanChromiumBuilder(ChromiumBuilder):
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
       common.execute(
-          'gclient runhooks',
-          self.source_directory,
-          environment={
+          'gclient', 'runhooks', self.source_directory,
+          env={
               'GYP_DEFINES': (
                   'clang=1 component=static_library gomadir=%s msan=1 '
                   'msan_track_origins=0 sanitizer_coverage=edge '
@@ -408,9 +413,8 @@ class LibfuzzerMsanBuilder(ChromiumBuilder):
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
       common.execute(
-          'gclient runhooks',
-          self.source_directory,
-          environment={
+          'gclient', 'runhooks', self.source_directory,
+          env={
               'GYP_DEFINES': (
                   'clang=1 component=static_library gomadir=%s msan=1 '
                   'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
@@ -425,9 +429,8 @@ class UbsanVptrChromiumBuilder(ChromiumBuilder):
   def pre_build_steps(self):
     if not self.disable_gclient_commands:
       common.execute(
-          'gclient runhooks',
-          self.source_directory,
-          environment={
+          'gclient', 'runhooks', self.source_directory,
+          env={
               'GYP_CHROMIUM_NO_ACTION': '1',
               'GYP_DEFINES': (
                   'clang=1 component=static_library gomadir=%s '

@@ -169,13 +169,17 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     reproducer = reproducers.BaseReproducer(
         mocked_provider, mocked_testcase, 'ASAN', False, '--test')
     reproducer.reproduce_crash()
-    self.assert_exact_calls(self.mock.execute, [mock.call(
-        '%s %s --test %s' % (
-            '/chrome/source/folder/d8', args, testcase_file),
-        '/chrome/source/folder', environment={
-            'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
-            'ASAN_OPTIONS': 'option2=false:option1=true', 'DISPLAY': ':0.0'},
-        exit_on_error=False)])
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call(
+            '/chrome/source/folder/d8', '%s --test %s' % (args, testcase_file),
+            '/chrome/source/folder',
+            env={
+                'ASAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer',
+                'ASAN_OPTIONS': 'option2=false:option1=true',
+                'DISPLAY': ':0.0'
+            },
+            exit_on_error=False)
+    ])
 
   def test_reproduce_crash(self):
     """Ensures that the crash reproduction is called correctly."""
@@ -205,15 +209,22 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     err, text = reproducer.reproduce_crash()
     self.assertEqual(err, 0)
     self.assertEqual(text, 'symbolized')
-    self.assert_exact_calls(self.mock.start_execute, [mock.call(
-        ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
-         '--test --user-data-dir=/tmp/clusterfuzz-user-profile-data '
-         '--disable-gl-drawing-for-tests %s/.'
-         'clusterfuzz/123456_testcase/testcase.js' % os.path.expanduser('~')),
-        '/chrome/source/folder', environment={
-            'DISPLAY': ':display',
-            'ASAN_OPTIONS': 'option2=false:option1=true',
-            'UBSAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer'})])
+    self.assert_exact_calls(self.mock.start_execute, [
+        mock.call(
+            '/chrome/source/folder/d8',
+            ('--turbo --always-opt --random-seed=12345 --test '
+             '--user-data-dir=/tmp/clusterfuzz-user-profile-data '
+             '--disable-gl-drawing-for-tests '
+             '%s/.clusterfuzz/123456_testcase/testcase.js'
+             % os.path.expanduser('~')),
+            '/chrome/source/folder',
+            env={
+                'DISPLAY': ':display',
+                'ASAN_OPTIONS': 'option2=false:option1=true',
+                'UBSAN_SYMBOLIZER_PATH':
+                    '/chrome/source/folder/llvm-symbolizer'
+            })
+    ])
     self.assert_exact_calls(self.mock.wait_execute, [mock.call(
         self.mock.start_execute.return_value, exit_on_error=False, timeout=15)])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
@@ -248,14 +259,21 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     err, text = reproducer.reproduce_crash()
     self.assertEqual(err, 0)
     self.assertEqual(text, 'symbolized')
-    self.assert_exact_calls(self.mock.start_execute, [mock.call(
-        ('/chrome/source/folder/d8 --turbo --always-opt --random-seed=12345 '
-         ' --test --user-data-dir=/tmp/clusterfuzz-user-profile-data %s/.'
-         'clusterfuzz/123456_testcase/testcase.js' % os.path.expanduser('~')),
-        '/chrome/source/folder', environment={
-            'DISPLAY': ':display',
-            'ASAN_OPTIONS': 'option2=false:option1=true',
-            'UBSAN_SYMBOLIZER_PATH': '/chrome/source/folder/llvm-symbolizer'})])
+    self.assert_exact_calls(self.mock.start_execute, [
+        mock.call(
+            '/chrome/source/folder/d8',
+            ('--turbo --always-opt --random-seed=12345  --test '
+             '--user-data-dir=/tmp/clusterfuzz-user-profile-data '
+             '%s/.clusterfuzz/123456_testcase/testcase.js'
+             % os.path.expanduser('~')),
+            '/chrome/source/folder',
+            env={
+                'DISPLAY': ':display',
+                'ASAN_OPTIONS': 'option2=false:option1=true',
+                'UBSAN_SYMBOLIZER_PATH':
+                    '/chrome/source/folder/llvm-symbolizer'
+            })
+    ])
     self.assert_exact_calls(self.mock.wait_execute, [mock.call(
         self.mock.start_execute.return_value, exit_on_error=False, timeout=15)])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
@@ -293,9 +311,7 @@ class XdotoolCommandTest(helpers.ExtendedTestCase):
   """Tests the xdotool_command method."""
 
   def setUp(self):
-    helpers.patch(self, ['clusterfuzz.common.start_execute',
-                         'clusterfuzz.common.wait_execute'])
-    self.mock.start_execute.return_value = mock.Mock()
+    helpers.patch(self, ['clusterfuzz.common.execute'])
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
@@ -303,12 +319,9 @@ class XdotoolCommandTest(helpers.ExtendedTestCase):
     """Tests calling the method."""
 
     self.reproducer.xdotool_command('command to run', ':2753')
-    self.assert_exact_calls(self.mock.start_execute, [mock.call(
-        'xdotool command to run', os.path.expanduser('~'),
-        environment={'DISPLAY': ':2753'})])
-    self.assert_exact_calls(self.mock.wait_execute, [mock.call(
-        self.mock.start_execute.return_value, exit_on_error=False,
-        capture_output=False, print_output=False)])
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('xdotool', 'command to run', '.', env={'DISPLAY': ':2753'})
+    ])
 
 
 class FindWindowsForProcessTest(helpers.ExtendedTestCase):
@@ -472,7 +485,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with self.assertRaises(common.BlackboxNotInstalledError):
+    with self.assertRaises(common.NotInstalledError):
       with reproducers.Blackbox(False) as display_name:
         self.assertNotEqual(display_name, ':display')
 
@@ -598,10 +611,12 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     result = self.reproducer.post_run_symbolize(output)
 
     self.assert_exact_calls(self.mock.start_execute, [
-        mock.call(('/path/to/chromium/tools/valgrind/asan/asan_symbolize.py'),
-                  os.path.expanduser('~'),
-                  {'LLVM_SYMBOLIZER_PATH': 'asan_sym_proxy.py',
-                   'CHROMIUM_SRC': '/path/to/chromium'})])
+        mock.call(
+            '/path/to/chromium/tools/valgrind/asan/asan_symbolize.py', '',
+            os.path.expanduser('~'),
+            env={'LLVM_SYMBOLIZER_PATH': 'asan_sym_proxy.py',
+                 'CHROMIUM_SRC': '/path/to/chromium'})
+    ])
     self.assert_exact_calls(self.mock.start_execute.return_value.communicate,
                             [mock.call(input='output_lines\x00')])
     self.assertEqual(result, 'symbolized')

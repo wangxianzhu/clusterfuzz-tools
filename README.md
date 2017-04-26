@@ -62,8 +62,13 @@ Develop
 Deploy CI
 ------------
 
-1. Build the CI Pex binary: `./pants binary ci/continuous_integration:ci`
-2. TODO(everestmz): Please fill in the ansible command.
+1. Ensure all the latest binaries are present and symlinked in
+   `/google/data/ro/teams/clusterfuzz-tools/releases`
+2. Run `ansible-playbook playbook.yml -e release=<release-type>
+   machine=<machine-name>` where `release-type` is one of `[release,
+   release-candidate, master]` and `machine-name` is the prefix of the machine
+   you wish to update or deploy (for example, `machine=release` corresponds to
+   the boot disk `release-ci-boot` and the machine `release-ci`).
 
 
 Publish

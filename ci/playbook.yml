@@ -10,16 +10,16 @@
         project_id: "981641712411"
         size_gb: 100
         image: ubuntu-1404
-        name: "{{ release }}-ci-boot"
+        name: "{{ machine }}-ci-boot"
         state: present
         service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
         credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
     - name: Create the instance
       gce:
         disks:
-          - name: "{{ release }}-ci-boot"
+          - name: "{{ machine }}-ci-boot"
             mode: READ_WRITE
-        instance_names: "{{ release }}-ci"
+        instance_names: "{{ machine }}-ci"
         machine_type: n1-standard-64
         service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
         credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
@@ -113,7 +113,14 @@
         - {'src': 'continuous_integration/daemon', 'dest': '/python-daemon'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
-        - {'src': '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz-rc', 'dest': '/python-daemon/clusterfuzz'}
+    - copy:
+        src: '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz-rc'
+        dest: '/python-daemon/clusterfuzz'
+        force: true
+        owner: root
+        group: root
+        mode:  'u=rwx,g=rwx,o=rwx'
+      when: release == "release-candidate"
     - copy:
         src: '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz'
         dest: '/python-daemon/clusterfuzz'

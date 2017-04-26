@@ -51,4 +51,5 @@ chromium:
         linux_msan_chrome: { preset: linux_chromium, builder: MsanChromium, sanitizer: MSAN }
         linux_msan_pdfium: { preset: pdfium_chromium, sanitizer: MSAN }
         linux_ubsan_chrome: { preset: linux_chromium, sanitizer: UBSAN }
+        linux_ubsan_vptr_content_shell_drt: { preset: linux_chromium, builder: UbsanVptrChromium, binary: content_shell, sanitizer: UBSAN }
 

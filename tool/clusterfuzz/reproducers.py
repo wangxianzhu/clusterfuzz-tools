@@ -274,7 +274,7 @@ class Blackbox(object):
         raise common.BlackboxNotInstalledError
       raise
 
-    time.sleep(30)
+    time.sleep(3)
     return display_name
 
   def __exit__(self, unused_type, unused_value, unused_traceback):

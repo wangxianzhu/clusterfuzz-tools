@@ -512,7 +512,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.Popen, [
         mock.call(['blackbox'], env={'DISPLAY': ':display'})])
     self.assert_exact_calls(self.mock.Popen.return_value.kill, [mock.call()])
-    self.assert_exact_calls(self.mock.sleep, [mock.call(30)])
+    self.assert_exact_calls(self.mock.sleep, [mock.call(3)])
 
   def test_no_blackbox(self):
     """Tests that the manager doesnt start blackbox when disabled."""

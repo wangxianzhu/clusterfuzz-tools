@@ -684,6 +684,37 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
 
 
+class UbsanVptrChromiumBuilderTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of UbsanVptrChromiumBuilder."""
+
+  def test_prebuild_steps(self):
+    """Test the prebuild_steps method."""
+
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision'])
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.mock_os_environment({'V8_SRC': '/chrome/src'})
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    builder = binary_providers.UbsanVptrChromiumBuilder(
+        testcase, binary_definition, False, '/goma/dir', None)
+
+    builder.pre_build_steps()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call(
+            'gclient runhooks', '/chrome/src',
+            environment={
+                'GYP_CHROMIUM_NO_ACTION': '1',
+                'GYP_DEFINES': (
+                    'clang=1 component=static_library gomadir=/goma/dir '
+                    'release_extra_cflags=-fno-sanitize-recover=undefined '
+                    'sanitizer_coverage=edge target_arch=x64 ubsan_vptr=1 '
+                    'use_goma=1')
+            })
+    ])
+
+
 class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of MsanChromiumBuilder."""
 

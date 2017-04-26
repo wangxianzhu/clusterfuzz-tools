@@ -417,3 +417,21 @@ class LibfuzzerMsanBuilder(ChromiumBuilder):
                   'use_goma=1 use_prebuilt_instrumented_libraries=1'
                   % self.goma_dir)
           })
+
+
+class UbsanVptrChromiumBuilder(ChromiumBuilder):
+  """Build UBSAN vptr."""
+
+  def pre_build_steps(self):
+    if not self.disable_gclient_commands:
+      common.execute(
+          'gclient runhooks',
+          self.source_directory,
+          environment={
+              'GYP_CHROMIUM_NO_ACTION': '1',
+              'GYP_DEFINES': (
+                  'clang=1 component=static_library gomadir=%s '
+                  'release_extra_cflags=-fno-sanitize-recover=undefined '
+                  'sanitizer_coverage=edge target_arch=x64 ubsan_vptr=1 '
+                  'use_goma=1' % self.goma_dir)
+          })

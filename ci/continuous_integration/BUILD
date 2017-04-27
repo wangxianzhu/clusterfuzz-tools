@@ -52,6 +52,7 @@ python_tests(
         '//shared',
         '//3rdparty/python:pyfakefs',
         '//3rdparty/python:mock',
+        '//3rdparty/python:py-lru-cache',
         '//3rdparty/python:requests'
     ]
 )

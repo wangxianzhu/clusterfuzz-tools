@@ -11,6 +11,7 @@ import stackdriver_logging #pylint: disable=relative-import
 import clone_chromium #pylint: disable=relative-import
 
 from oauth2client.client import GoogleCredentials
+from lru import LRUCacheDict
 
 HOME = os.path.expanduser('~')
 CLUSTERFUZZ_DIR = os.path.join(HOME, '.clusterfuzz')
@@ -23,6 +24,7 @@ DEPOT_TOOLS = os.path.join(HOME, 'depot_tools')
 SANITY_CHECKS = '/python-daemon/daemon/sanity_checks.yml'
 BINARY_LOCATION = '/python-daemon/clusterfuzz'
 TOOL_SOURCE = os.path.join(HOME, 'clusterfuzz-tools')
+TESTCASE_CACHE = LRUCacheDict(max_size=1000, expiration=172800)
 
 def load_sanity_check_testcases():
   """Return a list of all testcases to try."""
@@ -62,7 +64,10 @@ def run_testcase(testcase_id):
   proc.wait()
   resulting_output = ''.join(output_chunks)
   print resulting_output
-  return proc.returncode == 0
+
+  success = proc.returncode == 0
+  TESTCASE_CACHE[testcase_id] = success
+  return success
 
 
 def update_auth_header():
@@ -95,23 +100,30 @@ def get_supported_jobtypes():
   return result
 
 
-def load_new_testcases(latest_testcase=None):
+def load_new_testcases():
   """Returns a new list of testcases from clusterfuzz to run."""
+
   with open(AUTH_FILE_LOCATION, 'r') as f:
     auth_header = f.read()
 
-  testcases = None
+  testcases = []
   page = 1
   supported_jobtypes = get_supported_jobtypes()
-  while not testcases:
+
+  def _validate_testcase(testcase):
+    """Filter by jobtype and whether it has been successfully reproduced."""
+    return (testcase['jobType'] in supported_jobtypes['chromium'] and not
+            (testcase['id'] in TESTCASE_CACHE and
+             TESTCASE_CACHE[testcase['id']]))
+
+  while len(testcases) < 40:
     r = requests.post('https://clusterfuzz.com/v2/testcases/load',
                       headers={'Authorization': auth_header},
                       json={'page': page, 'reproducible': 'yes'})
-    testcases = r.json()['items']
-    testcases = [testcase['id'] for testcase in testcases
-                 if testcase['jobType'] in supported_jobtypes['chromium']]
-    if latest_testcase in testcases:
-      testcases = testcases[0:testcases.index(latest_testcase)]
+    new_testcases = r.json()['items']
+    new_testcases = [testcase['id'] for testcase in new_testcases
+                     if _validate_testcase(testcase)]
+    testcases.extend(t for t in new_testcases if t not in testcases)
     page += 1
   return testcases
 
@@ -169,11 +181,9 @@ def main():
   testcases = load_sanity_check_testcases()
   for testcase in testcases:
     reset_and_run_testcase(testcase, 'sanity', release)
-  latest_testcase = None
   while True:
     update_auth_header()
-    testcases = load_new_testcases(latest_testcase)
-    latest_testcase = testcases[0]
+    testcases = load_new_testcases()
     for testcase in testcases:
       reset_and_run_testcase(testcase, 'continuous', release)
 

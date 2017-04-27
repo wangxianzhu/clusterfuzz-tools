@@ -79,6 +79,7 @@
         - pyyaml
         - crcmod
         - requests[security]
+        - py_lru_cache
 - name: Setup python-daemon (runit service, folder, log folder, and service)
   hosts: continuous-integration-instances
   connection: ssh
@@ -136,4 +137,7 @@
         mode: 'u=rwx,g=rwx,o=rwx'
       with_items:
         - { src: '/etc/sv/python-daemon', dest: '/etc/service/python-daemon' }
+    - pause:
+        seconds: 10
+        prompt: Waiting 10 seconds for the server to acknowledge the CI service
     - shell: "sv restart python-daemon"

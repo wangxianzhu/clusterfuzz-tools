@@ -48,8 +48,8 @@ class MainTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.load_sanity_check_testcases,
                             [mock.call()])
     self.assert_exact_calls(self.mock.clone_chromium, [mock.call()])
-    self.assert_exact_calls(self.mock.load_new_testcases, [mock.call(None),
-                                                           mock.call(3)])
+    self.assert_exact_calls(self.mock.load_new_testcases, [mock.call(),
+                                                           mock.call()])
     self.assert_exact_calls(self.mock.reset_and_run_testcase, [
         mock.call(1, 'sanity', sys.argv[1]),
         mock.call(2, 'sanity', sys.argv[1]),
@@ -183,62 +183,31 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
   def test_no_latest_testcase(self):
     """Tests when no previous tests have been run."""
 
-    self.mock.post.return_value.json.return_value = {
+    returned_json = {
         'items': [{'jobType': 'supported',
                    'id': 12345},
                   {'jobType': 'unsupported',
                    'id': 98765},
                   {'jobType': 'support',
+                   'id': 23456},
+                  {'jobType': 'supported',
                    'id': 23456}]}
+    for i in range(0, 40):
+      returned_json['items'].append({'jobType': 'supported', 'id': i})
 
+    self.mock.post.return_value.json.return_value = returned_json
+
+    main.TESTCASE_CACHE[39] = True
+    main.TESTCASE_CACHE[38] = False
     result = main.load_new_testcases()
-    self.assertEqual(result, [12345, 23456])
+    correct_result = [12345, 23456]
+    correct_result.extend(range(0, 39))
+    self.assertEqual(result, correct_result)
     self.assert_exact_calls(self.mock.post, [mock.call(
         'https://clusterfuzz.com/v2/testcases/load',
         headers={'Authorization': 'Bearer xyzabc'},
         json={'page': 1,
               'reproducible': 'yes'})])
-
-  def test_partial_testcase_page(self):
-    """Tests when the most recent testcase is still on page 1."""
-
-    self.mock.post.return_value.json.return_value = {
-        'items': [{'jobType': 'supported',
-                   'id': 12345},
-                  {'jobType': 'support',
-                   'id': 34567},
-                  {'jobType': 'unsupported',
-                   'id': 98765},
-                  {'jobType': 'support',
-                   'id': 23456}]}
-
-    result = main.load_new_testcases(34567)
-    self.assertEqual(result, [12345])
-    self.assert_exact_calls(self.mock.post, [mock.call(
-        'https://clusterfuzz.com/v2/testcases/load',
-        headers={'Authorization': 'Bearer xyzabc'},
-        json={'page': 1,
-              'reproducible': 'yes'})])
-
-  def test_no_new_testcases(self):
-    """Tests when there are no new testcases on the first page."""
-
-    self.mock.post.return_value.json.side_effect = [
-        {'items': [{'jobType': 'supported',
-                    'id': 12345},
-                   {'jobType': 'support',
-                    'id': 34567},
-                   {'jobType': 'unsupported',
-                    'id': 98765},
-                   {'jobType': 'support',
-                    'id': 23456}]},
-        {'items': [{'jobType': 'unsupported',
-                    'id': 369},
-                   {'jobType': 'supported',
-                    'id': 13579}]}]
-
-    result = main.load_new_testcases(12345)
-    self.assertEqual(result, [13579])
 
 
 class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):

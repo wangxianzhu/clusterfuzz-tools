@@ -74,7 +74,8 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
 
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
-                          'option=1:suppressions=/not/correct/path'),
+                          'option=1:suppressions=/not/correct/path:'
+                          'coverage_dir=test'),
         'LSAN_OPTIONS': 'other=0:suppressions=not/correct/path:option=1'}
     self.reproducer.set_up_symbolizers_suppressions()
     result = self.reproducer.environment

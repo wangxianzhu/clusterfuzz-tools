@@ -139,8 +139,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.start_execute', 'clusterfuzz.common.wait_execute',
         'clusterfuzz.common.execute',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.run_gestures',
-        'clusterfuzz.reproducers.Blackbox.__enter__',
-        'clusterfuzz.reproducers.Blackbox.__exit__',
+        'clusterfuzz.reproducers.Xvfb.__enter__',
+        'clusterfuzz.reproducers.Xvfb.__exit__',
         'clusterfuzz.common.get_resource',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize'])
     self.mock.get_resource.return_value = (
@@ -231,7 +231,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])
 
-  def test_reproduce_crash_disable_blackbox(self):
+  def test_reproduce_crash_disable_xvfb(self):
     """Ensures that disabling blackbox removes the correct args."""
 
     self.mock_os_environment({'ASAN_SYMBOLIZER_PATH': '/llvm/sym/path'})
@@ -467,8 +467,8 @@ class ExecuteGestureTest(helpers.ExtendedTestCase):
         mock.call(self.reproducer, 'type -- \'ValeM1khbW4Gt!\'', ':display')])
 
 
-class BlackboxTest(helpers.ExtendedTestCase):
-  """Used to test the Blackbox context manager."""
+class XvfbTest(helpers.ExtendedTestCase):
+  """Used to test the Xvfb context manager."""
 
   def setUp(self):
     helpers.patch(self, ['xvfbwrapper.Xvfb',
@@ -476,7 +476,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
                          'time.sleep'])
 
   def test_correct_oserror_exception(self):
-    """Ensures the correct exception is raised when Blackbox is not found."""
+    """Ensures the correct exception is raised when Xvfb is not found."""
 
     def _raise_with_message(*_unused, **_kwunused):
       del _unused, _kwunused #Not used by this method
@@ -487,7 +487,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
                                                       ':display'])
 
     with self.assertRaises(common.NotInstalledError):
-      with reproducers.Blackbox(False) as display_name:
+      with reproducers.Xvfb(False) as display_name:
         self.assertNotEqual(display_name, ':display')
 
     self.assert_n_calls(0, [self.mock.Popen.return_value.kill,
@@ -502,7 +502,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
                                                       ':display'])
 
     with self.assertRaises(OSError):
-      with reproducers.Blackbox(False) as display_name:
+      with reproducers.Xvfb(False) as display_name:
         self.assertNotEqual(display_name, ':display')
 
     self.assert_n_calls(0, [self.mock.Popen.return_value.kill,
@@ -515,7 +515,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with reproducers.Blackbox(False) as display_name:
+    with reproducers.Xvfb(False) as display_name:
       self.assertEqual(display_name, ':display')
 
     self.assert_exact_calls(self.mock.Xvfb, [mock.call(
@@ -534,7 +534,7 @@ class BlackboxTest(helpers.ExtendedTestCase):
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with reproducers.Blackbox(True) as display_name:
+    with reproducers.Xvfb(True) as display_name:
       self.assertEqual(display_name, None)
 
     self.assert_n_calls(0, [self.mock.Xvfb,

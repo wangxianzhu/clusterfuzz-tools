@@ -114,7 +114,7 @@ class BaseReproducer(object):
       gesture_start_time = DEFAULT_GESTURE_TIME
     return gesture_start_time
 
-  def __init__(self, binary_provider, testcase, sanitizer, disable_blackbox,
+  def __init__(self, binary_provider, testcase, sanitizer, disable_xvfb,
                target_args):
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
@@ -125,7 +125,7 @@ class BaseReproducer(object):
         0755, 'resources', 'llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
-    self.disable_blackbox = disable_blackbox
+    self.disable_xvfb = disable_xvfb
 
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
@@ -252,14 +252,14 @@ class LibfuzzerJobReproducer(BaseReproducer):
     super(LibfuzzerJobReproducer, self).pre_build_steps()
 
 
-class Blackbox(object):
+class Xvfb(object):
   """Run commands within a virtual display using blackbox window manager."""
 
   def __init__(self, disable=False):
-    self.disable_blackbox = disable
+    self.disable_xvfb = disable
 
   def __enter__(self):
-    if self.disable_blackbox:
+    if self.disable_xvfb:
       return None
     self.display = xvfbwrapper.Xvfb(width=1280, height=1024)
     self.display.start()
@@ -280,7 +280,7 @@ class Blackbox(object):
     return display_name
 
   def __exit__(self, unused_type, unused_value, unused_traceback):
-    if self.disable_blackbox:
+    if self.disable_xvfb:
       return
     self.blackbox.kill()
     self.display.stop()
@@ -395,14 +395,14 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
     self.pre_build_steps()
 
-    if (self.disable_blackbox and
+    if (self.disable_xvfb and
         '--disable-gl-drawing-for-tests' in self.args):
       self.args = self.args.replace('--disable-gl-drawing-for-tests', '')
-    elif (not self.disable_blackbox and
+    elif (not self.disable_xvfb and
           '--disable-gl-drawing-for-tests' not in self.args):
       self.args += ' --disable-gl-drawing-for-tests'
 
-    with Blackbox(self.disable_blackbox) as display_name:
+    with Xvfb(self.disable_xvfb) as display_name:
       self.environment['DISPLAY'] = display_name
       self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
 

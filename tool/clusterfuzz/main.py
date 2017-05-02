@@ -38,27 +38,26 @@ def execute(argv=None):
   reproduce.add_argument('testcase_id', help='The testcase ID.')
   reproduce.add_argument(
       '-c', '--current', action='store_true', default=False,
-      help=('Use the current tree. Without --current, the Chrome repository is'
-            ' switched to the commit specified in the testcase.'))
+      help=('Use the current tree; "gclient sync" and "gclient runhooks" will '
+            'not be run. On the other hand, without --current, the Chrome '
+            'repository will be switched to the commit specified in the '
+            'testcase.'))
   reproduce.add_argument(
       '-b', '--build', action='store', default='chromium',
       choices=['download', 'chromium', 'standalone'],
       help='Select which type of build to run the testcase against.')
   reproduce.add_argument(
       '-dg', '--disable-goma', action='store_true', default=False,
-      help='Disable GOMA when building binaries locally')
+      help='Disable GOMA when building binaries locally.')
   reproduce.add_argument(
       '-j', action='store', default=None, type=int,
       help='Manually specify the number of concurrent jobs for a ninja build.')
   reproduce.add_argument(
-      '--disable-gclient-commands', action='store_true', default=False,
-      help='Disable all "gclient runhooks" and "gclient sync" commands')
-  reproduce.add_argument(
       '-i', '--iterations', action='store', default=10, type=int,
-      help='Specify the number of times to attempt reproduction')
+      help='Specify the number of times to attempt reproduction.')
   reproduce.add_argument(
-      '-db', '--disable-blackbox', action='store_true', default=False,
-      help='Disable running testcases in a virtual display with Blackbox')
+      '-db', '--disable-xvfb', action='store_true', default=False,
+      help='Disable running testcases in a virtual frame buffer.')
   reproduce.add_argument(
       '--target-args', action='store', default='',
       help='Additional arguments for the target (e.g. chrome).')

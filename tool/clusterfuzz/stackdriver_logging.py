@@ -83,8 +83,7 @@ def send_log(params, stacktrace=None):
 
 
 def make_basic_params(command, testcase_id, build, current, disable_goma, j,
-                      disable_gclient_commands, iterations, disable_blackbox,
-                      target_args):
+                      iterations, disable_xvfb, target_args):
   """Creates the basic paramater dict."""
 
   return {'testcaseId': testcase_id,
@@ -93,9 +92,8 @@ def make_basic_params(command, testcase_id, build, current, disable_goma, j,
           'command': command,
           'disableGoma': disable_goma,
           'j': j,
-          'disableGclient': disable_gclient_commands,
           'iterations': iterations,
-          'disableBlackbox': disable_blackbox,
+          'disableXvfb': disable_xvfb,
           'targetArgs': target_args}
 
 

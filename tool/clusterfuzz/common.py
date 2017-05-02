@@ -24,7 +24,6 @@ import time
 import re
 import signal
 import shutil
-import yaml
 
 from backports.shutil_get_terminal_size import get_terminal_size
 from clusterfuzz import local_logging
@@ -378,6 +377,19 @@ def delete_if_exists(path):
     shutil.rmtree(path)
 
 
+def get_valid_abs_dir(path):
+  """Return true if path is a valid dir."""
+  if not path:
+    return None
+
+  abs_path = os.path.abspath(os.path.expanduser(path))
+
+  if not os.path.isdir(abs_path):
+    return None
+
+  return abs_path
+
+
 def get_source_directory(source_name):
   """Returns the location of the source directory."""
 
@@ -386,24 +398,11 @@ def get_source_directory(source_name):
   if os.environ.get(source_env):
     return os.environ.get(source_env)
 
-  if os.path.exists(SOURCE_CACHE):
-    with open(SOURCE_CACHE) as stream:
-      source_locations = yaml.load(stream)
-
-    if source_env in source_locations:
-      return source_locations[source_env]
-  else:
-    source_locations = {}
-
   message = ('This is a %(name)s testcase, please define %(env_name)s'
              ' or enter your %(name)s source location here' %
              {'name': source_name, 'env_name': source_env})
-  source_directory = os.path.expanduser(
-      ask(message, 'Please enter a valid directory',
-          lambda x: x and os.path.isdir(os.path.expanduser(x))))
 
-  with open(SOURCE_CACHE, 'w') as f:
-    source_locations[source_env] = source_directory
-    f.write(yaml.dump(source_locations))
+  source_directory = get_valid_abs_dir(
+      ask(message, 'Please enter a valid directory', get_valid_abs_dir))
 
   return source_directory

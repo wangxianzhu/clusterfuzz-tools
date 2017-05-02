@@ -18,7 +18,6 @@ import subprocess
 import os
 import stat
 import mock
-import yaml
 
 from clusterfuzz import common
 import helpers
@@ -525,37 +524,48 @@ class GetSourceDirectoryTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['clusterfuzz.common.ask'])
     self.source_dir = '~/chromium/src'
 
-  def test_get_froim_environment(self):
+  def test_get_from_environment(self):
     """Tests getting the source directory from the os environment."""
 
     self.mock_os_environment({'CHROMIUM_SRC': self.source_dir})
     result = common.get_source_directory('chromium')
 
     self.assertEqual(result, self.source_dir)
+    self.assertEqual(0, self.mock.ask.call_count)
 
-  def test_get_from_file(self):
-    """Tests getting the source directory from the cache file."""
-
-    self.mock_os_environment({'CHROMIUM_SRC': ''})
-    os.makedirs(os.path.expanduser('~/.clusterfuzz'))
-    self.assertFalse(os.path.exists(common.SOURCE_CACHE))
-    with open(common.SOURCE_CACHE, 'w') as f:
-      f.write(yaml.dump({'CHROMIUM_SRC': self.source_dir}))
-
-    result = common.get_source_directory('chromium')
-    self.assertEqual(result, self.source_dir)
-
-  def test_write_to_file(self):
-    """Tests getting the directory from user and writing to a file."""
+  def test_ask_and_expand_user(self):
+    """Tests getting the source directory and expand user."""
 
     self.mock_os_environment({'CHROMIUM_SRC': ''})
-    os.makedirs(os.path.expanduser('~/.clusterfuzz'))
-
-    self.mock.ask.return_value = self.source_dir
+    os.makedirs(os.path.expanduser('~/test-dir'))
+    self.mock.ask.return_value = '~/test-dir'
 
     result = common.get_source_directory('chromium')
-    self.assertEqual(result, os.path.expanduser(self.source_dir))
+    self.assertEqual(os.path.expanduser('~/test-dir'), result)
 
-    with open(common.SOURCE_CACHE, 'r') as f:
-      self.assertEqual(f.read(), ('{CHROMIUM_SRC: %s}\n' %
-                                  os.path.expanduser(self.source_dir)))
+  def test_ask_and_expand_path(self):
+    """Tests getting the source directory and expand abspath."""
+
+    self.mock_os_environment({'CHROMIUM_SRC': ''})
+    os.makedirs(os.path.abspath('./test-dir'))
+    self.mock.ask.return_value = './test-dir'
+
+    result = common.get_source_directory('chromium')
+    self.assertEqual(os.path.abspath('./test-dir'), result)
+
+
+class GetValidAbsDirTest(helpers.ExtendedTestCase):
+  """Tests for get_valid_abs_dir."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_validity(self):
+    """Test a valid dir."""
+    os.makedirs('/test/test2')
+    self.assertEqual('/test/test2', common.get_valid_abs_dir('/test/test2'))
+    self.assertIsNone(common.get_valid_abs_dir('/test/test3'))
+
+  def test_empty(self):
+    """Test empty."""
+    self.assertIsNone(common.get_valid_abs_dir(''))

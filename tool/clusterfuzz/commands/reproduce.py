@@ -84,23 +84,24 @@ def send_request(url, data):
   Attempts to authenticate and is guaranteed to either
   return a valid, authorized response or throw an exception."""
 
-  header = common.get_stored_auth_header()
+  header = common.get_stored_auth_header() or get_verification_header()
   response = None
   for _ in range(2):
-    if not header or (response is not None and response.status_code == 401):
-      header = get_verification_header()
     response = requests.post(
         url=url, headers={
             'Authorization': header,
             'User-Agent': 'clusterfuzz-tools'},
         allow_redirects=True, data=data)
-    if response.status_code == 200:
+
+    if response.status_code == 401:  # The access token expired.
+      header = get_verification_header()
+    else:  # Other errors or success
       break
 
   if response.status_code != 200:
     raise common.ClusterfuzzAuthError(response.text)
-  common.store_auth_header(response.headers[CLUSTERFUZZ_AUTH_HEADER])
 
+  common.store_auth_header(response.headers[CLUSTERFUZZ_AUTH_HEADER])
   return response
 
 def get_testcase_info(testcase_id):

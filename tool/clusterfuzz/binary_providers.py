@@ -335,12 +335,8 @@ class V8Builder(GenericBuilder):
 
   def pre_build_steps(self):
     if not self.current:
-      common.execute(
-          'gclient', 'runhooks', self.source_directory,
-          env={'GYP_DEFINES': 'asan=1'})
-    common.execute(
-        'gypfiles/gyp_v8', '', self.source_directory,
-        env={'GYP_DEFINES': 'asan=1'})
+      common.execute('gclient', 'runhooks', self.source_directory)
+    common.execute('gypfiles/gyp_v8', '', self.source_directory)
 
 
 class ChromiumBuilder(GenericBuilder):
@@ -365,73 +361,15 @@ class ChromiumBuilder(GenericBuilder):
   def pre_build_steps(self):
     if not self.current:
       common.execute('gclient', 'runhooks', self.source_directory)
+      common.execute('python', 'tools/clang/scripts/update.py',
+                     self.source_directory)
 
 
 class CfiChromiumBuilder(ChromiumBuilder):
   """Build a CFI chromium."""
 
   def pre_build_steps(self):
-    if not self.current:
-      common.execute(
-          'gclient', 'runhooks', self.source_directory,
-          env={
-              'GYP_DEFINES':
-                  'cfi_vptr=1 clang=1 component=static_library target_arch=x64',
-              'GYP_LINK_CONCURRENCY': '8',
-              'GYP_CHROMIUM_NO_ACTION': '1'
-          })
-
-  def setup_gn_args(self):
-    """Setup the gn args and then run download_gold_plugin.py."""
-    super(CfiChromiumBuilder, self).setup_gn_args()
+    """Run the pre-build steps and then run download_gold_plugin.py."""
+    super(CfiChromiumBuilder, self).pre_build_steps()
     common.execute('build/download_gold_plugin.py', '', self.source_directory)
 
-
-class MsanChromiumBuilder(ChromiumBuilder):
-  """Builds an msan chromium."""
-
-  def pre_build_steps(self):
-    if not self.current:
-      common.execute(
-          'gclient', 'runhooks', self.source_directory,
-          env={
-              'GYP_DEFINES': (
-                  'clang=1 component=static_library gomadir=%s msan=1 '
-                  'msan_track_origins=0 sanitizer_coverage=edge '
-                  'target_arch=x64 use_goma=1 '
-                  'use_prebuilt_instrumented_libraries=1'
-                  % self.goma_dir)
-          })
-
-
-class LibfuzzerMsanBuilder(ChromiumBuilder):
-  """Builds for a Msan testcase, inside the Chromium repo."""
-
-  def pre_build_steps(self):
-    if not self.current:
-      common.execute(
-          'gclient', 'runhooks', self.source_directory,
-          env={
-              'GYP_DEFINES': (
-                  'clang=1 component=static_library gomadir=%s msan=1 '
-                  'msan_track_origins=2 proprietary_codecs=1 target_arch=x64 '
-                  'use_goma=1 use_prebuilt_instrumented_libraries=1'
-                  % self.goma_dir)
-          })
-
-
-class UbsanVptrChromiumBuilder(ChromiumBuilder):
-  """Build UBSAN vptr."""
-
-  def pre_build_steps(self):
-    if not self.current:
-      common.execute(
-          'gclient', 'runhooks', self.source_directory,
-          env={
-              'GYP_CHROMIUM_NO_ACTION': '1',
-              'GYP_DEFINES': (
-                  'clang=1 component=static_library gomadir=%s '
-                  'release_extra_cflags=-fno-sanitize-recover=undefined '
-                  'sanitizer_coverage=edge target_arch=x64 ubsan_vptr=1 '
-                  'use_goma=1' % self.goma_dir)
-          })

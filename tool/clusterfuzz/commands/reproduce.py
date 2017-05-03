@@ -145,10 +145,7 @@ def build_binary_definition(job_definition, presets):
   builders = {'Pdfium': binary_providers.PdfiumBuilder,
               'V8': binary_providers.V8Builder,
               'Chromium': binary_providers.ChromiumBuilder,
-              'LibfuzzerMsan': binary_providers.LibfuzzerMsanBuilder,
-              'MsanChromium': binary_providers.MsanChromiumBuilder,
-              'CfiChromium': binary_providers.CfiChromiumBuilder,
-              'UbsanVptrChromium': binary_providers.UbsanVptrChromiumBuilder}
+              'CfiChromium': binary_providers.CfiChromiumBuilder}
   reproducer_map = {'Base': reproducers.BaseReproducer,
                     'LibfuzzerJob': reproducers.LibfuzzerJobReproducer,
                     'LinuxChromeJob': reproducers.LinuxChromeJobReproducer}

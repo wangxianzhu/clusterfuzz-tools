@@ -459,7 +459,7 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
     self.mock.get_supported_jobs.return_value = {
         'chromium': {
             'libfuzzer_chrome_msan': common.BinaryDefinition(
-                binary_providers.LibfuzzerMsanBuilder, 'CHROMIUM_SRC',
+                binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
                 reproducers.BaseReproducer, sanitizer='MSAN')},
         'standalone': {}}
 
@@ -468,7 +468,7 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
 
     result = reproduce.get_binary_definition('libfuzzer_chrome_msan',
                                              'download')
-    self.assertEqual(result.builder, binary_providers.LibfuzzerMsanBuilder)
+    self.assertEqual(result.builder, binary_providers.ChromiumBuilder)
 
     with self.assertRaises(common.JobTypeNotSupportedError):
       result = reproduce.get_binary_definition('fuzzlibber_nasm', 'download')
@@ -478,7 +478,7 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
 
     result = reproduce.get_binary_definition('libfuzzer_chrome_msan',
                                              'chromium')
-    self.assertEqual(result.builder, binary_providers.LibfuzzerMsanBuilder)
+    self.assertEqual(result.builder, binary_providers.ChromiumBuilder)
 
     with self.assertRaises(common.JobTypeNotSupportedError):
       result = reproduce.get_binary_definition('fuzzlibber_nasm', 'chromium')

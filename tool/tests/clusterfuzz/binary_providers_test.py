@@ -278,10 +278,8 @@ class BuildTargetTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient', 'sync', chrome_source),
-        mock.call('gclient', 'runhooks', chrome_source,
-                  env={'GYP_DEFINES': 'asan=1'}),
-        mock.call('gypfiles/gyp_v8', '', chrome_source,
-                  env={'GYP_DEFINES': 'asan=1'}),
+        mock.call('gclient', 'runhooks', chrome_source),
+        mock.call('gypfiles/gyp_v8', '', chrome_source),
         mock.call(
             'ninja',
             ("-w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
@@ -607,6 +605,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient', 'sync', '/chrome/src'),
         mock.call('gclient', 'runhooks', '/chrome/src'),
+        mock.call('python', 'tools/clang/scripts/update.py', '/chrome/src'),
         mock.call(
             'ninja',
             ("-w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
@@ -624,33 +623,6 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.assertEqual(result, '/chromium/build/dir/binary')
 
 
-class LibfuzzerMsanBuilderTest(helpers.ExtendedTestCase):
-  """Tests the pre-build step of LibfuzzerMsanBuilder."""
-
-  def test_prebuild_steps(self):
-    """Test the prebuild_steps method."""
-
-    helpers.patch(self, [
-        'clusterfuzz.common.execute',
-        'clusterfuzz.binary_providers.sha_from_revision',
-        'os.environ.copy'])
-    self.mock.copy.return_value = {'OS': 'ENVIRON'}
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
-    self.mock_os_environment({'V8_SRC': '/chrome/src'})
-    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    builder = binary_providers.LibfuzzerMsanBuilder(
-        testcase, binary_definition, False, '/goma/dir', None)
-
-    builder.pre_build_steps()
-    env = {
-        'GYP_DEFINES': ('clang=1 component=static_library gomadir=/goma/dir '
-                        'msan=1 msan_track_origins=2 proprietary_codecs=1 '
-                        'target_arch=x64 use_goma=1 '
-                        'use_prebuilt_instrumented_libraries=1')}
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call('gclient', 'runhooks', '/chrome/src', env=env)])
-
-
 class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of CfiChromiumBuilder."""
 
@@ -658,7 +630,7 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',
-        'clusterfuzz.binary_providers.ChromiumBuilder.setup_gn_args'])
+        'clusterfuzz.binary_providers.ChromiumBuilder.pre_build_steps'])
 
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
@@ -666,88 +638,12 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     self.builder = binary_providers.CfiChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None)
 
-  def test_prebuild_steps(self):
-    """Test the prebuild_steps method."""
+  def test_pre_build_steps(self):
+    """Test the pre_build_steps method."""
     self.builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
-        mock.call(
-            'gclient', 'runhooks', '/chrome/src',
-            env={
-                'GYP_DEFINES': (
-                    'cfi_vptr=1 clang=1 component=static_library '
-                    'target_arch=x64'),
-                'GYP_LINK_CONCURRENCY': '8',
-                'GYP_CHROMIUM_NO_ACTION': '1'
-            })
-    ])
-
-  def test_gn_steps(self):
-    """Test the prebuild_steps method."""
-    self.builder.setup_gn_args()
-    self.assert_exact_calls(self.mock.execute, [
         mock.call('build/download_gold_plugin.py', '', '/chrome/src')])
-    self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(self.builder)])
-
-
-class UbsanVptrChromiumBuilderTest(helpers.ExtendedTestCase):
-  """Tests the pre-build step of UbsanVptrChromiumBuilder."""
-
-  def test_prebuild_steps(self):
-    """Test the prebuild_steps method."""
-
-    helpers.patch(self, [
-        'clusterfuzz.common.execute',
-        'clusterfuzz.binary_providers.sha_from_revision'])
-
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
-    self.mock_os_environment({'V8_SRC': '/chrome/src'})
-    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    builder = binary_providers.UbsanVptrChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None)
-
-    builder.pre_build_steps()
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call(
-            'gclient', 'runhooks', '/chrome/src',
-            env={
-                'GYP_CHROMIUM_NO_ACTION': '1',
-                'GYP_DEFINES': (
-                    'clang=1 component=static_library gomadir=/goma/dir '
-                    'release_extra_cflags=-fno-sanitize-recover=undefined '
-                    'sanitizer_coverage=edge target_arch=x64 ubsan_vptr=1 '
-                    'use_goma=1')
-            })
-    ])
-
-
-class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
-  """Tests the pre-build step of MsanChromiumBuilder."""
-
-  def test_prebuild_steps(self):
-    """Test the prebuild_steps method."""
-
-    helpers.patch(self, [
-        'clusterfuzz.common.execute',
-        'clusterfuzz.binary_providers.sha_from_revision'])
-
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
-    self.mock_os_environment({'V8_SRC': '/chrome/src'})
-    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    builder = binary_providers.MsanChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None)
-
-    builder.pre_build_steps()
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call(
-            'gclient', 'runhooks', '/chrome/src',
-            env={
-                'GYP_DEFINES': (
-                    'clang=1 component=static_library gomadir=/goma/dir msan=1 '
-                    'msan_track_origins=0 sanitizer_coverage=edge '
-                    'target_arch=x64 use_goma=1 '
-                    'use_prebuilt_instrumented_libraries=1')
-            })
-    ])
+    self.assert_exact_calls(self.mock.pre_build_steps, [mock.call(self.builder)])
 
 
 class GetCurrentShaTest(helpers.ExtendedTestCase):
@@ -765,7 +661,7 @@ class GetCurrentShaTest(helpers.ExtendedTestCase):
 
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    builder = binary_providers.LibfuzzerMsanBuilder(
+    builder = binary_providers.ChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None)
     with self.assertRaises(SystemExit):
       builder.get_current_sha()
@@ -781,7 +677,7 @@ class GetGomaCoresTest(helpers.ExtendedTestCase):
 
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    self.builder = binary_providers.LibfuzzerMsanBuilder(
+    self.builder = binary_providers.ChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None)
     self.mock.cpu_count.return_value = 64
 

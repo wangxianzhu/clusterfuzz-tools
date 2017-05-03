@@ -372,4 +372,3 @@ class CfiChromiumBuilder(ChromiumBuilder):
     """Run the pre-build steps and then run download_gold_plugin.py."""
     super(CfiChromiumBuilder, self).pre_build_steps()
     common.execute('build/download_gold_plugin.py', '', self.source_directory)
-

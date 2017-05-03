@@ -643,7 +643,8 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     self.builder.pre_build_steps()
     self.assert_exact_calls(self.mock.execute, [
         mock.call('build/download_gold_plugin.py', '', '/chrome/src')])
-    self.assert_exact_calls(self.mock.pre_build_steps, [mock.call(self.builder)])
+    self.assert_exact_calls(self.mock.pre_build_steps,
+                            [mock.call(self.builder)])
 
 
 class GetCurrentShaTest(helpers.ExtendedTestCase):

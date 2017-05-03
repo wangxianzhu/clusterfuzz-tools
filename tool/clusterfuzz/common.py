@@ -229,10 +229,10 @@ def interpret_ninja_output(line):
   print_progress_bar(current, total, prefix='Ninja progress:')
 
 
-def check_binary(binary):
+def check_binary(binary, cwd):
   """Check if the binary exists."""
   try:
-    subprocess.check_output(['which', binary])
+    subprocess.check_output(['which', binary], cwd=cwd)
   except subprocess.CalledProcessError:
     raise NotInstalledError(binary)
 
@@ -240,7 +240,7 @@ def check_binary(binary):
 def start_execute(binary, args, cwd, env=None, print_command=True):
   """Runs a command, and returns the subprocess.Popen object."""
 
-  check_binary(binary)
+  check_binary(binary, cwd)
 
   command = (binary + ' ' + args).strip()
   env = env or {}

@@ -203,7 +203,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
     with self.assertRaises(common.NotInstalledError) as cm:
       common.execute('cmd', 'aaa', '~/working/directory')
 
-    self.assert_exact_calls(self.mock.check_binary, [mock.call('cmd')])
+    self.assert_exact_calls(
+        self.mock.check_binary, [mock.call('cmd', '~/working/directory')])
     self.assertEqual(
         'cmd is not found. Please install it or ensure the path is correct.',
         cm.exception.message)
@@ -217,16 +218,16 @@ class CheckBinaryTest(helpers.ExtendedTestCase):
 
   def test_valid(self):
     """Test a valid binary."""
-    common.check_binary('test')
-    self.mock.check_output.assert_called_once_with(['which', 'test'])
+    common.check_binary('test', 'cwd')
+    self.mock.check_output.assert_called_once_with(['which', 'test'], cwd='cwd')
 
   def test_invalid(self):
     """Test an invalid binary."""
     self.mock.check_output.side_effect = subprocess.CalledProcessError(1, '')
     with self.assertRaises(common.NotInstalledError) as cm:
-      common.check_binary('test')
+      common.check_binary('test', 'cwd')
 
-    self.mock.check_output.assert_called_once_with(['which', 'test'])
+    self.mock.check_output.assert_called_once_with(['which', 'test'], cwd='cwd')
     self.assertEqual(
         'test is not found. Please install it or ensure the path is correct.',
         cm.exception.message)

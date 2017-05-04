@@ -1,0 +1,11 @@
+# ----------------------------------------------------------------------------
+# TSAN Suppressions.
+# ----------------------------------------------------------------------------
+
+# Top startup crashes.
+race:base::HistogramBase
+race:libyuv::ScaleARGB
+race:media::AudioManagerPulse::Init
+race:pcache1Alloc
+race:tracked_objects::ScopedTracker::ScopedTracker
+race:tracked_objects::ThreadData

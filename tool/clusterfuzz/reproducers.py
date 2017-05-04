@@ -171,7 +171,11 @@ class BaseReproducer(object):
         options['external_symbolizer_path'] = self.symbolizer_path
       options.pop('coverage_dir', None)
       if 'suppressions' in options:
-        suppressions_map = {'UBSAN_OPTIONS': 'ubsan', 'LSAN_OPTIONS': 'lsan'}
+        suppressions_map = {
+            'UBSAN_OPTIONS': 'ubsan',
+            'LSAN_OPTIONS': 'lsan',
+            'TSAN_OPTIONS': 'tsan',
+        }
         filename = common.get_resource(
             0640, 'resources', 'suppressions',
             '%s_suppressions.txt' % suppressions_map[variable])

@@ -334,9 +334,7 @@ class V8Builder(GenericBuilder):
     self.name = 'V8'
 
   def pre_build_steps(self):
-    if not self.current:
-      common.execute('gclient', 'runhooks', self.source_directory)
-    common.execute('gypfiles/gyp_v8', '', self.source_directory)
+    common.execute('gclient', 'runhooks', self.source_directory)
 
 
 class ChromiumBuilder(GenericBuilder):
@@ -359,8 +357,8 @@ class ChromiumBuilder(GenericBuilder):
     self.name = 'chromium'
 
   def pre_build_steps(self):
+    common.execute('gclient', 'runhooks', self.source_directory)
     if not self.current:
-      common.execute('gclient', 'runhooks', self.source_directory)
       common.execute('python', 'tools/clang/scripts/update.py',
                      self.source_directory)
 

@@ -279,7 +279,6 @@ class BuildTargetTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient', 'sync', chrome_source),
         mock.call('gclient', 'runhooks', chrome_source),
-        mock.call('gypfiles/gyp_v8', '', chrome_source),
         mock.call(
             'ninja',
             ("-w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "

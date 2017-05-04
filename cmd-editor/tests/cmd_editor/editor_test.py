@@ -65,7 +65,33 @@ class EditTest(helpers.ExtendedTestCase):
     self.mock.system.side_effect = modify_file
     self.mock.get_full_path.return_value = 'test-binary'
 
-    self.assertEqual('Test\nAdded content', editor.edit('Test'))
+    self.assertEqual(
+        'Test\nAdded content', editor.edit('Test', comment='comment'))
     self.mock.system.assert_called_once_with(
         'test-binary %s' % self.saved_filepath)
     self.mock.get_full_path.assert_called_once_with('vi')
+
+
+class AddCommentTest(helpers.ExtendedTestCase):
+  """Test add_comment."""
+
+  def test_empty(self):
+    """Test empty comment."""
+    self.assertEqual('test', editor.add_comment('test', ''))
+
+  def test_add(self):
+    """Test add."""
+    self.assertEqual(
+        '# comment\n\ntest', editor.add_comment('test', 'comment'))
+
+
+class RemoveCommentTest(helpers.ExtendedTestCase):
+  """Test remove_comment."""
+
+  def test_empty(self):
+    """Test empty comment."""
+    self.assertEqual('test', editor.remove_comment('\n\ntest\n'))
+
+  def test_remove(self):
+    """Test remove comment."""
+    self.assertEqual('test', editor.remove_comment('# comment\n\ntest\n'))

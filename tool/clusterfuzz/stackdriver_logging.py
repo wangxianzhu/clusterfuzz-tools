@@ -83,7 +83,7 @@ def send_log(params, stacktrace=None):
 
 
 def make_basic_params(command, testcase_id, build, current, disable_goma, j,
-                      iterations, disable_xvfb, target_args):
+                      iterations, disable_xvfb, target_args, edit_mode):
   """Creates the basic paramater dict."""
 
   return {'testcaseId': testcase_id,
@@ -94,7 +94,8 @@ def make_basic_params(command, testcase_id, build, current, disable_goma, j,
           'j': j,
           'iterations': iterations,
           'disableXvfb': disable_xvfb,
-          'targetArgs': target_args}
+          'targetArgs': target_args,
+          'editMode': edit_mode}
 
 
 def send_start(**kwargs):

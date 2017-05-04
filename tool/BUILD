@@ -20,6 +20,7 @@ python_library(
     name='src',
     sources=rglobs('clusterfuzz/*.py'),
     dependencies=[
+        '//cmd-editor:src',
         '//3rdparty/python:httplib2',
         '//3rdparty/python:oauth2client',
         '//3rdparty/python:urlfetch',

@@ -56,11 +56,14 @@ def execute(argv=None):
       '-i', '--iterations', action='store', default=10, type=int,
       help='Specify the number of times to attempt reproduction.')
   reproduce.add_argument(
-      '-db', '--disable-xvfb', action='store_true', default=False,
+      '-dx', '--disable-xvfb', action='store_true', default=False,
       help='Disable running testcases in a virtual frame buffer.')
   reproduce.add_argument(
       '--target-args', action='store', default='',
       help='Additional arguments for the target (e.g. chrome).')
+  reproduce.add_argument(
+      '--edit-mode', action='store_true', default=False,
+      help='Edit args.gn before building and target arguments before running.')
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

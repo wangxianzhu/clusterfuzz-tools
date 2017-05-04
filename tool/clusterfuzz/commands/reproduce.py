@@ -210,7 +210,7 @@ def maybe_warn_unreproducible(current_testcase):
 
 @stackdriver_logging.log
 def execute(testcase_id, current, build, disable_goma, j, iterations,
-            disable_xvfb, target_args):
+            disable_xvfb, target_args, edit_mode):
   """Execute the reproduce command."""
   logger.info('Reproducing testcase %s', testcase_id)
   logger.debug('(testcase_id:%s, current=%s, build=%s, disable_goma=%s)',
@@ -238,11 +238,11 @@ def execute(testcase_id, current, build, disable_goma, j, iterations,
   else:
     goma_dir = None if disable_goma else ensure_goma()
     binary_provider = definition.builder( # pylint: disable=redefined-variable-type
-        current_testcase, definition, current, goma_dir, j)
+        current_testcase, definition, current, goma_dir, j, edit_mode)
 
   reproducer = definition.reproducer(
       binary_provider, current_testcase, definition.sanitizer, disable_xvfb,
-      target_args)
+      target_args, edit_mode)
   try:
     reproducer.reproduce(iterations)
   finally:

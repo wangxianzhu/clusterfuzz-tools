@@ -15,7 +15,6 @@
 
 import os
 import re
-import shutil
 import time
 import subprocess
 import logging
@@ -26,6 +25,7 @@ import requests
 import xvfbwrapper
 import psutil
 
+from cmd_editor import editor
 from clusterfuzz import common
 
 DEFAULT_GESTURE_TIME = 5
@@ -115,7 +115,7 @@ class BaseReproducer(object):
     return gesture_start_time
 
   def __init__(self, binary_provider, testcase, sanitizer, disable_xvfb,
-               target_args):
+               target_args, edit_mode):
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
@@ -126,6 +126,7 @@ class BaseReproducer(object):
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
     self.disable_xvfb = disable_xvfb
+    self.edit_mode = edit_mode
 
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
@@ -146,7 +147,6 @@ class BaseReproducer(object):
       k, v = pair.split('=')
       return_dict[k] = v
     return return_dict
-
 
   def serialize_sanitizer_options(self, options):
     """Takes dict of sanitizer options, returns command-line friendly string."""
@@ -186,12 +186,10 @@ class BaseReproducer(object):
   def pre_build_steps(self):
     """Steps to run before building."""
     self.set_up_symbolizers_suppressions()
+    self.setup_args()
 
   def reproduce_crash(self):
     """Reproduce the crash."""
-
-    self.pre_build_steps()
-
     return common.execute(
         self.binary_path, '%s %s' % (self.args, self.testcase_path),
         os.path.dirname(self.binary_path), env=self.environment,
@@ -208,10 +206,26 @@ class BaseReproducer(object):
     crash_type = response['crash_type'].replace('\n', ' ')
     return crash_state, crash_type
 
+  def setup_args(self):
+    """Setup args."""
+    if (self.disable_xvfb and
+        '--disable-gl-drawing-for-tests' in self.args):
+      self.args = self.args.replace('--disable-gl-drawing-for-tests', '')
+    elif (not self.disable_xvfb and
+          '--disable-gl-drawing-for-tests' not in self.args):
+      self.args += ' --disable-gl-drawing-for-tests'
+
+    if self.edit_mode:
+      self.args = editor.edit(
+          self.args, prefix='edit-args-',
+          comment='Edit arguments before running %s' % self.binary_path)
+
   def reproduce(self, iteration_max):
     """Reproduces the crash and prints the stacktrace."""
 
     logger.info('Reproducing...')
+
+    self.pre_build_steps()
 
     iterations = 1
     while iterations <= iteration_max:
@@ -367,13 +381,14 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
   def pre_build_steps(self):
     """Steps to run before building."""
-
     user_profile_dir = '/tmp/clusterfuzz-user-profile-data'
-    if os.path.exists(user_profile_dir):
-      shutil.rmtree(user_profile_dir)
+    common.delete_if_exists(user_profile_dir)
+
     user_data_str = ' --user-data-dir=%s' % user_profile_dir
     if user_data_str not in self.args:
       self.args += user_data_str
+
+    self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
     super(LinuxChromeJobReproducer, self).pre_build_steps()
 
 
@@ -397,18 +412,8 @@ class LinuxChromeJobReproducer(BaseReproducer):
   def reproduce_crash(self):
     """Reproduce the crash, running gestures if necessary."""
 
-    self.pre_build_steps()
-
-    if (self.disable_xvfb and
-        '--disable-gl-drawing-for-tests' in self.args):
-      self.args = self.args.replace('--disable-gl-drawing-for-tests', '')
-    elif (not self.disable_xvfb and
-          '--disable-gl-drawing-for-tests' not in self.args):
-      self.args += ' --disable-gl-drawing-for-tests'
-
     with Xvfb(self.disable_xvfb) as display_name:
       self.environment['DISPLAY'] = display_name
-      self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
 
       process = common.start_execute(
           self.binary_path, '%s %s' % (self.args, self.testcase_path),

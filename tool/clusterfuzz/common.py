@@ -372,7 +372,6 @@ def get_resource(chmod_permission, *paths):
 
 def delete_if_exists(path):
   """Deletes file if path exists."""
-
   if os.path.exists(path):
     shutil.rmtree(path)
 

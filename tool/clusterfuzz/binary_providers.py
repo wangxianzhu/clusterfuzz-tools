@@ -24,11 +24,14 @@ import string
 import logging
 import urlfetch
 
+from cmd_editor import editor
 from clusterfuzz import common
+
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_DIR, 'builds')
 logger = logging.getLogger('clusterfuzz')
+
 
 def build_revision_to_sha_url(revision, repo):
   return ('https://cr-rev.appspot.com/_ah/api/crrev/v1/get_numbering?%s' %
@@ -132,7 +135,7 @@ class GenericBuilder(BinaryProvider):
   """Provides a base for binary builders."""
 
   def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source, binary_name, target=None, goma_threads=None):
+               source, binary_name, target, goma_threads, edit_mode):
     """self.git_sha must be set in a subclass, or some of these
     instance methods may not work."""
     super(GenericBuilder, self).__init__(testcase_id, build_url, binary_name)
@@ -144,6 +147,7 @@ class GenericBuilder(BinaryProvider):
     self.gn_args_options = None
     self.gn_flags = '--check'
     self.goma_threads = goma_threads
+    self.edit_mode = edit_mode
 
   def get_current_sha(self):
     try:
@@ -210,7 +214,7 @@ class GenericBuilder(BinaryProvider):
     args = []
     for key, val in args_hash.iteritems():
       args.append('%s = %s' % (key, val))
-    return args
+    return '\n'.join(args)
 
   def setup_gn_goma_params(self, gn_args):
     """Ensures that goma_dir and gn_goma are used correctly."""
@@ -243,15 +247,18 @@ class GenericBuilder(BinaryProvider):
 
     args_hash = self.deserialize_gn_args(lines)
     args_hash = self.setup_gn_goma_params(args_hash)
-    lines = self.serialize_gn_args(args_hash)
+    content = self.serialize_gn_args(args_hash)
+    if self.gn_args_options:
+      for k, v in self.gn_args_options.iteritems():
+        content += '\n%s = %s' % (k, v)
+
+    if self.edit_mode:
+      content = editor.edit(
+          content, prefix='edit-args-gn-',
+          comment='Edit args.gn before building.')
 
     with open(args_gn_location, 'w') as f:
-      for line in lines:
-        f.write(line)
-        f.write('\n')
-      if self.gn_args_options:
-        for k, v in self.gn_args_options.iteritems():
-          f.write('%s = %s\n' % (k, v))
+      f.write(content)
 
     common.execute('gn', 'gen %s %s' % (self.gn_flags, self.build_directory),
                    self.source_directory)
@@ -308,12 +315,12 @@ class PdfiumBuilder(GenericBuilder):
   """Build a fresh Pdfium binary."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads):
+               goma_threads, edit_mode):
     self.gn_args = testcase.gn_args
     super(PdfiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test',
-        goma_threads)
+        None, goma_threads, edit_mode)
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
@@ -325,11 +332,12 @@ class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads):
+               goma_threads, edit_mode):
     self.gn_args = testcase.gn_args
     super(V8Builder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
-        os.environ.get(binary_definition.source_var), 'd8', goma_threads)
+        os.environ.get(binary_definition.source_var), 'd8', None, goma_threads,
+        edit_mode)
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
     self.name = 'V8'
 
@@ -341,7 +349,7 @@ class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads):
+               goma_threads, edit_mode):
     self.gn_args = testcase.gn_args
     target_name = None
     binary_name = binary_definition.binary_name
@@ -352,7 +360,7 @@ class ChromiumBuilder(GenericBuilder):
     super(ChromiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), binary_name,
-        target_name, goma_threads)
+        target_name, goma_threads, edit_mode)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'chromium'
 

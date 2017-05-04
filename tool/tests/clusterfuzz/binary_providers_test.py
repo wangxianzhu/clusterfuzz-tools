@@ -646,6 +646,83 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
                             [mock.call(self.builder)])
 
 
+class MSANChromiumBuilderTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of MSANChromiumBuilder."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.ChromiumBuilder.pre_build_steps'])
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.mock_os_environment({'V8_SRC': '/chrome/src'})
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    self.builder = binary_providers.MSANChromiumBuilder(
+        testcase, binary_definition, False, '/goma/dir', None)
+
+  def test_pre_build_steps(self):
+    """Test the pre_build_steps method."""
+    self.builder.pre_build_steps()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gclient', 'runhooks', '/chrome/src',
+                  env={'GYP_DEFINES':
+                       'msan=1 use_prebuilt_instrumented_libraries=1'}),
+        mock.call('python', 'tools/clang/scripts/update.py', '/chrome/src')])
+
+
+class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of ChromiumBuilder32Bit."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.ChromiumBuilder.pre_build_steps'])
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.mock_os_environment({'V8_SRC': '/chrome/src'})
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    self.builder = binary_providers.ChromiumBuilder32Bit(
+        testcase, binary_definition, False, '/goma/dir', None)
+
+  def test_pre_build_steps(self):
+    """Test the pre_build_steps method."""
+    self.builder.pre_build_steps()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('build/install-build-deps.sh',
+                  '--lib32 --syms --no-prompt',
+                  '/chrome/src')])
+    self.assert_exact_calls(self.mock.pre_build_steps,
+                            [mock.call(self.builder)])
+
+
+class V8Builder32BitTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of V8Builder32Bit."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.V8Builder.pre_build_steps'])
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.mock_os_environment({'V8_SRC': '/chrome/src'})
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    self.builder = binary_providers.V8Builder32Bit(
+        testcase, binary_definition, False, '/goma/dir', None)
+
+  def test_pre_build_steps(self):
+    """Test the pre_build_steps method."""
+    self.builder.pre_build_steps()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('build/install-build-deps.sh',
+                  '--lib32 --syms --no-prompt',
+                  '/chrome/src')])
+    self.assert_exact_calls(self.mock.pre_build_steps,
+                            [mock.call(self.builder)])
+
+
 class GetCurrentShaTest(helpers.ExtendedTestCase):
   """Tests functionality when the rev-parse command fails."""
 

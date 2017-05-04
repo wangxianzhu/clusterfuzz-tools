@@ -364,9 +364,43 @@ class ChromiumBuilder(GenericBuilder):
 
 
 class CfiChromiumBuilder(ChromiumBuilder):
-  """Build a CFI chromium."""
+  """Build a CFI chromium build."""
 
   def pre_build_steps(self):
     """Run the pre-build steps and then run download_gold_plugin.py."""
     super(CfiChromiumBuilder, self).pre_build_steps()
     common.execute('build/download_gold_plugin.py', '', self.source_directory)
+
+
+class MSANChromiumBuilder(ChromiumBuilder):
+  """Build a MSAN chromium build."""
+
+  def pre_build_steps(self):
+    """Run the pre-build steps with special GYP_DEFINES."""
+    common.execute('gclient', 'runhooks', self.source_directory,
+                   env={'GYP_DEFINES':
+                        'msan=1 use_prebuilt_instrumented_libraries=1'})
+    if not self.current:
+      common.execute('python', 'tools/clang/scripts/update.py',
+                     self.source_directory)
+
+
+class ChromiumBuilder32Bit(ChromiumBuilder):
+  """Build a 32-bit chromium build."""
+
+  def pre_build_steps(self):
+    """Run the pre-build steps and then install 32-bit libraries."""
+    super(ChromiumBuilder32Bit, self).pre_build_steps()
+    common.execute('build/install-build-deps.sh',
+                   '--lib32 --syms --no-prompt',
+                   self.source_directory)
+
+class V8Builder32Bit(V8Builder):
+  """Build a 32-bit V8 build."""
+
+  def pre_build_steps(self):
+    """Run the pre-build steps and then install 32-bit libraries."""
+    super(V8Builder32Bit, self).pre_build_steps()
+    common.execute('build/install-build-deps.sh',
+                   '--lib32 --syms --no-prompt',
+                   self.source_directory)

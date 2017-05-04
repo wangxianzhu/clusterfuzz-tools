@@ -142,10 +142,14 @@ def parse_job_definition(job_definition, presets):
 def build_binary_definition(job_definition, presets):
   """Converts a job definition hash into a binary definition."""
 
-  builders = {'Pdfium': binary_providers.PdfiumBuilder,
-              'V8': binary_providers.V8Builder,
-              'Chromium': binary_providers.ChromiumBuilder,
-              'CfiChromium': binary_providers.CfiChromiumBuilder}
+  builders = {
+      'Chromium_32': binary_providers.ChromiumBuilder32Bit,
+      'CfiChromium': binary_providers.CfiChromiumBuilder,
+      'Chromium': binary_providers.ChromiumBuilder,
+      'Pdfium': binary_providers.PdfiumBuilder,
+      'V8': binary_providers.V8Builder,
+      'V8_32': binary_providers.V8Builder32Bit,
+  }
   reproducer_map = {'Base': reproducers.BaseReproducer,
                     'LibfuzzerJob': reproducers.LibfuzzerJobReproducer,
                     'LinuxChromeJob': reproducers.LinuxChromeJobReproducer}

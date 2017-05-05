@@ -211,10 +211,8 @@ class BaseReproducer(object):
     """Setup args."""
     if (self.disable_xvfb and
         '--disable-gl-drawing-for-tests' in self.args):
-      self.args = self.args.replace('--disable-gl-drawing-for-tests', '')
-    elif (not self.disable_xvfb and
-          '--disable-gl-drawing-for-tests' not in self.args):
-      self.args += ' --disable-gl-drawing-for-tests'
+      self.args = (
+          self.args.replace('--disable-gl-drawing-for-tests', '').strip())
 
     if self.edit_mode:
       self.args = editor.edit(

@@ -240,7 +240,7 @@ class SetupArgsTest(helpers.ExtendedTestCase):
         '--test --disable-gl-drawing-for-tests', False)
 
     reproducer.setup_args()
-    self.assertEqual('--repro --test ', reproducer.args)
+    self.assertEqual('--repro --test', reproducer.args)
 
   def test_enable_xvfb(self):
     """Test disable xvfb."""
@@ -253,7 +253,7 @@ class SetupArgsTest(helpers.ExtendedTestCase):
 
     reproducer.setup_args()
     self.assertEqual(
-        '--repro --test --disable-gl-drawing-for-tests\nedited',
+        '--repro --test\nedited',
         reproducer.args)
 
 class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
@@ -648,8 +648,7 @@ class LibfuzzerJobReproducerPreBuildStepsTest(helpers.ExtendedTestCase):
     reproducer.pre_build_steps()
 
     self.assertEqual(
-        ('-aaa=bbb -ccc=ddd -dict=/fake/path/fuzzer.dict '
-         '--disable-gl-drawing-for-tests'),
+        '-aaa=bbb -ccc=ddd -dict=/fake/path/fuzzer.dict',
         reproducer.args)
 
 

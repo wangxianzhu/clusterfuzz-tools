@@ -14,7 +14,7 @@ presets: #Any parameters in a preset can be overridden in the actual definition
             source: V8_SRC
             binary: d8
             reproducer: Base
-        d8_asan:
+        linux_asan_d8_standalone:
             preset: d8
             sanitizer: ASAN
         chromium:
@@ -35,6 +35,9 @@ presets: #Any parameters in a preset can be overridden in the actual definition
         linux_filter_stub:
             preset: linux_chromium
             binary: filter_fuzz_stub
+        linux_d8_chromium:
+            preset: linux_chromium
+            binary: d8
         linux_asan_chromium:
             preset: linux_chromium
             sanitizer: ASAN
@@ -42,14 +45,14 @@ presets: #Any parameters in a preset can be overridden in the actual definition
             preset: linux_content_shell
             sanitizer: ASAN
 standalone:
-        linux_asan_d8: { preset: d8_asan }
-        linux_asan_d8_dbg: { preset: d8_asan }
-        linux_asan_d8_v8_arm_dbg: { preset: d8_asan, builder: V8_32 }
-        linux_asan_d8_v8_arm64_dbg: { preset: d8_asan }
-        linux_asan_d8_v8_mipsel_dbg: { preset: d8_asan }
+        linux_asan_d8: { preset: linux_asan_d8_standalone }
+        linux_asan_d8_dbg: { preset: linux_asan_d8_standalone }
+        linux_asan_d8_v8_arm_dbg: { preset: linux_asan_d8_standalone, builder: V8_32 }
+        linux_asan_d8_v8_arm64_dbg: { preset: linux_asan_d8_standalone }
+        linux_asan_d8_v8_mipsel_dbg: { preset: linux_asan_d8_standalone }
         linux_asan_pdfium: { preset: pdfium, sanitizer: ASAN }
         linux_msan_pdfium: { preset: pdfium, sanitizer: MSAN }
-        linux_v8_d8_tot: { preset: d8_asan }
+        linux_v8_d8_tot: { preset: linux_asan_d8_standalone }
 chromium:
         libfuzzer_chrome_asan: { preset: libfuzzer, sanitizer: ASAN }
         libfuzzer_chrome_asan_debug: { preset: libfuzzer, sanitizer: ASAN }
@@ -65,12 +68,14 @@ chromium:
         linux_asan_filter_fuzz_stub: { preset: linux_filter_stub, sanitizer: ASAN }
         linux_asan_filter_fuzz_stub_32bit: { preset: linux_filter_stub, sanitizer: ASAN, builder: Chromium_32 }
         linux_asan_pdfium: { preset: pdfium_chromium, sanitizer: ASAN }
-        linux_cfi_chrome: { preset: linux_asan_chromium, builder: CfiChromium }
+        linux_cfi_chrome: { preset: linux_asan_chromium, builder: CfiChromium, sanitizer: CFI }
+        linux_cfi_d8: { preset: linux_d8_chromium, builder: CfiChromium, sanitizer: CFI }
         linux_debug_chrome: { preset: linux_asan_chromium }
         linux_debug_content_shell_drt: { preset: linux_asan_content_shell }
         linux_lsan_chrome_mp: { preset: linux_chromium, sanitizer: LSAN }
         linux_msan_chrome: { preset: linux_chromium, sanitizer: MSAN }
         linux_msan_content_shell_drt: { preset: linux_content_shell, sanitizer: MSAN }
+        linux_msan_d8: { preset: linux_d8_chromium, sanitizer: MSAN }
         linux_msan_filter_fuzz_stub: { preset: linux_filter_stub, sanitizer: MSAN }
         linux_msan_pdfium: { preset: pdfium_chromium, sanitizer: MSAN }
         linux_tsan_chrome_mp: { preset: linux_chromium, sanitizer: TSAN }
@@ -78,4 +83,5 @@ chromium:
         linux_ubsan_pdfium: { preset: pdfium_chromium, sanitizer: UBSAN }
         linux_ubsan_vptr_chrome: { preset: linux_chromium, sanitizer: UBSAN }
         linux_ubsan_vptr_content_shell_drt: { preset: linux_content_shell, sanitizer: UBSAN }
+        linux_ubsan_vptr_d8: { preset: linux_d8_chromium, sanitizer: UBSAN }
 

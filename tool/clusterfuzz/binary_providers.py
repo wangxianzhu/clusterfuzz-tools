@@ -124,8 +124,8 @@ class DownloadedBinary(BinaryProvider):
       return self.build_directory
 
     self.download_build_data()
-    #We need the source dir so we can use asan_symbolize.py from the
-    #chromium source directory.
+    # We need the source dir so we can use asan_symbolize.py from the
+    # chromium source directory.
     self.source_directory = common.get_source_directory('chromium')
     self.build_directory = self.build_dir_name()
     return self.build_directory
@@ -148,6 +148,16 @@ class GenericBuilder(BinaryProvider):
     self.gn_flags = '--check'
     self.goma_threads = goma_threads
     self.edit_mode = edit_mode
+
+  def get_current_branch(self):
+    try:
+      _, current_branch = common.execute(
+          'git', 'rev-parse --abbrev-ref HEAD', self.source_directory,
+          print_command=False, print_output=False)
+    except SystemExit:
+      logger.info('Error: Unable to find current git branch.')
+      raise
+    return current_branch.strip()
 
   def get_current_sha(self):
     try:
@@ -197,7 +207,7 @@ class GenericBuilder(BinaryProvider):
         '%s %s in %s?' % (binary, args, self.source_directory))
     if self.source_dir_is_dirty():
       logger.info('Your source directory has uncommitted changes: please'
-                  'commit or stash these changes and re-run this tool')
+                  'commit or stash these changes and re-run this tool.')
       sys.exit(1)
     common.execute(binary, args, self.source_directory)
 
@@ -279,8 +289,12 @@ class GenericBuilder(BinaryProvider):
 
   def build_target(self):
     """Build the correct revision in the source directory."""
+    if self.get_current_branch() == 'HEAD':
+      logger.info('Error: You are currently not on a git branch, '
+                  'you need to create one and re-run the tool.')
+      sys.exit(-1)
 
-    #Note: gclient sync must be run before setting up the gn args
+    # Note: gclient sync must be run before setting up the gn args.
     if not self.current:
       common.execute('gclient', 'sync', self.source_directory)
     self.pre_build_steps()
@@ -300,11 +314,15 @@ class GenericBuilder(BinaryProvider):
 
     if not self.gn_args:
       self.download_build_data()
+
     self.build_directory = self.build_dir_name()
+
     if not self.source_directory:
       self.source_directory = common.get_source_directory(self.name)
+
     if not self.current:
       self.checkout_source_by_sha()
+
     self.build_directory = self.out_dir_name()
     self.build_target()
 
@@ -343,7 +361,9 @@ class V8Builder(GenericBuilder):
 
   def pre_build_steps(self):
     common.execute('gclient', 'runhooks', self.source_directory)
-
+    if not self.current:
+      common.execute('python', 'tools/clang/scripts/update.py',
+                     self.source_directory)
 
 class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""

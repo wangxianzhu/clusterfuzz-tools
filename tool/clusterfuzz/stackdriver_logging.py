@@ -23,6 +23,7 @@ import logging
 import traceback
 
 from clusterfuzz import common
+from clusterfuzz import local_logging
 from httplib2 import Http
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -139,6 +140,6 @@ def log(func):
       logger.info('%s: %s', e.__class__.__name__, e.message)
       sys.exit(1)
     finally:
-      print ('\nDetailed logs of this run can be found in: '
-             '~/.clusterfuzz/logs.')
+      print ('\nDetailed log of this run can be found in: %s' %
+             local_logging.LOG_FILE_PATH)
   return wrapped

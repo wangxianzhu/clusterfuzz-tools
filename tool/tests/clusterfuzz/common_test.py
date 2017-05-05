@@ -404,7 +404,7 @@ class WaitTimeoutTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
     self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
-    self.assert_n_calls(10, [self.mock.sleep])
+    self.assert_n_calls(11, [self.mock.sleep])
 
   def test_no_timeout(self):
     """Tests when no timeout is specified."""

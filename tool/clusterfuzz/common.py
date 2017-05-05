@@ -193,6 +193,9 @@ def wait_timeout(proc, timeout):
   else:
     try:
       os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+
+      # Wait for any shutdown stacktrace to be dumped.
+      time.sleep(3)
     except OSError as e:
       if e.errno != 3:  # No such process.
         raise

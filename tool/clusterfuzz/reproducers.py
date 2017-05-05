@@ -29,6 +29,7 @@ from cmd_editor import editor
 from clusterfuzz import common
 
 DEFAULT_GESTURE_TIME = 5
+TEST_TIMEOUT = 30
 logger = logging.getLogger('clusterfuzz')
 
 
@@ -394,6 +395,10 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
   def post_run_symbolize(self, output):
     """Symbolizes non-libfuzzer chrome jobs."""
+    if not output.strip():
+      # If no input, nothing to symbolize. Bail out, otherwise
+      # we hang inside symbolizer.
+      return ''
 
     asan_symbolizer_location = os.path.join(
         self.source_directory, os.path.join('tools', 'valgrind', 'asan',
@@ -422,5 +427,6 @@ class LinuxChromeJobReproducer(BaseReproducer):
       if self.gestures:
         self.run_gestures(process, display_name)
 
-      err, out = common.wait_execute(process, exit_on_error=False, timeout=15)
+      err, out = common.wait_execute(process, exit_on_error=False,
+                                     timeout=TEST_TIMEOUT)
       return err, self.post_run_symbolize(out)

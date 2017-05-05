@@ -210,7 +210,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             })
     ])
     self.assert_exact_calls(self.mock.wait_execute, [mock.call(
-        self.mock.start_execute.return_value, exit_on_error=False, timeout=15)])
+        self.mock.start_execute.return_value, exit_on_error=False, timeout=30)])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])
 
@@ -578,6 +578,14 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     self.mock.get_resource.return_value = 'asan_sym_proxy.py'
     (self.mock.start_execute.return_value.
      communicate.return_value) = ('symbolized', 0)
+
+  def test_symbolize_no_output(self):
+    """Test to ensure no symbolization is done with no output."""
+    output = ' '
+    result = self.reproducer.post_run_symbolize(output)
+
+    self.assert_exact_calls(self.mock.start_execute, [])
+    self.assertEqual(result, '')
 
   def test_symbolize_output(self):
     """Test to ensure the correct symbolization call are made."""

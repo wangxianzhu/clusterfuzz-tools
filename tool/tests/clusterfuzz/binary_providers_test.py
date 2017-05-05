@@ -255,10 +255,11 @@ class BuildTargetTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.binary_providers.V8Builder.setup_gn_args',
+        'clusterfuzz.binary_providers.V8Builder.get_current_branch',
         'clusterfuzz.binary_providers.V8Builder.get_goma_cores',
-        'clusterfuzz.common.execute',
-        'clusterfuzz.binary_providers.sha_from_revision'])
+        'clusterfuzz.binary_providers.V8Builder.setup_gn_args',
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.common.execute'])
     self.mock.get_goma_cores.return_value = 120
 
   def test_correct_calls(self):
@@ -279,6 +280,7 @@ class BuildTargetTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient', 'sync', chrome_source),
         mock.call('gclient', 'runhooks', chrome_source),
+        mock.call('python', 'tools/clang/scripts/update.py', chrome_source),
         mock.call(
             'ninja',
             ("-w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
@@ -523,6 +525,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.PdfiumBuilder.setup_gn_args',
         'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.PdfiumBuilder.get_current_branch',
         'clusterfuzz.binary_providers.PdfiumBuilder.get_goma_cores',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.get_pdfium_sha'])
@@ -534,8 +537,16 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     self.builder = binary_providers.PdfiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None, False)
 
+
+  def test_build_target_with_no_branch(self):
+    """Ensures that build target exits when no branch is there."""
+    self.mock.get_current_branch.return_value = 'HEAD'
+    with self.assertRaises(SystemExit):
+      self.builder.build_target()
+
   def test_build_target(self):
     """Ensures that all build calls are made correctly."""
+    self.mock.get_current_branch.return_value = 'branch'
     self.builder.build_directory = '/build/dir'
     self.builder.source_directory = '/source/dir'
 
@@ -604,7 +615,9 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
   def test_build_target(self):
     """Tests the build_target method."""
     helpers.patch(self, [
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_current_branch',
         'clusterfuzz.binary_providers.ChromiumBuilder.get_goma_cores'])
+    self.mock.get_current_branch.return_value = 'branch'
     self.mock.get_goma_cores.return_value = 120
     self.builder.build_target()
 
@@ -730,6 +743,35 @@ class V8Builder32BitTest(helpers.ExtendedTestCase):
                   '/chrome/src')])
     self.assert_exact_calls(self.mock.pre_build_steps,
                             [mock.call(self.builder)])
+
+
+class GetCurrentBranchTest(helpers.ExtendedTestCase):
+  """Tests functionality when the branch command fails."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute',
+                         'logging.RootLogger.info',
+                         'clusterfuzz.binary_providers.sha_from_revision'])
+
+  def test_strip(self):
+    """Tests to ensure that branch name is stripped."""
+    self.mock.execute.return_value = ('', 'branch ')
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    builder = binary_providers.ChromiumBuilder(
+        testcase, binary_definition, False, '/goma/dir', None, False)
+    self.assertEqual(builder.get_current_branch(), 'branch')
+
+  def test_log_when_exception(self):
+    """Tests to ensure the method prints before it exits."""
+
+    self.mock.execute.side_effect = SystemExit
+    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    builder = binary_providers.ChromiumBuilder(
+        testcase, binary_definition, False, '/goma/dir', None, False)
+    with self.assertRaises(SystemExit):
+      builder.get_current_branch()
 
 
 class GetCurrentShaTest(helpers.ExtendedTestCase):

@@ -13,11 +13,11 @@ Currently, it supports reproducing a crash locally. In the future, it will
 support uploading a fuzzer, tailing fuzzer log, and uploading a testcase.
 
 
-Requirement
+Requirements
 ---------------
 
 * [gsutil](https://cloud.google.com/storage/docs/gsutil_install)
-* `blackbox` and `xdotool`; these can be install with `apt-get`.
+* `blackbox` and `xdotool`; these can be installed with `apt-get`.
 
 
 Installation

@@ -87,8 +87,8 @@ class Testcase(object):
     return os.path.join(CLUSTERFUZZ_TESTCASES_DIR,
                         str(self.id) + '_testcase')
 
-  def get_true_testcase_file(self, filename):
-    """Unzips a testcase if required."""
+  def get_true_testcase_path(self, filename):
+    """Return actual testcase path, unzips testcase if required."""
 
     testcase_dir = self.testcase_dir_name()
 
@@ -98,11 +98,11 @@ class Testcase(object):
       zipped_file.close()
       return os.path.join(testcase_dir, self.absolute_path)
     else:
-      true_filename = os.path.join(
+      true_testcase_path = os.path.join(
           testcase_dir, 'testcase%s' % self.file_extension)
-      filename = os.path.join(testcase_dir, filename)
-      os.rename(filename, true_filename)
-      return true_filename
+      current_testcase_path = os.path.join(testcase_dir, filename)
+      os.rename(current_testcase_path, true_testcase_path)
+      return true_testcase_path
 
   def get_testcase_path(self):
     """Downloads & returns the location of the testcase file."""
@@ -123,6 +123,6 @@ class Testcase(object):
     common.execute('wget', args, testcase_dir)
     downloaded_filename = os.listdir(testcase_dir)[0]
 
-    filename = self.get_true_testcase_file(downloaded_filename)
+    filename = self.get_true_testcase_path(downloaded_filename)
 
     return filename

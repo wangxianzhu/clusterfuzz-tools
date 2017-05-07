@@ -1,12 +1,12 @@
 presets: #Any parameters in a preset can be overridden in the actual definition
          #but are taken as default otherwise.
-        pdfium:
+        pdfium_standalone:
             builder: Pdfium
             source: PDFIUM_SRC
             binary: pdfium_test
             reproducer: Base
         pdfium_chromium:
-            preset: pdfium
+            preset: pdfium_standalone
             builder: Chromium
             source: CHROMIUM_SRC
         d8:
@@ -50,8 +50,9 @@ standalone:
         linux_asan_d8_v8_arm_dbg: { preset: linux_asan_d8_standalone, builder: V8_32 }
         linux_asan_d8_v8_arm64_dbg: { preset: linux_asan_d8_standalone }
         linux_asan_d8_v8_mipsel_dbg: { preset: linux_asan_d8_standalone }
-        linux_asan_pdfium: { preset: pdfium, sanitizer: ASAN }
-        linux_msan_pdfium: { preset: pdfium, sanitizer: MSAN }
+        linux_asan_pdfium: { preset: pdfium_standalone, sanitizer: ASAN }
+        linux_msan_pdfium: { preset: pdfium_standalone, sanitizer: MSAN }
+        linux_ubsan_pdfium: { preset: pdfium_standalone, sanitizer: UBSAN }
         linux_v8_d8_tot: { preset: linux_asan_d8_standalone }
 chromium:
         libfuzzer_chrome_asan: { preset: libfuzzer, sanitizer: ASAN }

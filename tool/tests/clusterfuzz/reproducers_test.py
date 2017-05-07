@@ -36,12 +36,15 @@ def create_reproducer(klass):
   """Creates a LinuxChromeJobReproducer for use in testing."""
 
   binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
-  binary_provider.get_binary_path.return_value = '/fake/path/test_binary'
+  binary_provider.get_binary_path.return_value = '/fake/build_dir/test_binary'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
                        job_type='job_type', reproduction_args='--original')
   reproducer = klass(binary_provider, testcase, 'UBSAN', False, '--test', False)
   reproducer.args = '--always-opt'
   reproducer.environment = {}
+  reproducer.source_directory = '/fake/source_dir'
+  reproducer.original_testcase_path = '/fake/original_testcase_dir/testcase'
+  reproducer.testcase_path = '/fake/testcase_dir/testcase'
   return reproducer
 
 class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
@@ -259,23 +262,27 @@ class SetupArgsTest(helpers.ExtendedTestCase):
 class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
 
-  def setUp(self):
+  def setUp(self):  # pylint: disable=missing-docstring
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.reproducers.BaseReproducer.pre_build_steps',
         'clusterfuzz.common.get_resource',
+        'pyfakefs.fake_filesystem.FakeFilesystem.RenameObject',
     ])
     self.mock.get_resource.return_value = 'llvm'
     os.makedirs('/tmp/clusterfuzz-user-profile-data')
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
-
+    self.reproducer.original_testcase_path = '/fake/LayoutTests/testcase'
 
   def test_reproduce_crash(self):
     """Ensures pre-build steps run correctly."""
 
     self.reproducer.pre_build_steps()
     self.assertFalse(os.path.exists('/tmp/user-profile-data'))
+    self.assertEqual(
+        self.reproducer.testcase_path,
+        '/fake/source_dir/third_party/WebKit/LayoutTests/testcase')
     self.assert_exact_calls(self.mock.pre_build_steps,
                             [mock.call(self.reproducer)])
     self.assertEqual(
@@ -648,7 +655,7 @@ class LibfuzzerJobReproducerPreBuildStepsTest(helpers.ExtendedTestCase):
     reproducer.pre_build_steps()
 
     self.assertEqual(
-        '-aaa=bbb -ccc=ddd -dict=/fake/path/fuzzer.dict',
+        '-aaa=bbb -ccc=ddd -dict=/fake/build_dir/fuzzer.dict',
         reproducer.args)
 
 

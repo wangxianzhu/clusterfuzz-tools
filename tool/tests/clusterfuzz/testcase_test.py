@@ -103,7 +103,7 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.execute',
         'clusterfuzz.common.delete_if_exists',
         'os.listdir',
-        'clusterfuzz.testcase.Testcase.get_true_testcase_file'])
+        'clusterfuzz.testcase.Testcase.get_true_testcase_path'])
     self.mock.get_stored_auth_header.return_value = 'Bearer 1a2s3d4f'
     self.testcase_dir = os.path.expanduser(os.path.join(
         '~', '.clusterfuzz', 'testcases', '12345_testcase'))
@@ -117,13 +117,13 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
                              '12345_testcase/testcase.js'), 'w') as f:
         f.write('Fake testcase')
     self.mock.execute.side_effect = do_wget
-    filename = os.path.join(self.testcase_dir, 'testcase.js')
-    self.mock.get_true_testcase_file.return_value = filename
+    file_path = os.path.join(self.testcase_dir, 'testcase.js')
+    self.mock.get_true_testcase_path.return_value = file_path
     self.assertFalse(os.path.exists(self.testcase_dir))
 
     result = self.test.get_testcase_path()
 
-    self.assertEqual(result, filename)
+    self.assertEqual(result, file_path)
     self.assert_exact_calls(self.mock.get_stored_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
@@ -136,8 +136,8 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
     self.assertTrue(os.path.exists(self.testcase_dir))
 
 
-class GetTrueTestcaseFileTest(helpers.ExtendedTestCase):
-  """Tests the get_true_testcase_file method."""
+class GetTrueTestcasePathTest(helpers.ExtendedTestCase):
+  """Tests the get_true_testcase_path method."""
 
   def setUp(self):
     helpers.patch(self, ['zipfile.ZipFile',
@@ -151,7 +151,7 @@ class GetTrueTestcaseFileTest(helpers.ExtendedTestCase):
     self.assertEqual(
         os.path.expanduser(
             '~/.clusterfuzz/testcases/12345_testcase/to/testcase.js'),
-        self.test.get_true_testcase_file('abcd.zip'))
+        self.test.get_true_testcase_path('abcd.zip'))
 
     self.mock.ZipFile.assert_has_calls([
         mock.call(os.path.expanduser(
@@ -163,7 +163,7 @@ class GetTrueTestcaseFileTest(helpers.ExtendedTestCase):
     """Tests when the downloaded file is not zipped."""
 
     self.test.absolute_path = '/absolute/path/to/wrong_testcase.js'
-    self.test.get_true_testcase_file('abcd.js')
+    self.test.get_true_testcase_path('abcd.js')
 
     self.assert_n_calls(0, [self.mock.ZipFile])
     testcase_dir = os.path.expanduser(

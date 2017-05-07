@@ -117,6 +117,7 @@ class BaseReproducer(object):
 
   def __init__(self, binary_provider, testcase, sanitizer, disable_xvfb,
                target_args, edit_mode):
+    self.original_testcase_path = testcase.absolute_path
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
@@ -380,12 +381,22 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
   def pre_build_steps(self):
     """Steps to run before building."""
+    # Add argument for user profile directory.
     user_profile_dir = '/tmp/clusterfuzz-user-profile-data'
     common.delete_if_exists(user_profile_dir)
-
     user_data_str = ' --user-data-dir=%s' % user_profile_dir
     if user_data_str not in self.args:
       self.args += user_data_str
+
+    # Move testcase to LayoutTests directory if needed.
+    search_string = '%sLayoutTests%s' % (os.sep, os.sep)
+    if search_string in self.original_testcase_path:
+      search_index = self.original_testcase_path.find(search_string)
+      new_testcase_path = os.path.join(
+          self.source_directory, 'third_party', 'WebKit', 'LayoutTests',
+          self.original_testcase_path[search_index + len(search_string):])
+      os.rename(self.testcase_path, new_testcase_path)
+      self.testcase_path = new_testcase_path
 
     self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
     super(LinuxChromeJobReproducer, self).pre_build_steps()

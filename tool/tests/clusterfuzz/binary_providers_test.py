@@ -328,7 +328,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(
-          f.read(), 'use_goma = true\ngoma_dir = "/goma/dir"\nedited')
+          f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true\nedited')
 
   def test_args_setup(self):
     """Tests to ensure that the args.gn is setup correctly."""
@@ -349,7 +349,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(
-          f.read(), 'use_goma = true\ngoma_dir = "/goma/dir"\nedited')
+          f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true\nedited')
 
 
 
@@ -491,8 +491,9 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(
           f.read(),
-          ('goma_dir = "/goma/dir"\nuse_goma = true\n'
-           'pdf_is_standalone = true'))
+          ('goma_dir = "/goma/dir"\n'
+           'pdf_is_standalone = true\n'
+           'use_goma = true'))
 
   def test_gn_args_no_goma(self):
     """Tests the args.gn parsing of extra values when not using goma."""
@@ -514,7 +515,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
         'gn', 'gen  %s' % self.testcase_dir, '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(
-          f.read(), 'use_goma = false\npdf_is_standalone = true')
+          f.read(), 'pdf_is_standalone = true\nuse_goma = false')
 
 
 class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
@@ -656,29 +657,30 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
                             [mock.call(self.builder)])
 
 
-class MSANChromiumBuilderTest(helpers.ExtendedTestCase):
-  """Tests the pre-build step of MSANChromiumBuilder."""
+class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of MsanChromiumBuilder."""
 
-  def setUp(self):
+  def setUp(self): #pylint: disable=missing-docstring
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',
-        'clusterfuzz.binary_providers.ChromiumBuilder.pre_build_steps'])
+        'clusterfuzz.binary_providers.ChromiumBuilder.setup_gn_args'])
 
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    testcase = mock.Mock(id=12345, build_url='', revision=4567,
+                         gn_args='msan_track_origins=2\n')
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    self.builder = binary_providers.MSANChromiumBuilder(
+    self.builder = binary_providers.MsanChromiumBuilder(
         testcase, binary_definition, False, '/goma/dir', None, False)
 
-  def test_pre_build_steps(self):
+  def test_setup_gn_args(self):
     """Test the pre_build_steps method."""
-    self.builder.pre_build_steps()
+    self.builder.setup_gn_args()
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gclient', 'runhooks', '/chrome/src',
                   env={'GYP_DEFINES':
-                       'msan=1 use_prebuilt_instrumented_libraries=1'}),
-        mock.call('python', 'tools/clang/scripts/update.py', '/chrome/src')])
+                       'msan=1 msan_track_origins=2 '
+                       'use_prebuilt_instrumented_libraries=1'})])
 
 
 class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):

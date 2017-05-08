@@ -144,6 +144,7 @@ class GenericBuilder(BinaryProvider):
     self.goma_dir = goma_dir
     self.source_directory = source
     self.revision = revision
+    self.gn_args = None
     self.gn_args_options = None
     self.gn_flags = '--check'
     self.goma_threads = goma_threads
@@ -205,14 +206,14 @@ class GenericBuilder(BinaryProvider):
     """Convert gn args into a dict."""
 
     args_hash = {}
-    for line in args:
-      key, val = line.split(' = ')
-      args_hash[key] = val
+    for line in args.splitlines():
+      key, val = line.split('=')
+      args_hash[key.strip()] = val.strip()
     return args_hash
 
   def serialize_gn_args(self, args_hash):
     args = []
-    for key, val in args_hash.iteritems():
+    for key, val in sorted(args_hash.iteritems()):
       args.append('%s = %s' % (key, val))
     return '\n'.join(args)
 
@@ -230,35 +231,42 @@ class GenericBuilder(BinaryProvider):
 
   def setup_gn_args(self):
     """Ensures that args.gn is set up properly."""
+    # Remove existing gn file from build directory.
+    args_gn_path = os.path.join(self.build_directory, 'args.gn')
+    if os.path.isfile(args_gn_path):
+      os.remove(args_gn_path)
 
-    args_gn_location = os.path.join(self.build_directory, 'args.gn')
-    if os.path.isfile(args_gn_location):
-      os.remove(args_gn_location)
-
+    # Create build directory if it does not already exist.
     if not os.path.exists(self.build_directory):
       os.makedirs(self.build_directory)
 
+    # If no args.gn file is found, get it from downloaded build.
     if self.gn_args:
-      lines = self.gn_args.split('\n')
+      gn_args = self.gn_args
     else:
-      lines = []
-      with open(os.path.join(self.build_dir_name(), 'args.gn'), 'r') as f:
-        lines = [l.strip() for l in f.readlines()]
+      args_gn_downloaded_build_path = os.path.join(
+          self.build_dir_name(), 'args.gn')
+      with open(args_gn_downloaded_build_path, 'r') as f:
+        gn_args = f.read()
 
-    args_hash = self.deserialize_gn_args(lines)
+    # Add additional options to existing gn args.
+    args_hash = self.deserialize_gn_args(gn_args)
     args_hash = self.setup_gn_goma_params(args_hash)
-    content = self.serialize_gn_args(args_hash)
     if self.gn_args_options:
       for k, v in self.gn_args_options.iteritems():
-        content += '\n%s = %s' % (k, v)
+        args_hash[k] = v
 
+    # Let users edit the current args.
+    content = self.serialize_gn_args(args_hash)
     if self.edit_mode:
       content = editor.edit(
           content, prefix='edit-args-gn-',
           comment='Edit args.gn before building.')
 
-    with open(args_gn_location, 'w') as f:
+    # Write args to file and store.
+    with open(args_gn_path, 'w') as f:
       f.write(content)
+    self.gn_args = content
 
     common.execute('gn', 'gen %s %s' % (self.gn_flags, self.build_directory),
                    self.source_directory)
@@ -319,7 +327,6 @@ class PdfiumBuilder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
                goma_threads, edit_mode):
-    self.gn_args = testcase.gn_args
     super(PdfiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test',
@@ -327,6 +334,7 @@ class PdfiumBuilder(GenericBuilder):
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
+    self.gn_args = testcase.gn_args
     self.gn_args_options = {'pdf_is_standalone': 'true'}
     self.gn_flags = ''
 
@@ -336,12 +344,12 @@ class V8Builder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
                goma_threads, edit_mode):
-    self.gn_args = testcase.gn_args
     super(V8Builder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
         os.environ.get(binary_definition.source_var), 'd8', None, goma_threads,
         edit_mode)
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
+    self.gn_args = testcase.gn_args
     self.name = 'V8'
 
   def pre_build_steps(self):
@@ -355,7 +363,6 @@ class ChromiumBuilder(GenericBuilder):
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
                goma_threads, edit_mode):
-    self.gn_args = testcase.gn_args
     target_name = None
     binary_name = binary_definition.binary_name
     if binary_definition.target:
@@ -367,6 +374,7 @@ class ChromiumBuilder(GenericBuilder):
         goma_dir, os.environ.get(binary_definition.source_var), binary_name,
         target_name, goma_threads, edit_mode)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
+    self.gn_args = testcase.gn_args
     self.name = 'chromium'
 
   def pre_build_steps(self):
@@ -385,17 +393,22 @@ class CfiChromiumBuilder(ChromiumBuilder):
     common.execute('build/download_gold_plugin.py', '', self.source_directory)
 
 
-class MSANChromiumBuilder(ChromiumBuilder):
+class MsanChromiumBuilder(ChromiumBuilder):
   """Build a MSAN chromium build."""
 
-  def pre_build_steps(self):
-    """Run the pre-build steps with special GYP_DEFINES."""
+  def setup_gn_args(self):
+    """Run the setup_gn_args and re-run hooks with special GYP_DEFINES."""
+    super(MsanChromiumBuilder, self).setup_gn_args()
+
+    args_hash = self.deserialize_gn_args(self.gn_args)
+    msan_track_origins_value = (int(args_hash['msan_track_origins'])
+                                if 'msan_track_origins' in args_hash
+                                else 2)
     common.execute('gclient', 'runhooks', self.source_directory,
                    env={'GYP_DEFINES':
-                        'msan=1 use_prebuilt_instrumented_libraries=1'})
-    if not self.current:
-      common.execute('python', 'tools/clang/scripts/update.py',
-                     self.source_directory)
+                        ('msan=1 msan_track_origins=%d '
+                         'use_prebuilt_instrumented_libraries=1') %
+                        msan_track_origins_value})
 
 
 class ChromiumBuilder32Bit(ChromiumBuilder):

@@ -143,9 +143,10 @@ def build_binary_definition(job_definition, presets):
   """Converts a job definition hash into a binary definition."""
 
   builders = {
-      'Chromium_32': binary_providers.ChromiumBuilder32Bit,
       'CfiChromium': binary_providers.CfiChromiumBuilder,
+      'Chromium_32': binary_providers.ChromiumBuilder32Bit,
       'Chromium': binary_providers.ChromiumBuilder,
+      'MsanChromium': binary_providers.MsanChromiumBuilder,
       'Pdfium': binary_providers.PdfiumBuilder,
       'V8': binary_providers.V8Builder,
       'V8_32': binary_providers.V8Builder32Bit,

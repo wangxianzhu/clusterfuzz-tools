@@ -28,6 +28,7 @@ import psutil
 from cmd_editor import editor
 from clusterfuzz import common
 
+DISABLE_GL_DRAW_ARG = '--disable-gl-drawing-for-tests'
 DEFAULT_GESTURE_TIME = 5
 TEST_TIMEOUT = 30
 logger = logging.getLogger('clusterfuzz')
@@ -121,8 +122,11 @@ class BaseReproducer(object):
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
-    self.args = testcase.reproduction_args + ' ' + target_args
+    self.args = testcase.reproduction_args
+    self.target_args = target_args
     self.binary_path = binary_provider.get_binary_path()
+    self.build_directory = binary_provider.get_build_directory()
+    self.source_directory = binary_provider.source_directory
     self.symbolizer_path = common.get_resource(
         0755, 'resources', 'llvm-symbolizer')
     self.sanitizer = sanitizer
@@ -138,7 +142,6 @@ class BaseReproducer(object):
 
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
-    self.source_directory = binary_provider.source_directory
 
   def deserialize_sanitizer_options(self, options):
     """Read options from a variable like ASAN_OPTIONS into a dict."""
@@ -193,7 +196,7 @@ class BaseReproducer(object):
   def reproduce_crash(self):
     """Reproduce the crash."""
     return common.execute(
-        self.binary_path, '%s %s' % (self.args, self.testcase_path),
+        self.binary_path, self.args,
         os.path.dirname(self.binary_path), env=self.environment,
         exit_on_error=False)
 
@@ -210,10 +213,26 @@ class BaseReproducer(object):
 
   def setup_args(self):
     """Setup args."""
+    # Add custom args if any.
+    if self.target_args:
+      self.args += ' %s' % self.target_args
+
+    # --disable-gl-drawing-for-tests does not draw gl content on screen.
+    # When running in regular mode, user would want to see screen, so
+    # remove this argument.
     if (self.disable_xvfb and
-        '--disable-gl-drawing-for-tests' in self.args):
-      self.args = (
-          self.args.replace('--disable-gl-drawing-for-tests', '').strip())
+        DISABLE_GL_DRAW_ARG in self.args):
+      self.args = self.args.replace(' %s' % DISABLE_GL_DRAW_ARG, '')
+      self.args = self.args.replace(DISABLE_GL_DRAW_ARG, '')
+
+    # Replace build directory environment variable.
+    self.args = self.args.replace('%APP_DIR%', self.build_directory)
+
+    # Use %TESTCASE% argument if available. Otherwise append testcase path.
+    if '%TESTCASE%' in self.args:
+      self.args = self.args.replace('%TESTCASE%', self.testcase_path)
+    else:
+      self.args += ' %s' % self.testcase_path
 
     if self.edit_mode:
       self.args = editor.edit(
@@ -430,7 +449,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
       self.environment['DISPLAY'] = display_name
 
       process = common.start_execute(
-          self.binary_path, '%s %s' % (self.args, self.testcase_path),
+          self.binary_path, self.args,
           os.path.dirname(self.binary_path), env=self.environment)
 
       if self.gestures:

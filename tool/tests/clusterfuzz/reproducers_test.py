@@ -37,6 +37,7 @@ def create_reproducer(klass):
 
   binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
   binary_provider.get_binary_path.return_value = '/fake/build_dir/test_binary'
+  binary_provider.get_build_directory.return_value = '/fake/build_dir'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
                        job_type='job_type', reproduction_args='--original')
   reproducer = klass(binary_provider, testcase, 'UBSAN', False, '--test', False)
@@ -151,6 +152,9 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         '/chrome/source/folder/llvm-symbolizer')
     self.mock.wait_execute.return_value = (0, 'lines')
     self.mock.post_run_symbolize.return_value = 'symbolized'
+    self.app_directory = '/chrome/source/folder'
+    self.testcase_path = os.path.expanduser(
+        os.path.join('~', '.clusterfuzz', '1234_testcase', 'testcase.js'))
 
   def test_base(self):
     """Test base's reproduce_crash."""
@@ -160,20 +164,48 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         environment={'ASAN_OPTIONS': 'test-asan'}, gestures=None,
         stacktrace_lines=[{'content': 'line'}],
         job_type='job_type')
-    mocked_testcase.get_testcase_path.return_value = os.path.expanduser(
-        os.path.join('~', '.clusterfuzz', '1234_testcase', 'testcase.js'))
+    mocked_testcase.get_testcase_path.return_value = self.testcase_path
     mocked_provider = mock.Mock(
-        symbolizer_path='/chrome/source/folder/llvm-symbolizer')
-    mocked_provider.get_binary_path.return_value = '/chrome/source/folder/d8'
+        symbolizer_path='%s/llvm-symbolizer' % self.app_directory)
+    mocked_provider.get_binary_path.return_value = '%s/d8' % self.app_directory
+    mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.BaseReproducer(
         mocked_provider, mocked_testcase, 'UBSAN', False, '--test', False)
+    reproducer.setup_args()
     reproducer.reproduce_crash()
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
             '/chrome/source/folder/d8',
-            ('--repro --test %s/.clusterfuzz/1234_testcase/testcase.js'
-             % os.path.expanduser('~')),
+            '--repro --test %s' % self.testcase_path,
+            '/chrome/source/folder',
+            env={'ASAN_OPTIONS': 'test-asan'},
+            exit_on_error=False)
+    ])
+
+  def test_base_with_env_args(self):
+    """Test base's reproduce_crash with environment args."""
+
+    mocked_testcase = mock.Mock(
+        id=1234, reproduction_args='--app-dir=%APP_DIR% --testcase=%TESTCASE%',
+        environment={'ASAN_OPTIONS': 'test-asan'}, gestures=None,
+        stacktrace_lines=[{'content': 'line'}],
+        job_type='job_type')
+    mocked_testcase.get_testcase_path.return_value = self.testcase_path
+    mocked_provider = mock.Mock(
+        symbolizer_path='%s/llvm-symbolizer' % self.app_directory)
+    mocked_provider.get_binary_path.return_value = '%s/d8' % self.app_directory
+    mocked_provider.get_build_directory.return_value = self.app_directory
+
+    reproducer = reproducers.BaseReproducer(
+        mocked_provider, mocked_testcase, 'UBSAN', False, '--test', False)
+    reproducer.setup_args()
+    reproducer.reproduce_crash()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call(
+            '/chrome/source/folder/d8',
+            '--app-dir=%s --testcase=%s --test' % (self.app_directory,
+                                                   self.testcase_path),
             '/chrome/source/folder',
             env={'ASAN_OPTIONS': 'test-asan'},
             exit_on_error=False)
@@ -189,23 +221,23 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         environment={'ASAN_OPTIONS': 'test-asan'}, gestures=None,
         stacktrace_lines=[{'content': 'line'}],
         job_type='job_type')
-    mocked_testcase.get_testcase_path.return_value = os.path.expanduser(
-        os.path.join('~', '.clusterfuzz', '1234_testcase', 'testcase.js'))
+    mocked_testcase.get_testcase_path.return_value = self.testcase_path
     mocked_provider = mock.Mock(
-        symbolizer_path='/chrome/source/folder/llvm-symbolizer')
-    mocked_provider.get_binary_path.return_value = '/chrome/source/folder/d8'
+        symbolizer_path='%s/llvm-symbolizer' % self.app_directory)
+    mocked_provider.get_binary_path.return_value = '%s/d8' % self.app_directory
+    mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.LinuxChromeJobReproducer(
         mocked_provider, mocked_testcase, 'UBSAN', False, '--test', False)
     reproducer.gestures = ['gesture,1', 'gesture,2']
+    reproducer.setup_args()
     err, text = reproducer.reproduce_crash()
     self.assertEqual(err, 0)
     self.assertEqual(text, 'symbolized')
     self.assert_exact_calls(self.mock.start_execute, [
         mock.call(
             '/chrome/source/folder/d8',
-            ('--repro --test %s/.clusterfuzz/1234_testcase/testcase.js'
-             % os.path.expanduser('~')),
+            '--repro --test %s' % self.testcase_path,
             '/chrome/source/folder',
             env={
                 'DISPLAY': ':display',
@@ -230,11 +262,13 @@ class SetupArgsTest(helpers.ExtendedTestCase):
         environment={'ASAN_OPTIONS': 'test-asan'}, gestures=None,
         stacktrace_lines=[{'content': 'line'}],
         job_type='job_type')
-    self.testcase.get_testcase_path.return_value = os.path.expanduser(
+    self.testcase_path = os.path.expanduser(
         os.path.join('~', '.clusterfuzz', '1234_testcase', 'testcase.js'))
+    self.testcase.get_testcase_path.return_value = self.testcase_path
     self.provider = mock.Mock(
         symbolizer_path='/chrome/source/folder/llvm-symbolizer')
     self.provider.get_binary_path.return_value = '/chrome/source/folder/d8'
+    self.provider.get_build_directory.return_value = '/chrome/source/folder'
 
   def test_disable_xvfb(self):
     """Test disable xvfb."""
@@ -243,12 +277,13 @@ class SetupArgsTest(helpers.ExtendedTestCase):
         '--test --disable-gl-drawing-for-tests', False)
 
     reproducer.setup_args()
-    self.assertEqual('--repro --test', reproducer.args)
+    self.assertEqual('--repro --test %s' % self.testcase_path,
+                     reproducer.args)
 
   def test_enable_xvfb(self):
     """Test disable xvfb."""
     def edit(content, prefix, comment):  # pylint: disable=unused-argument
-      return content + '\nedited'
+      return '--new-argument' + ' ' + content
     self.mock.edit.side_effect = edit
 
     reproducer = reproducers.LinuxChromeJobReproducer(
@@ -256,7 +291,7 @@ class SetupArgsTest(helpers.ExtendedTestCase):
 
     reproducer.setup_args()
     self.assertEqual(
-        '--repro --test\nedited',
+        '--new-argument --repro --test %s' % self.testcase_path,
         reproducer.args)
 
 class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
@@ -655,7 +690,8 @@ class LibfuzzerJobReproducerPreBuildStepsTest(helpers.ExtendedTestCase):
     reproducer.pre_build_steps()
 
     self.assertEqual(
-        '-aaa=bbb -ccc=ddd -dict=/fake/build_dir/fuzzer.dict',
+        '-aaa=bbb -ccc=ddd -dict=/fake/build_dir/fuzzer.dict'
+        ' --test /fake/testcase_dir/testcase',
         reproducer.args)
 
 

@@ -149,16 +149,6 @@ class GenericBuilder(BinaryProvider):
     self.goma_threads = goma_threads
     self.edit_mode = edit_mode
 
-  def get_current_branch(self):
-    try:
-      _, current_branch = common.execute(
-          'git', 'rev-parse --abbrev-ref HEAD', self.source_directory,
-          print_command=False, print_output=False)
-    except SystemExit:
-      logger.info('Error: Unable to find current git branch.')
-      raise
-    return current_branch.strip()
-
   def get_current_sha(self):
     try:
       _, current_sha = common.execute(
@@ -289,14 +279,9 @@ class GenericBuilder(BinaryProvider):
 
   def build_target(self):
     """Build the correct revision in the source directory."""
-    if self.get_current_branch() == 'HEAD':
-      logger.info('Error: You are currently not on a git branch, '
-                  'you need to create one and re-run the tool.')
-      sys.exit(-1)
-
     # Note: gclient sync must be run before setting up the gn args.
-    if not self.current:
-      common.execute('gclient', 'sync', self.source_directory)
+    common.execute('gclient', 'sync', self.source_directory)
+
     self.pre_build_steps()
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()

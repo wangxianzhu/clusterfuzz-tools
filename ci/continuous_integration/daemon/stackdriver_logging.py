@@ -35,9 +35,11 @@ def send_log(params, success):
 
 def send_run(testcase_id, testcase_type, version, success):
   if success:
-    message = '%s reproduced %s successfully.' % (version, testcase_id)
+    message = '%s reproduced %s successfully (%s).' % (
+        version, testcase_id, testcase_type)
   else:
-    message = '%s failed to reproduce %s.' % (version, testcase_id)
+    message = '%s failed to reproduce %s (%s).' % (
+        version, testcase_id, testcase_type)
 
   send_log(
       params={

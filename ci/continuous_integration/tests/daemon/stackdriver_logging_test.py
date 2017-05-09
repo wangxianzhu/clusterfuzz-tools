@@ -76,8 +76,8 @@ class SendRunTest(helpers.ExtendedTestCase):
 
   def test_succeed(self):
     """Test send success log."""
-    self._test(True, '0.2.2rc3 reproduced 1234 successfully.')
+    self._test(True, '0.2.2rc3 reproduced 1234 successfully (sanity).')
 
   def test_fail(self):
     """Test send failure log."""
-    self._test(False, '0.2.2rc3 failed to reproduce 1234.')
+    self._test(False, '0.2.2rc3 failed to reproduce 1234 (sanity).')

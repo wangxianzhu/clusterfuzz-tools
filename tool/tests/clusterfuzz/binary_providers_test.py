@@ -382,7 +382,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.execute, [
         mock.call('git', 'rev-parse HEAD', self.chrome_source,
                   print_command=False, print_output=False),
-        mock.call('git', 'fetch', self.chrome_source)
+        mock.call('git', 'fetch origin 1a2s3d4f', self.chrome_source)
     ])
     self.assert_exact_calls(self.mock.check_confirm, [
         mock.call('Proceed with the following command:\n%s?' % self.command)
@@ -400,7 +400,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
         [
             mock.call('git', 'rev-parse HEAD', self.chrome_source,
                       print_command=False, print_output=False),
-            mock.call('git', 'fetch', self.chrome_source),
+            mock.call('git', 'fetch origin 1a2s3d4f', self.chrome_source),
             mock.call('git', 'checkout 1a2s3d4f', self.chrome_source)
         ]
     )

@@ -189,7 +189,8 @@ class GenericBuilder(BinaryProvider):
     if self.get_current_sha() == self.git_sha:
       return
 
-    common.execute('git', 'fetch', self.source_directory)
+    common.execute(
+        'git', 'fetch origin %s' % self.git_sha, self.source_directory)
 
     binary = 'git'
     args = 'checkout %s' % self.git_sha

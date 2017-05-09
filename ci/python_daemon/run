@@ -1,4 +1,5 @@
 #!/bin/bash
+sleep 30
 source /etc/environment
 exec 2>&1
 exec chpst -u clusterfuzz python /python-daemon/daemon/main.py $RELEASE

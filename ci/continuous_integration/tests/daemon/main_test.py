@@ -244,11 +244,8 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     environment['PATH'] += ':%s' % main.DEPOT_TOOLS
     self.assert_exact_calls(self.mock.checkout_build_master, [mock.call()])
     self.assert_exact_calls(self.mock.check_call, [
-        mock.call('git checkout -f master', shell=True, cwd=main.CHROMIUM_SRC),
-        mock.call('gclient sync', shell=True, cwd=main.CHROMIUM_SRC,
-                  env=environment),
-        mock.call('gclient runhooks', shell=True, cwd=main.CHROMIUM_SRC,
-                  env=environment)])
+        mock.call('git checkout -f HEAD', shell=True, cwd=main.CHROMIUM_SRC),
+    ])
 
 
 class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
@@ -257,25 +254,59 @@ class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, ['subprocess.check_call',
                          'subprocess.check_output',
-                         'os.remove',
+                         'daemon.main.delete_if_exists',
                          'shutil.copy',
                          'os.path.exists'])
     self.mock.exists.return_value = False
 
   def test_run_checkout_build_master(self):
     """Tests checking out & building from master."""
-
     main.checkout_build_master()
+
     self.assert_exact_calls(self.mock.check_call, [
         mock.call('git clone https://github.com/google/clusterfuzz-tools.git',
                   shell=True, cwd=main.HOME),
-        mock.call('git pull', shell=True, cwd=main.TOOL_SOURCE),
+        mock.call('git fetch', shell=True, cwd=main.TOOL_SOURCE),
+        mock.call('git checkout origin/master -f', shell=True,
+                  cwd=main.TOOL_SOURCE),
         mock.call('./pants binary tool:clusterfuzz-ci', shell=True,
-                  cwd=main.TOOL_SOURCE)])
-    self.assert_exact_calls(self.mock.remove, [
-        mock.call(main.BINARY_LOCATION)])
+                  cwd=main.TOOL_SOURCE, env={'HOME': os.path.expanduser('~')})
+    ])
+    self.assert_exact_calls(
+        self.mock.delete_if_exists, [mock.call(main.BINARY_LOCATION)])
     self.assert_exact_calls(self.mock.copy, [
         mock.call(os.path.join(main.TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
-                  main.BINARY_LOCATION)])
+                  main.BINARY_LOCATION)
+    ])
     self.assert_exact_calls(self.mock.check_output, [
-        mock.call('git rev-parse HEAD', shell=True, cwd=main.BINARY_LOCATION)])
+        mock.call('git rev-parse HEAD', shell=True, cwd=main.TOOL_SOURCE)])
+
+
+class DeleteIfExistsTest(helpers.ExtendedTestCase):
+  """Tests delete_if_exists."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_not_exist(self):
+    """test non-existing file."""
+    main.delete_if_exists('/path/test')
+
+  def test_dir(self):
+    """Test deleting dir."""
+    os.makedirs('/path/test')
+    self.fs.CreateFile('/path/test/textfile', contents='yes')
+    self.assertTrue(os.path.exists('/path/test'))
+    self.assertTrue(os.path.exists('/path/test/textfile'))
+
+    main.delete_if_exists('/path/test')
+    self.assertFalse(os.path.exists('/path/test'))
+    self.assertFalse(os.path.exists('/path/test/textfile'))
+
+  def test_file(self):
+    """Test deleting file."""
+    self.fs.CreateFile('/path/test/textfile', contents='yes')
+    self.assertTrue(os.path.exists('/path/test/textfile'))
+
+    main.delete_if_exists('/path/test/textfile')
+    self.assertFalse(os.path.exists('/path/test/textfile'))

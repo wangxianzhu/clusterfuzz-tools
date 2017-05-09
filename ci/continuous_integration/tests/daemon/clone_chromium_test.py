@@ -35,16 +35,16 @@ class CloneChromiumTest(helpers.ExtendedTestCase):
 
     clone_chromium.clone_chromium()
     self.assert_exact_calls(self.mock.call, [
-        mock.call(('git clone https://chromium.googlesource.com/chromium/tools/'
-                   'depot_tools.git'), cwd=clone_chromium.HOME, shell=True),
-        mock.call(('%s --nohooks chromium' %
+        mock.call(
+            ('git clone --depth 1 '
+             'https://chromium.googlesource.com/chromium/tools/'
+             'depot_tools.git'), cwd=clone_chromium.HOME, shell=True),
+        mock.call(('%s --nohooks --force chromium' %
                    os.path.join(clone_chromium.DEPOT_TOOLS, 'fetch')),
                   cwd=clone_chromium.CHROMIUM_DIR, shell=True),
         mock.call('build/install-build-deps.sh --no-prompt',
-                  cwd=clone_chromium.CHROMIUM_SRC, shell=True),
-        mock.call(('export PATH=$PATH:%s && gclient runhooks' %
-                   clone_chromium.DEPOT_TOOLS), shell=True,
-                  cwd=clone_chromium.CHROMIUM_SRC)])
+                  cwd=clone_chromium.CHROMIUM_SRC, shell=True)
+    ])
 
   def test_no_install_if_already_exists(self):
     """Ensures it does not try to clone chrome twice."""

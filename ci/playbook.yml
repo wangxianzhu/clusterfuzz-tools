@@ -70,6 +70,8 @@
         - blackbox
         - unzip
         - libssl-dev
+        - openjdk-7-jdk
+        - libffi-dev
     - name: Upgrade PIP
       pip: name={{item}} state=latest
       with_items:

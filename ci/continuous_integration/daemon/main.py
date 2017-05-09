@@ -13,6 +13,7 @@ import clone_chromium #pylint: disable=relative-import
 from oauth2client.client import GoogleCredentials
 from lru import LRUCacheDict
 
+
 HOME = os.path.expanduser('~')
 CLUSTERFUZZ_DIR = os.path.join(HOME, '.clusterfuzz')
 AUTH_FILE_LOCATION = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
@@ -25,6 +26,7 @@ SANITY_CHECKS = '/python-daemon/daemon/sanity_checks.yml'
 BINARY_LOCATION = '/python-daemon/clusterfuzz'
 TOOL_SOURCE = os.path.join(HOME, 'clusterfuzz-tools')
 TESTCASE_CACHE = LRUCacheDict(max_size=1000, expiration=172800)
+
 
 def load_sanity_check_testcases():
   """Return a list of all testcases to try."""
@@ -130,10 +132,10 @@ def load_new_testcases():
 
 def delete_if_exists(filename):
   """Delete filename if the file exists."""
-
-  if os.path.exists(filename):
+  if os.path.isdir(filename):
     shutil.rmtree(filename)
-
+  elif os.path.exists(filename):
+    os.remove(filename)
 
 def call_with_depot_tools(command, cwd=CHROMIUM_SRC):
   """Run command with depot_tools in the path."""
@@ -145,18 +147,23 @@ def call_with_depot_tools(command, cwd=CHROMIUM_SRC):
 
 def checkout_build_master():
   """Checks out the latest master build and creates a new binary."""
-
   if not os.path.exists(TOOL_SOURCE):
-    subprocess.check_call(('git clone https://github.com/google/clusterfuzz'
-                           '-tools.git'), shell=True, cwd=HOME)
-  subprocess.check_call('git pull', shell=True, cwd=TOOL_SOURCE)
-  subprocess.check_call('./pants binary tool:clusterfuzz-ci', shell=True,
-                        cwd=TOOL_SOURCE)
-  os.remove(BINARY_LOCATION)
+    subprocess.check_call(
+        'git clone https://github.com/google/clusterfuzz-tools.git',
+        shell=True, cwd=HOME)
+  subprocess.check_call('git fetch', shell=True, cwd=TOOL_SOURCE)
+  subprocess.check_call(
+      'git checkout origin/master -f', shell=True, cwd=TOOL_SOURCE)
+  subprocess.check_call(
+      './pants binary tool:clusterfuzz-ci', shell=True, cwd=TOOL_SOURCE,
+      env={'HOME': os.path.expanduser('~')})
+
+  delete_if_exists(BINARY_LOCATION)
   shutil.copy(os.path.join(TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
               BINARY_LOCATION)
-  return subprocess.check_output('git rev-parse HEAD', shell=True,
-                                 cwd=BINARY_LOCATION)
+
+  return subprocess.check_output(
+      'git rev-parse HEAD', shell=True, cwd=TOOL_SOURCE).strip()
 
 
 def reset_and_run_testcase(testcase_id, test_type, release):
@@ -164,12 +171,12 @@ def reset_and_run_testcase(testcase_id, test_type, release):
 
   delete_if_exists(CHROMIUM_OUT)
   delete_if_exists(CLUSTERFUZZ_DIR)
-  version = get_version()
   if release == 'master':
     version = checkout_build_master()
-  subprocess.check_call('git checkout -f master', shell=True, cwd=CHROMIUM_SRC)
-  call_with_depot_tools('gclient sync')
-  call_with_depot_tools('gclient runhooks')
+  else:
+    version = get_version()
+  subprocess.check_call(
+      'git checkout -f HEAD', shell=True, cwd=CHROMIUM_SRC)
   update_auth_header()
   stackdriver_logging.send_run(testcase_id, test_type, version,
                                run_testcase(testcase_id))

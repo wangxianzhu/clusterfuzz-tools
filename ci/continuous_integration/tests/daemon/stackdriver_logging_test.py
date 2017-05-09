@@ -33,7 +33,9 @@ class SendLogTest(helpers.ExtendedTestCase):
     params = {
         'testcase_id': 1234,
         'version': '0.2.2rc3',
-        'type': 'sanity'}
+        'type': 'sanity',
+        'message': '0.2.2rc3 failed to reproduce 1234.'
+    }
 
     structure = {
         'logName': 'projects/clusterfuzz-tools/logs/ci',
@@ -60,7 +62,22 @@ class SendRunTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, ['daemon.stackdriver_logging.send_log'])
 
-  def test_send_params(self):
-    stackdriver_logging.send_run(1234, 'sanity', '0.2.2rc3', True)
-    self.assert_exact_calls(self.mock.send_log, [mock.call({
-        'testcaseId': 1234, 'type': 'sanity', 'version': '0.2.2rc3'}, True)])
+  def _test(self, success, message):
+    stackdriver_logging.send_run(1234, 'sanity', '0.2.2rc3', success)
+    self.assert_exact_calls(self.mock.send_log, [
+        mock.call(
+            params={
+                'testcaseId': 1234,
+                'type': 'sanity',
+                'version': '0.2.2rc3',
+                'message': message},
+            success=success)
+    ])
+
+  def test_succeed(self):
+    """Test send success log."""
+    self._test(True, '0.2.2rc3 reproduced 1234 successfully.')
+
+  def test_fail(self):
+    """Test send failure log."""
+    self._test(False, '0.2.2rc3 failed to reproduce 1234.')

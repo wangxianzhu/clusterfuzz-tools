@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cStringIO
-import subprocess
 import os
+import subprocess
 import sys
-import mock
 import yaml
+
+import mock
 
 from daemon import main
 import helpers
@@ -62,34 +62,42 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
   """Test the run_testcase method."""
 
   def setUp(self):
-    helpers.patch(self, ['os.environ.copy',
-                         'subprocess.Popen'])
-    self.mock.Popen.return_value = mock.Mock(
-        returncode=1, stdout=cStringIO.StringIO('Output\nChunks'))
-    self.mock.copy.return_value = {'OS': 'ENVIRON'}
+    helpers.patch(self, ['daemon.main.call'])
+    self.mock_os_environment({'PATH': 'test'})
 
-  def test_running_testcase(self):
+  def test_succeed(self):
     """Ensures testcases are run properly."""
+    self.assertTrue(main.run_testcase(1234))
 
-    result = main.run_testcase(1234)
-    home = os.path.expanduser('~')
+    self.assert_exact_calls(self.mock.call, [
+        mock.call(
+            '/python-daemon/clusterfuzz reproduce 1234',
+            cwd=main.HOME,
+            env={
+                'CF_QUIET': '1',
+                'USER': 'CI',
+                'CHROMIUM_SRC': main.CHROMIUM_SRC,
+                'PATH': 'test:%s' % main.DEPOT_TOOLS,
+                'GOMA_GCE_SERVICE_ACCOUNT': 'default'})
+    ])
 
-    command = ('/bin/bash -c "export PATH=$PATH:%s/depot_tools && '
-               '/python-daemon/clusterfuzz reproduce 1234"' % home)
+  def test_fail(self):
+    """Test failing."""
+    self.mock.call.side_effect = subprocess.CalledProcessError(0, None)
+    self.assertFalse(main.run_testcase(1234))
 
-    self.assertFalse(result)
-    self.assert_exact_calls(self.mock.Popen, [mock.call(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=os.path.expanduser('~'),
-        env={
-            'OS': 'ENVIRON',
-            'CF_QUIET': '1',
-            'USER': 'CI',
-            'CHROMIUM_SRC': main.CHROMIUM_SRC,
-            'GOMA_GCE_SERVICE_ACCOUNT': 'default'},
-        shell=True)])
+    self.assert_exact_calls(self.mock.call, [
+        mock.call(
+            '/python-daemon/clusterfuzz reproduce 1234',
+            cwd=main.HOME,
+            env={
+                'CF_QUIET': '1',
+                'USER': 'CI',
+                'CHROMIUM_SRC': main.CHROMIUM_SRC,
+                'PATH': 'test:%s' % main.DEPOT_TOOLS,
+                'GOMA_GCE_SERVICE_ACCOUNT': 'default'})
+    ])
+
 
 
 class LoadSanityCheckTestcasesTest(helpers.ExtendedTestCase):
@@ -132,12 +140,12 @@ class GetVersionTest(helpers.ExtendedTestCase):
   """Tests the get_version method."""
 
   def setUp(self):
-    helpers.patch(self, ['subprocess.check_output'])
+    helpers.patch(self, ['daemon.main.call'])
     self.result = yaml.dump({
         'chromium': ['chrome_job', 'libfuzzer_job'],
         'standalone': ['pdf_job', 'v8_job'],
         'Version': '0.2.2rc11'})
-    self.mock.check_output.return_value = self.result
+    self.mock.call.return_value = self.result
 
   def test_get_version(self):
     result = main.get_version()
@@ -148,12 +156,12 @@ class GetSupportedJobtypesTest(helpers.ExtendedTestCase):
   """Tests the get_supported_jobtypes method."""
 
   def setUp(self):
-    helpers.patch(self, ['subprocess.check_output'])
+    helpers.patch(self, ['daemon.main.call'])
     self.result = yaml.dump({
         'chromium': ['chrome_job', 'libfuzzer_job'],
         'standalone': ['pdf_job', 'v8_job'],
         'Version': '0.2.2rc11'})
-    self.mock.check_output.return_value = self.result
+    self.mock.call.return_value = self.result
 
   def test_get_supported_jobtypes(self):
     """Tests get_supported_jobtypes."""
@@ -184,14 +192,11 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
     """Tests when no previous tests have been run."""
 
     returned_json = {
-        'items': [{'jobType': 'supported',
-                   'id': 12345},
-                  {'jobType': 'unsupported',
-                   'id': 98765},
-                  {'jobType': 'support',
-                   'id': 23456},
-                  {'jobType': 'supported',
-                   'id': 23456}]}
+        'items': [{'jobType': 'supported', 'id': 12345},
+                  {'jobType': 'unsupported', 'id': 98765},
+                  {'jobType': 'support', 'id': 23456},
+                  {'jobType': 'supported', 'id': 23456}]
+    }
     for i in range(0, 40):
       returned_json['items'].append({'jobType': 'supported', 'id': i})
 
@@ -203,11 +208,12 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
     correct_result = [12345, 23456]
     correct_result.extend(range(0, 39))
     self.assertEqual(result, correct_result)
-    self.assert_exact_calls(self.mock.post, [mock.call(
-        'https://clusterfuzz.com/v2/testcases/load',
-        headers={'Authorization': 'Bearer xyzabc'},
-        json={'page': 1,
-              'reproducible': 'yes'})])
+    self.assert_exact_calls(self.mock.post, [
+        mock.call(
+            'https://clusterfuzz.com/v2/testcases/load',
+            headers={'Authorization': 'Bearer xyzabc'},
+            json={'page': 1, 'reproducible': 'yes'})
+    ])
 
 
 class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
@@ -218,7 +224,7 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     os.makedirs(main.CHROMIUM_OUT)
     os.makedirs(main.CLUSTERFUZZ_DIR)
 
-    helpers.patch(self, ['subprocess.check_call',
+    helpers.patch(self, ['daemon.main.call',
                          'daemon.stackdriver_logging.send_run',
                          'daemon.main.update_auth_header',
                          'daemon.main.get_version',
@@ -236,15 +242,13 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     main.reset_and_run_testcase(1234, 'sanity', 'master')
     self.assertFalse(os.path.exists(main.CHROMIUM_OUT))
     self.assertFalse(os.path.exists(main.CLUSTERFUZZ_DIR))
-    self.assert_exact_calls(self.mock.update_auth_header, [
-        mock.call()])
+
+    self.assert_exact_calls(self.mock.update_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.send_run, [
         mock.call(1234, 'sanity', '0.2.2rc11', 'run_testcase')])
-    environment = os.environ.copy()
-    environment['PATH'] += ':%s' % main.DEPOT_TOOLS
     self.assert_exact_calls(self.mock.checkout_build_master, [mock.call()])
-    self.assert_exact_calls(self.mock.check_call, [
-        mock.call('git checkout -f HEAD', shell=True, cwd=main.CHROMIUM_SRC),
+    self.assert_exact_calls(self.mock.call, [
+        mock.call('git checkout -f HEAD', cwd=main.CHROMIUM_SRC),
     ])
 
 
@@ -252,8 +256,7 @@ class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
   """Tests the checkout_build_master method."""
 
   def setUp(self):
-    helpers.patch(self, ['subprocess.check_call',
-                         'subprocess.check_output',
+    helpers.patch(self, ['daemon.main.call',
                          'daemon.main.delete_if_exists',
                          'shutil.copy',
                          'os.path.exists'])
@@ -263,14 +266,14 @@ class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
     """Tests checking out & building from master."""
     main.checkout_build_master()
 
-    self.assert_exact_calls(self.mock.check_call, [
+    self.assert_exact_calls(self.mock.call, [
         mock.call('git clone https://github.com/google/clusterfuzz-tools.git',
-                  shell=True, cwd=main.HOME),
-        mock.call('git fetch', shell=True, cwd=main.TOOL_SOURCE),
-        mock.call('git checkout origin/master -f', shell=True,
-                  cwd=main.TOOL_SOURCE),
-        mock.call('./pants binary tool:clusterfuzz-ci', shell=True,
-                  cwd=main.TOOL_SOURCE, env={'HOME': os.path.expanduser('~')})
+                  cwd=main.HOME),
+        mock.call('git fetch', cwd=main.TOOL_SOURCE),
+        mock.call('git checkout origin/master -f', cwd=main.TOOL_SOURCE),
+        mock.call('./pants binary tool:clusterfuzz-ci', cwd=main.TOOL_SOURCE,
+                  env={'HOME': main.HOME}),
+        mock.call('git rev-parse HEAD', capture=True, cwd=main.TOOL_SOURCE)
     ])
     self.assert_exact_calls(
         self.mock.delete_if_exists, [mock.call(main.BINARY_LOCATION)])
@@ -278,8 +281,6 @@ class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
         mock.call(os.path.join(main.TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
                   main.BINARY_LOCATION)
     ])
-    self.assert_exact_calls(self.mock.check_output, [
-        mock.call('git rev-parse HEAD', shell=True, cwd=main.TOOL_SOURCE)])
 
 
 class DeleteIfExistsTest(helpers.ExtendedTestCase):
@@ -310,3 +311,28 @@ class DeleteIfExistsTest(helpers.ExtendedTestCase):
 
     main.delete_if_exists('/path/test/textfile')
     self.assertFalse(os.path.exists('/path/test/textfile'))
+
+
+class CallTest(helpers.ExtendedTestCase):
+  """Tests call."""
+
+  def setUp(self):
+    self.mock_os_environment({'TEST': '1'})
+    helpers.patch(self, ['subprocess.check_output', 'subprocess.check_call'])
+
+  def test_capture(self):
+    """Test capturing output."""
+    self.mock.check_output.return_value = 'output'
+    main.call('test', cwd='path', env={'NEW': '2'}, capture=True)
+
+    self.mock.check_output.assert_called_once_with(
+        'test', shell=True, cwd='path', env={'TEST': '1', 'NEW': '2'})
+    self.assertEqual(0, self.mock.check_call.call_count)
+
+  def test_not_capture(self):
+    """Test not capture."""
+    main.call('test', cwd='path', env={'NEW': '2'}, capture=False)
+
+    self.mock.check_call.assert_called_once_with(
+        'test', shell=True, cwd='path', env={'TEST': '1', 'NEW': '2'})
+    self.assertEqual(0, self.mock.check_output.call_count)

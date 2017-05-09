@@ -65,7 +65,7 @@ Deploy CI
 
 1. Ensure all the latest binaries are present and symlinked in
    `/google/data/ro/teams/clusterfuzz-tools/releases`.
-2. Run `ansible-playbook playbook.yml -e release=<release-type> -e machine=<machine-name> --private-file ~/.ssh/google_compute_engine`
+2. Run `ansible-playbook playbook.yml -e release=<release-type> -e machine=<machine-name>`
    where `release-type` is one of `[release, release-candidate, master]` and
    `machine-name` is the prefix of the machine you wish to update or deploy
    (for example, `machine=release` corresponds to the boot disk

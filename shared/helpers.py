@@ -39,7 +39,7 @@ class ExtendedTestCase(fake_filesystem_unittest.TestCase):
   def mock_os_environment(self, environ):
     """Mock the OS environment with a provided dictionary."""
 
-    patcher = mock.patch.dict('os.environ', environ)
+    patcher = mock.patch.dict('os.environ', environ, clear=True)
     patcher.start()
     self.addCleanup(patcher.stop)
 

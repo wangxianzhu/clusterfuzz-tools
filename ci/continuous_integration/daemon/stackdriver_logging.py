@@ -34,8 +34,16 @@ def send_log(params, success):
 
 
 def send_run(testcase_id, testcase_type, version, success):
-  params = {
-      'testcaseId': testcase_id,
-      'type': testcase_type, #Sanity check or pulled testcase
-      'version': version}
-  send_log(params, success)
+  if success:
+    message = '%s reproduced %s successfully.' % (version, testcase_id)
+  else:
+    message = '%s failed to reproduce %s.' % (version, testcase_id)
+
+  send_log(
+      params={
+          'testcaseId': testcase_id,
+          'type': testcase_type, # Sanity check or pulled testcase
+          'version': version,
+          'message': message
+      },
+      success=success)

@@ -60,6 +60,11 @@
         shell: /bin/bash
     - apt:
         update_cache: yes
+    - pam_limits:
+        domain: clusterfuzz
+        limit_type: hard
+        limit_item: nofile
+        value: 100000
     - apt: name={{item}} state=latest
       with_items:
         - python-dev

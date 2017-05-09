@@ -683,6 +683,32 @@ class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
                        'use_prebuilt_instrumented_libraries=1'})])
 
 
+class MsanV8BuilderTest(helpers.ExtendedTestCase):
+  """Tests the pre-build step of MsanV8Builder."""
+
+  def setUp(self): #pylint: disable=missing-docstring
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision',
+        'clusterfuzz.binary_providers.V8Builder.setup_gn_args'])
+
+    testcase = mock.Mock(id=12345, build_url='', revision=4567,
+                         gn_args='msan_track_origins=2\n')
+    self.mock_os_environment({'V8_SRC': '/chrome/src'})
+    binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
+    self.builder = binary_providers.MsanV8Builder(
+        testcase, binary_definition, False, '/goma/dir', None, False)
+
+  def test_setup_gn_args(self):
+    """Test the pre_build_steps method."""
+    self.builder.setup_gn_args()
+    self.assert_exact_calls(self.mock.execute, [
+        mock.call('gclient', 'runhooks', '/chrome/src',
+                  env={'GYP_DEFINES':
+                       'msan=1 msan_track_origins=2 '
+                       'use_prebuilt_instrumented_libraries=1'})])
+
+
 class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of ChromiumBuilder32Bit."""
 

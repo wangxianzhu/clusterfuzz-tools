@@ -147,6 +147,7 @@ def build_binary_definition(job_definition, presets):
       'Chromium_32': binary_providers.ChromiumBuilder32Bit,
       'Chromium': binary_providers.ChromiumBuilder,
       'MsanChromium': binary_providers.MsanChromiumBuilder,
+      'MsanV8': binary_providers.MsanV8Builder,
       'Pdfium': binary_providers.PdfiumBuilder,
       'V8': binary_providers.V8Builder,
       'V8_32': binary_providers.V8Builder32Bit,

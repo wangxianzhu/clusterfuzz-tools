@@ -411,6 +411,24 @@ class MsanChromiumBuilder(ChromiumBuilder):
                         msan_track_origins_value})
 
 
+class MsanV8Builder(V8Builder):
+  """Build a MSAN V8 build."""
+
+  def setup_gn_args(self):
+    """Run the setup_gn_args and re-run hooks with special GYP_DEFINES."""
+    super(MsanV8Builder, self).setup_gn_args()
+
+    args_hash = self.deserialize_gn_args(self.gn_args)
+    msan_track_origins_value = (int(args_hash['msan_track_origins'])
+                                if 'msan_track_origins' in args_hash
+                                else 2)
+    common.execute('gclient', 'runhooks', self.source_directory,
+                   env={'GYP_DEFINES':
+                        ('msan=1 msan_track_origins=%d '
+                         'use_prebuilt_instrumented_libraries=1') %
+                        msan_track_origins_value})
+
+
 class ChromiumBuilder32Bit(ChromiumBuilder):
   """Build a 32-bit chromium build."""
 

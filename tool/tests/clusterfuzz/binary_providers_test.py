@@ -688,7 +688,7 @@ class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.common.execute',
+        'clusterfuzz.common.execute_with_shell',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.ChromiumBuilder.pre_build_steps'])
 
@@ -701,10 +701,11 @@ class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
     self.builder.pre_build_steps()
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call('build/install-build-deps.sh',
-                  '--lib32 --syms --no-prompt',
-                  '/chrome/src')])
+    self.assert_exact_calls(self.mock.execute_with_shell, [
+        mock.call(
+            'build/install-build-deps.sh',
+            '--lib32 --syms --no-prompt',
+            '/chrome/src')])
     self.assert_exact_calls(self.mock.pre_build_steps,
                             [mock.call(self.builder)])
 
@@ -714,7 +715,7 @@ class V8Builder32BitTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.common.execute',
+        'clusterfuzz.common.execute_with_shell',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.V8Builder.pre_build_steps'])
 
@@ -727,10 +728,11 @@ class V8Builder32BitTest(helpers.ExtendedTestCase):
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
     self.builder.pre_build_steps()
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call('build/install-build-deps.sh',
-                  '--lib32 --syms --no-prompt',
-                  '/chrome/src')])
+    self.assert_exact_calls(self.mock.execute_with_shell, [
+        mock.call(
+            'build/install-build-deps.sh',
+            '--lib32 --syms --no-prompt',
+            '/chrome/src')])
     self.assert_exact_calls(self.mock.pre_build_steps,
                             [mock.call(self.builder)])
 

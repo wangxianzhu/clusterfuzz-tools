@@ -417,9 +417,9 @@ class ChromiumBuilder32Bit(ChromiumBuilder):
   def pre_build_steps(self):
     """Run the pre-build steps and then install 32-bit libraries."""
     super(ChromiumBuilder32Bit, self).pre_build_steps()
-    common.execute('build/install-build-deps.sh',
-                   '--lib32 --syms --no-prompt',
-                   self.source_directory)
+    common.execute_with_shell('build/install-build-deps.sh',
+                              '--lib32 --syms --no-prompt',
+                              self.source_directory)
 
 class V8Builder32Bit(V8Builder):
   """Build a 32-bit V8 build."""
@@ -427,6 +427,6 @@ class V8Builder32Bit(V8Builder):
   def pre_build_steps(self):
     """Run the pre-build steps and then install 32-bit libraries."""
     super(V8Builder32Bit, self).pre_build_steps()
-    common.execute('build/install-build-deps.sh',
-                   '--lib32 --syms --no-prompt',
-                   self.source_directory)
+    common.execute_with_shell('build/install-build-deps.sh',
+                              '--lib32 --syms --no-prompt',
+                              self.source_directory)

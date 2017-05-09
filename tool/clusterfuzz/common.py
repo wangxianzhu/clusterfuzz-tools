@@ -326,6 +326,18 @@ def execute(binary, args, cwd, print_command=True, print_output=True,
                       ninja_command=binary == 'ninja')
 
 
+def execute_with_shell(binary, args, cwd):
+  """Execute command with os.system."""
+  check_binary(binary, cwd)
+
+  command = os.path.join(cwd, binary)
+  if args:
+    command += ' ' + args
+
+  logger.info('Running: %s', command)
+  os.system(command)
+
+
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.
   default can either be 'y', 'n', or None. Answer

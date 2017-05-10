@@ -137,7 +137,7 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
 class ReproduceCrashTest(helpers.ExtendedTestCase):
   """Tests the reproduce_crash method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.common.start_execute',
@@ -253,7 +253,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
 class SetupArgsTest(helpers.ExtendedTestCase):
   """Test setup_args."""
 
-  def setUp(self):  # pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'cmd_editor.editor.edit'
     ])
@@ -297,7 +297,7 @@ class SetupArgsTest(helpers.ExtendedTestCase):
 class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
 
-  def setUp(self):  # pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.reproducers.BaseReproducer.pre_build_steps',
@@ -416,7 +416,7 @@ class GetProcessIdsTest(helpers.ExtendedTestCase):
 class RunGesturesTest(helpers.ExtendedTestCase):
   """Tests the run_gestures method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'time.sleep',
         ('clusterfuzz.reproducers.LinuxChromeJobReproducer.get_gesture_start_'
@@ -564,7 +564,7 @@ class XvfbTest(helpers.ExtendedTestCase):
 class ReproduceTest(helpers.ExtendedTestCase):
   """Tests the reproduce method within reproducers."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     helpers.patch(self, [

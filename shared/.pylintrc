@@ -36,7 +36,7 @@ disable=design,similarities,no-self-use,attribute-defined-outside-init,locally-d
 
 # Regular expression which should only match the name
 # of functions or classes which do not require a docstring.
-no-docstring-rgx=(__.*__|main)
+no-docstring-rgx=(__.*__|main|setUp)
 
 # Min length in lines of a function that requires a docstring.
 docstring-min-length=10

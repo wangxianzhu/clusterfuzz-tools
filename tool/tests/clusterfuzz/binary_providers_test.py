@@ -148,7 +148,7 @@ class GetBinaryPathTest(helpers.ExtendedTestCase):
 class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
   """Test get_build_directory inside the V8DownloadedBinary class."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.V8Builder.download_build_data',
         'clusterfuzz.binary_providers.sha_from_revision',
@@ -296,7 +296,7 @@ class BuildTargetTest(helpers.ExtendedTestCase):
 class SetupGnArgsTest(helpers.ExtendedTestCase):
   """Tests the setup_gn_args method."""
 
-  def setUp(self):  # pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.common.execute',
@@ -359,7 +359,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
 class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
   """Tests the checkout_chrome_by_sha method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.common.check_confirm',
@@ -461,7 +461,7 @@ class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
 class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
   """Tests the setup_gn_args method inside PdfiumBuilder."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     helpers.patch(self, ['clusterfuzz.common.execute',
                          'clusterfuzz.binary_providers.sha_from_revision',
@@ -527,7 +527,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
 class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
   """Tests the build_target method in PdfiumBuilder."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.PdfiumBuilder.setup_gn_args',
         'clusterfuzz.common.execute',
@@ -559,7 +559,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the methods in ChromiumBuilder."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.common.execute',
@@ -666,7 +666,7 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
 class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of MsanChromiumBuilder."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',
@@ -692,7 +692,7 @@ class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
 class MsanV8BuilderTest(helpers.ExtendedTestCase):
   """Tests the pre-build step of MsanV8Builder."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',

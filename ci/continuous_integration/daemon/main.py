@@ -4,6 +4,7 @@ import os
 import subprocess
 import shutil
 import sys
+import time
 import yaml
 import requests
 
@@ -26,6 +27,9 @@ SANITY_CHECKS = '/python-daemon/daemon/sanity_checks.yml'
 BINARY_LOCATION = '/python-daemon/clusterfuzz'
 TOOL_SOURCE = os.path.join(HOME, 'clusterfuzz-tools')
 TESTCASE_CACHE = LRUCacheDict(max_size=1000, expiration=172800)
+
+# The number of seconds to sleep after each test run to avoid DDOS.
+SLEEP_TIME = 30
 
 
 def load_sanity_check_testcases():
@@ -181,11 +185,13 @@ def main():
 
   for testcase in load_sanity_check_testcases():
     reset_and_run_testcase(testcase, 'sanity', release)
+    time.sleep(SLEEP_TIME)
 
   while True:
     update_auth_header()
     for testcase in load_new_testcases():
       reset_and_run_testcase(testcase, 'continuous', release)
+      time.sleep(SLEEP_TIME)
 
 
 if __name__ == '__main__':

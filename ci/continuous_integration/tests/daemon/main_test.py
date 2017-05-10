@@ -32,7 +32,8 @@ class MainTest(helpers.ExtendedTestCase):
                          'daemon.main.reset_and_run_testcase',
                          'daemon.clone_chromium.clone_chromium',
                          'daemon.main.update_auth_header',
-                         'daemon.main.load_new_testcases'])
+                         'daemon.main.load_new_testcases',
+                         'time.sleep'])
     self.setup_fake_filesystem()
     self.mock.load_sanity_check_testcases.return_value = [1, 2]
     self.mock.load_new_testcases.side_effect = [[3, 4], [5]]
@@ -56,6 +57,7 @@ class MainTest(helpers.ExtendedTestCase):
         mock.call(3, 'continuous', sys.argv[1]),
         mock.call(4, 'continuous', sys.argv[1]),
         mock.call(5, 'continuous', sys.argv[1])])
+    self.assertEqual(2, self.mock.update_auth_header.call_count)
 
 
 class RunTestcaseTest(helpers.ExtendedTestCase):
@@ -175,7 +177,7 @@ class GetSupportedJobtypesTest(helpers.ExtendedTestCase):
 class LoadNewTestcasesTest(helpers.ExtendedTestCase):
   """Tests the load_new_testcases method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     os.makedirs(main.CLUSTERFUZZ_CACHE_DIR)
     with open(main.AUTH_FILE_LOCATION, 'w') as f:
@@ -219,7 +221,7 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
 class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
   """Tests the reset_and_run_testcase method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     os.makedirs(main.CHROMIUM_OUT)
     os.makedirs(main.CLUSTERFUZZ_CACHE_DIR)

@@ -93,7 +93,7 @@ class ConfirmTest(helpers.ExtendedTestCase):
 class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the execute method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     helpers.patch(self, ['subprocess.Popen',
                          'logging.getLogger',
                          'logging.config.dictConfig',

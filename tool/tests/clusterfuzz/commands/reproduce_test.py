@@ -43,7 +43,7 @@ class MaybeWarnUnreproducible(helpers.ExtendedTestCase):
 class ExecuteTest(helpers.ExtendedTestCase):
   """Test execute."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     self.suppress_logging_methods()
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
     self.mock_os_environment({'V8_SRC': '/v8/src', 'CHROME_SRC': '/pdf/src'})

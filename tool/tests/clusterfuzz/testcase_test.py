@@ -97,7 +97,7 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
 class GetTestcasePathTest(helpers.ExtendedTestCase):
   """Tests the get_testcase_path method."""
 
-  def setUp(self): #pylint: disable=missing-docstring
+  def setUp(self):
     self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.common.get_stored_auth_header',

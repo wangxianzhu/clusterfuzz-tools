@@ -363,8 +363,11 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.common.check_confirm',
+        'clusterfuzz.binary_providers.sha_exists',
         'clusterfuzz.binary_providers.sha_from_revision',
-        'clusterfuzz.binary_providers.GenericBuilder.source_dir_is_dirty'])
+        'clusterfuzz.binary_providers.GenericBuilder.source_dir_is_dirty',
+    ])
+    self.mock.sha_exists.return_value = False
     self.chrome_source = '/usr/local/google/home/user/repos/chromium/src'
     self.command = 'git checkout 1a2s3d4f in %s' % self.chrome_source
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
@@ -791,7 +794,6 @@ class GetGomaCoresTest(helpers.ExtendedTestCase):
   """Tests to ensure the correct number of cores is set."""
 
   def setUp(self):
-
     helpers.patch(self, ['multiprocessing.cpu_count',
                          'clusterfuzz.binary_providers.sha_from_revision'])
 
@@ -811,3 +813,26 @@ class GetGomaCoresTest(helpers.ExtendedTestCase):
     self.builder.goma_threads = None
     result = self.builder.get_goma_cores()
     self.assertEqual(result, 3200)
+
+
+class ShaExistsTest(helpers.ExtendedTestCase):
+  """Tests for sha_exists."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute'])
+
+  def test_exist(self):
+    """Test exists."""
+    self.mock.execute.return_value = (0, '')
+    self.assertTrue(binary_providers.sha_exists('SHA', '/dir'))
+
+    self.mock.execute.assert_called_once_with(
+        'git', 'cat-file -e SHA', cwd='/dir', exit_on_error=False)
+
+  def test_not_exist(self):
+    """Test not exists."""
+    self.mock.execute.return_value = (1, '')
+    self.assertFalse(binary_providers.sha_exists('SHA', '/dir'))
+
+    self.mock.execute.assert_called_once_with(
+        'git', 'cat-file -e SHA', cwd='/dir', exit_on_error=False)

@@ -60,6 +60,13 @@ def get_pdfium_sha(chromium_sha):
   return sha_line.strip()
 
 
+def sha_exists(sha, source_dir):
+  """Check if sha exists."""
+  returncode, _ = common.execute(
+      'git', 'cat-file -e %s' % sha, cwd=source_dir, exit_on_error=False)
+  return returncode == 0
+
+
 class BinaryProvider(object):
   """Downloads/builds and then provides the location of a binary."""
 
@@ -182,14 +189,16 @@ class GenericBuilder(BinaryProvider):
       dir_name += '_dirty'
     return dir_name
 
+
   def checkout_source_by_sha(self):
     """Checks out the correct revision."""
 
     if self.get_current_sha() == self.git_sha:
       return
 
-    common.execute(
-        'git', 'fetch origin %s' % self.git_sha, self.source_directory)
+    if not sha_exists(self.git_sha, self.source_directory):
+      common.execute(
+          'git', 'fetch origin %s' % self.git_sha, self.source_directory)
 
     binary = 'git'
     args = 'checkout %s' % self.git_sha

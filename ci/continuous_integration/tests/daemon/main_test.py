@@ -136,8 +136,8 @@ class UpdateAuthHeadertest(helpers.ExtendedTestCase):
       self.assertEqual(f.read(), 'Bearer Access token')
 
 
-class GetVersionTest(helpers.ExtendedTestCase):
-  """Tests the get_version method."""
+class GetBinaryVersionTest(helpers.ExtendedTestCase):
+  """Tests the get_binary_version method."""
 
   def setUp(self):
     helpers.patch(self, ['daemon.main.call'])
@@ -147,8 +147,8 @@ class GetVersionTest(helpers.ExtendedTestCase):
         'Version': '0.2.2rc11'})
     self.mock.call.return_value = self.result
 
-  def test_get_version(self):
-    result = main.get_version()
+  def test_get(self):
+    result = main.get_binary_version()
     self.assertEqual(result, '0.2.2rc11')
 
 
@@ -227,11 +227,9 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['daemon.main.call',
                          'daemon.stackdriver_logging.send_run',
                          'daemon.main.update_auth_header',
-                         'daemon.main.get_version',
                          'daemon.main.run_testcase',
-                         'daemon.main.checkout_build_master'])
-    self.mock.checkout_build_master.return_value = '0.2.2rc11'
-    self.mock.get_version.return_value = '0.2.2rc10'
+                         'daemon.main.prepare_binary_and_get_version'])
+    self.mock.prepare_binary_and_get_version.return_value = '0.2.2rc10'
     self.mock.run_testcase.return_value = 'run_testcase'
 
   def test_reset_run_testcase(self):
@@ -245,15 +243,16 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.update_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.send_run, [
-        mock.call(1234, 'sanity', '0.2.2rc11', 'run_testcase')])
-    self.assert_exact_calls(self.mock.checkout_build_master, [mock.call()])
+        mock.call(1234, 'sanity', '0.2.2rc10', 'run_testcase')])
+    self.assert_exact_calls(
+        self.mock.prepare_binary_and_get_version, [mock.call('master')])
     self.assert_exact_calls(self.mock.call, [
         mock.call('git checkout -f HEAD', cwd=main.CHROMIUM_SRC),
     ])
 
 
-class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
-  """Tests the checkout_build_master method."""
+class BuildMasterAndGetVersionTest(helpers.ExtendedTestCase):
+  """Tests the build_master_and_get_version method."""
 
   def setUp(self):
     helpers.patch(self, ['daemon.main.call',
@@ -262,9 +261,10 @@ class CheckoutBuildMasterTest(helpers.ExtendedTestCase):
                          'os.path.exists'])
     self.mock.exists.return_value = False
 
-  def test_run_checkout_build_master(self):
+  def test_run(self):
     """Tests checking out & building from master."""
-    main.checkout_build_master()
+    self.mock.call.return_value = 'version'
+    self.assertEqual('version', main.build_master_and_get_version())
 
     self.assert_exact_calls(self.mock.call, [
         mock.call('git clone https://github.com/google/clusterfuzz-tools.git',
@@ -336,3 +336,26 @@ class CallTest(helpers.ExtendedTestCase):
     self.mock.check_call.assert_called_once_with(
         'test', shell=True, cwd='path', env={'TEST': '1', 'NEW': '2'})
     self.assertEqual(0, self.mock.check_output.call_count)
+
+
+class PrepareBinaryAndGetVersionTest(helpers.ExtendedTestCase):
+  """Prepare binary and get version."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'daemon.main.build_master_and_get_version',
+        'daemon.main.get_binary_version'
+    ])
+    self.mock.build_master_and_get_version.return_value = 'vmaster'
+    self.mock.get_binary_version.return_value = 'vbinary'
+
+  def test_master(self):
+    """Get version from master."""
+    self.assertEqual('vmaster', main.prepare_binary_and_get_version('master'))
+
+  def test_release(self):
+    """Get version from release."""
+    self.assertEqual(
+        'vbinary', main.prepare_binary_and_get_version('release'))
+    self.assertEqual(
+        'vbinary', main.prepare_binary_and_get_version('release-candidate'))

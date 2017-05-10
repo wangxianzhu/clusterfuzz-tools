@@ -88,7 +88,7 @@ def update_auth_header():
   os.chmod(AUTH_FILE_LOCATION, 0600)
 
 
-def get_version():
+def get_binary_version():
   """Returns the version of the binary."""
   out = call(build_command('supported_job_types'), capture=True)
   return yaml.load(out)['Version']
@@ -137,13 +137,8 @@ def delete_if_exists(path):
   elif os.path.exists(path):
     os.remove(path)
 
-def call_with_depot_tools(command, cwd=CHROMIUM_SRC):
-  """Run command with depot_tools in the path."""
-  call(command, cwd=cwd,
-       env={'PATH': '%s:%s' % (os.environ['PATH'], DEPOT_TOOLS)})
 
-
-def checkout_build_master():
+def build_master_and_get_version():
   """Checks out the latest master build and creates a new binary."""
   if not os.path.exists(TOOL_SOURCE):
     call('git clone https://github.com/google/clusterfuzz-tools.git', cwd=HOME)
@@ -159,19 +154,25 @@ def checkout_build_master():
   return call('git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE).strip()
 
 
+def prepare_binary_and_get_version(release):
+  """Get version given the release name."""
+  if release == 'master':
+    return build_master_and_get_version()
+  else:
+    return get_binary_version()
+
+
 def reset_and_run_testcase(testcase_id, test_type, release):
   """Resets the chromium repo and runs the testcase."""
 
   delete_if_exists(CHROMIUM_OUT)
   delete_if_exists(CLUSTERFUZZ_CACHE_DIR)
-  if release == 'master':
-    version = checkout_build_master()
-  else:
-    version = get_version()
   call('git checkout -f HEAD', cwd=CHROMIUM_SRC)
+
+  version = prepare_binary_and_get_version(release)
   update_auth_header()
-  stackdriver_logging.send_run(testcase_id, test_type, version,
-                               run_testcase(testcase_id))
+  stackdriver_logging.send_run(
+      testcase_id, test_type, version, run_testcase(testcase_id))
 
 
 def main():

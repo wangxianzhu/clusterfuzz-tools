@@ -235,7 +235,7 @@ class DownloadedBuildGetBinaryDirectoryTest(helpers.ExtendedTestCase):
     """Tests functionality when build has never been downloaded."""
 
     provider = binary_providers.DownloadedBinary(12345, self.build_url, 'd8')
-    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '12345_build')
+    build_dir = os.path.join(common.CLUSTERFUZZ_BUILDS_DIR, '12345_build')
 
     result = provider.get_build_directory()
     self.assertEqual(result, build_dir)
@@ -317,7 +317,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
   def test_create_build_dir(self):
     """Tests setting up the args when the build dir does not exist."""
 
-    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    build_dir = os.path.join(common.CLUSTERFUZZ_BUILDS_DIR, '1234_build')
     os.makedirs(build_dir)
     with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
       f.write('goma_dir = /not/correct/dir\n')
@@ -339,7 +339,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     os.makedirs(self.testcase_dir)
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'w') as f:
       f.write('Not correct args.gn')
-    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    build_dir = os.path.join(common.CLUSTERFUZZ_BUILDS_DIR, '1234_build')
     os.makedirs(build_dir)
     with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
       f.write('goma_dir = /not/correct/dir')
@@ -481,7 +481,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     os.makedirs(self.testcase_dir)
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'w') as f:
       f.write('Not correct args.gn')
-    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    build_dir = os.path.join(common.CLUSTERFUZZ_BUILDS_DIR, '1234_build')
     os.makedirs(build_dir)
     with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
       f.write('goma_dir = /not/correct/dir')
@@ -504,7 +504,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     os.makedirs(self.testcase_dir)
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'w') as f:
       f.write('Not correct args.gn')
-    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    build_dir = os.path.join(common.CLUSTERFUZZ_BUILDS_DIR, '1234_build')
     os.makedirs(build_dir)
     with open(os.path.join(build_dir, 'args.gn'), 'w') as f:
       f.write('goma_dir = /not/correct/dir\n')

@@ -45,12 +45,7 @@ class ExtendedTestCase(fake_filesystem_unittest.TestCase):
 
   def setup_fake_filesystem(self):
     """Sets up PyFakefs and creates aliases for filepaths."""
-
     self.setUpPyfakefs()
-    self.clusterfuzz_dir = os.path.expanduser(os.path.join(
-        '~', '.clusterfuzz', 'cache'))
-    self.auth_header_file = os.path.join(
-        self.clusterfuzz_dir, 'auth_header')
 
   def assert_file_permissions(self, filename, permissions):
     """Assert that 'filename' has specific permissions"""

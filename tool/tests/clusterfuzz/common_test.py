@@ -243,23 +243,23 @@ class StoreAuthHeaderTest(helpers.ExtendedTestCase):
   def test_folder_absent(self):
     """Tests storing when the folder has not been created prior."""
 
-    self.assertFalse(os.path.exists(self.clusterfuzz_dir))
+    self.assertFalse(os.path.exists(common.CLUSTERFUZZ_CACHE_DIR))
     common.store_auth_header(self.auth_header)
 
-    self.assertTrue(os.path.exists(self.clusterfuzz_dir))
-    with open(self.auth_header_file, 'r') as f:
+    self.assertTrue(os.path.exists(common.CLUSTERFUZZ_CACHE_DIR))
+    with open(common.AUTH_HEADER_FILE, 'r') as f:
       self.assertEqual(f.read(), self.auth_header)
-    self.assert_file_permissions(self.auth_header_file, 600)
+    self.assert_file_permissions(common.AUTH_HEADER_FILE, 600)
 
   def test_folder_present(self):
     """Tests storing when the folder has already been created."""
 
-    self.fs.CreateFile(self.auth_header_file)
+    self.fs.CreateFile(common.AUTH_HEADER_FILE)
     common.store_auth_header(self.auth_header)
 
-    with open(self.auth_header_file, 'r') as f:
+    with open(common.AUTH_HEADER_FILE, 'r') as f:
       self.assertEqual(f.read(), self.auth_header)
-    self.assert_file_permissions(self.auth_header_file, 600)
+    self.assert_file_permissions(common.AUTH_HEADER_FILE, 600)
 
 
 class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
@@ -277,8 +277,8 @@ class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
   def test_permissions_incorrect(self):
     """Tests functionality when file exists but permissions wrong."""
 
-    self.fs.CreateFile(self.auth_header_file)
-    os.chmod(self.auth_header_file, stat.S_IWGRP)
+    self.fs.CreateFile(common.AUTH_HEADER_FILE)
+    os.chmod(common.AUTH_HEADER_FILE, stat.S_IWGRP)
 
     with self.assertRaises(common.PermissionsTooPermissiveError) as ex:
       result = common.get_stored_auth_header()
@@ -290,8 +290,8 @@ class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
   def test_file_valid(self):
     """Tests when file is accessible and auth key is returned."""
 
-    self.fs.CreateFile(self.auth_header_file, contents='Bearer 1234')
-    os.chmod(self.auth_header_file, stat.S_IWUSR|stat.S_IRUSR)
+    self.fs.CreateFile(common.AUTH_HEADER_FILE, contents='Bearer 1234')
+    os.chmod(common.AUTH_HEADER_FILE, stat.S_IWUSR|stat.S_IRUSR)
 
     result = common.get_stored_auth_header()
     self.assertEqual(result, 'Bearer 1234')
@@ -570,3 +570,19 @@ class GetValidAbsDirTest(helpers.ExtendedTestCase):
   def test_empty(self):
     """Test empty."""
     self.assertIsNone(common.get_valid_abs_dir(''))
+
+
+class ExecuteWithShellTest(helpers.ExtendedTestCase):
+  """Tests for execute_with_shell."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'os.system', 'clusterfuzz.common.check_binary'
+    ])
+
+  def test_execute(self):
+    """Test execute."""
+    common.execute_with_shell('test', 'args', '/dir')
+
+    self.mock.check_binary.assert_called_once_with('test', '/dir')
+    self.mock.system.assert_called_once_with('cd /dir && test args')

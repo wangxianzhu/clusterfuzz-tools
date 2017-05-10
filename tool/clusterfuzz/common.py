@@ -329,13 +329,10 @@ def execute(binary, args, cwd, print_command=True, print_output=True,
 
 
 def execute_with_shell(binary, args, cwd):
-  """Execute command with os.system."""
+  """Execute command with os.system because install_deps.sh needs it."""
   check_binary(binary, cwd)
 
-  command = os.path.join(cwd, binary)
-  if args:
-    command += ' ' + args
-
+  command = ('cd %s && %s %s' % (cwd, binary, args or '')).strip()
   logger.info('Running: %s', command)
   os.system(command)
 

@@ -16,8 +16,8 @@ from lru import LRUCacheDict
 
 HOME = os.path.expanduser('~')
 CLUSTERFUZZ_DIR = os.path.join(HOME, '.clusterfuzz')
-AUTH_FILE_LOCATION = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
-CLUSTERFUZZ_BUILD = os.path.join(CLUSTERFUZZ_DIR, 'builds')
+CLUSTERFUZZ_CACHE_DIR = os.path.join(CLUSTERFUZZ_DIR, 'cache')
+AUTH_FILE_LOCATION = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'auth_header')
 CHROMIUM_SRC = os.path.join(HOME, 'chromium', 'src')
 CHROMIUM_OUT = os.path.join(CHROMIUM_SRC, 'out')
 RELEASE_ENV = os.path.join(HOME, 'RELEASE_ENV')
@@ -79,9 +79,10 @@ def update_auth_header():
   """Sets the correct auth token in the clusterfuzz dir."""
 
   service_credentials = GoogleCredentials.get_application_default()
-  if not os.path.exists(CLUSTERFUZZ_DIR):
-    os.makedirs(CLUSTERFUZZ_DIR)
+  if not os.path.exists(CLUSTERFUZZ_CACHE_DIR):
+    os.makedirs(CLUSTERFUZZ_CACHE_DIR)
   new_auth_token = service_credentials.get_access_token()
+
   with open(AUTH_FILE_LOCATION, 'w') as f:
     f.write('Bearer %s' % new_auth_token.access_token)
   os.chmod(AUTH_FILE_LOCATION, 0600)
@@ -129,12 +130,12 @@ def load_new_testcases():
   return testcases
 
 
-def delete_if_exists(filename):
+def delete_if_exists(path):
   """Delete filename if the file exists."""
-  if os.path.isdir(filename):
-    shutil.rmtree(filename, True)
-  elif os.path.exists(filename):
-    os.remove(filename)
+  if os.path.isdir(path):
+    shutil.rmtree(path, True)
+  elif os.path.exists(path):
+    os.remove(path)
 
 def call_with_depot_tools(command, cwd=CHROMIUM_SRC):
   """Run command with depot_tools in the path."""
@@ -162,7 +163,7 @@ def reset_and_run_testcase(testcase_id, test_type, release):
   """Resets the chromium repo and runs the testcase."""
 
   delete_if_exists(CHROMIUM_OUT)
-  delete_if_exists(CLUSTERFUZZ_DIR)
+  delete_if_exists(CLUSTERFUZZ_CACHE_DIR)
   if release == 'master':
     version = checkout_build_master()
   else:

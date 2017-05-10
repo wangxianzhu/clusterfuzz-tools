@@ -35,8 +35,8 @@ logging_config = dict(
         'file': {'class': 'logging.handlers.RotatingFileHandler',
                  'filename': LOG_FILE_PATH,
                  'formatter': 'timestamp',
-                 'maxBytes': 1048576,
-                 'backupCount': 9,
+                 'maxBytes': 10485760,
+                 'backupCount': 5,
                  'level': logging.DEBUG}},
     loggers={
         'clusterfuzz': {'handlers': ['console', 'file'],

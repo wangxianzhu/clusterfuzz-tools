@@ -19,8 +19,6 @@ import logging
 
 from clusterfuzz import common
 
-CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
-CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_DIR, 'testcases')
 CLUSTERFUZZ_TESTCASE_URL = (
     'https://%s/v2/testcase-detail/download-testcase?id=%s' %
     (common.DOMAIN_NAME, '%s'))
@@ -84,7 +82,7 @@ class Testcase(object):
 
   def testcase_dir_name(self):
     """Returns a testcases' respective directory."""
-    return os.path.join(CLUSTERFUZZ_TESTCASES_DIR,
+    return os.path.join(common.CLUSTERFUZZ_TESTCASES_DIR,
                         str(self.id) + '_testcase')
 
   def get_true_testcase_path(self, filename):
@@ -113,8 +111,8 @@ class Testcase(object):
 
     logger.info('Downloading testcase data...')
 
-    if not os.path.exists(CLUSTERFUZZ_TESTCASES_DIR):
-      os.makedirs(CLUSTERFUZZ_TESTCASES_DIR)
+    if not os.path.exists(common.CLUSTERFUZZ_TESTCASES_DIR):
+      os.makedirs(common.CLUSTERFUZZ_TESTCASES_DIR)
     os.makedirs(testcase_dir)
 
     auth_header = common.get_stored_auth_header()

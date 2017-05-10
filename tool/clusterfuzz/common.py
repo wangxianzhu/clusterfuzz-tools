@@ -29,11 +29,13 @@ from backports.shutil_get_terminal_size import get_terminal_size
 from clusterfuzz import local_logging
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
-AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_DIR, 'auth_header')
+CLUSTERFUZZ_CACHE_DIR = os.path.join(CLUSTERFUZZ_DIR, 'cache')
+CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'testcases')
+CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'builds')
+AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'auth_header')
 DOMAIN_NAME = 'clusterfuzz.com'
 DEBUG_PRINT = os.environ.get('CF_DEBUG')
 TERMINAL_WIDTH = get_terminal_size().columns
-SOURCE_CACHE = os.path.join(CLUSTERFUZZ_DIR, 'source_cache')
 logger = logging.getLogger('clusterfuzz')
 
 

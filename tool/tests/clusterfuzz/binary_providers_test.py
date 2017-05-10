@@ -17,8 +17,10 @@ import os
 import json
 import mock
 
-from clusterfuzz import binary_providers
 import helpers
+from clusterfuzz import binary_providers
+from clusterfuzz import common
+
 
 class BuildRevisionToShaUrlTest(helpers.ExtendedTestCase):
   """Tests the build_revision_to_sha_url method."""
@@ -91,7 +93,7 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
     """Tests the exit when build data is already returned."""
 
     self.setup_fake_filesystem()
-    build_dir = os.path.join(self.clusterfuzz_dir, 'builds', '1234_build')
+    build_dir = os.path.join(common.CLUSTERFUZZ_BUILDS_DIR, '1234_build')
     os.makedirs(build_dir)
     self.provider.build_dir = build_dir
     result = self.provider.download_build_data()
@@ -113,14 +115,15 @@ class DownloadBuildDataTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.execute, [
         mock.call('gsutil', 'cp gs://abc.zip .',
-                  binary_providers.CLUSTERFUZZ_DIR),
+                  common.CLUSTERFUZZ_CACHE_DIR),
         mock.call('unzip', '-q %s -d %s' %
-                  (os.path.join(binary_providers.CLUSTERFUZZ_DIR, 'abc.zip'),
-                   binary_providers.CLUSTERFUZZ_BUILDS_DIR),
-                  cwd=binary_providers.CLUSTERFUZZ_DIR)])
+                  (os.path.join(common.CLUSTERFUZZ_CACHE_DIR, 'abc.zip'),
+                   common.CLUSTERFUZZ_BUILDS_DIR),
+                  cwd=common.CLUSTERFUZZ_DIR)])
     self.assert_exact_calls(self.mock.chmod, [
-        mock.call(os.path.expanduser('~/.clusterfuzz/builds/1234_build/d8'),
-                  64)])
+        mock.call(os.path.join(
+            common.CLUSTERFUZZ_BUILDS_DIR, '1234_build', 'd8'), 64)
+    ])
 
 
 class GetBinaryPathTest(helpers.ExtendedTestCase):

@@ -129,7 +129,7 @@ class UpdateAuthHeadertest(helpers.ExtendedTestCase):
   def test_proper_update(self):
     """Ensures that the auth key is updated properly."""
 
-    self.assertFalse(os.path.exists(main.CLUSTERFUZZ_DIR))
+    self.assertFalse(os.path.exists(main.CLUSTERFUZZ_CACHE_DIR))
     main.update_auth_header()
 
     with open(main.AUTH_FILE_LOCATION, 'r') as f:
@@ -177,7 +177,7 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
 
   def setUp(self): #pylint: disable=missing-docstring
     self.setup_fake_filesystem()
-    os.makedirs(os.path.expanduser('~/.clusterfuzz'))
+    os.makedirs(main.CLUSTERFUZZ_CACHE_DIR)
     with open(main.AUTH_FILE_LOCATION, 'w') as f:
       f.write('Bearer xyzabc')
 
@@ -222,7 +222,7 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
   def setUp(self): #pylint: disable=missing-docstring
     self.setup_fake_filesystem()
     os.makedirs(main.CHROMIUM_OUT)
-    os.makedirs(main.CLUSTERFUZZ_DIR)
+    os.makedirs(main.CLUSTERFUZZ_CACHE_DIR)
 
     helpers.patch(self, ['daemon.main.call',
                          'daemon.stackdriver_logging.send_run',
@@ -238,10 +238,10 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     """Tests resetting a testcase properly prior to running."""
 
     self.assertTrue(os.path.exists(main.CHROMIUM_OUT))
-    self.assertTrue(os.path.exists(main.CLUSTERFUZZ_DIR))
+    self.assertTrue(os.path.exists(main.CLUSTERFUZZ_CACHE_DIR))
     main.reset_and_run_testcase(1234, 'sanity', 'master')
     self.assertFalse(os.path.exists(main.CHROMIUM_OUT))
-    self.assertFalse(os.path.exists(main.CLUSTERFUZZ_DIR))
+    self.assertFalse(os.path.exists(main.CLUSTERFUZZ_CACHE_DIR))
 
     self.assert_exact_calls(self.mock.update_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.send_run, [

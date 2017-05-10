@@ -44,6 +44,7 @@ GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth?%s' % (
         'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'}))
 logger = logging.getLogger('clusterfuzz')
 
+
 class SuppressOutput(object):
   """Suppress stdout and stderr. We need this because there's no way to suppress
     webbrowser's stdout and stderr."""

@@ -28,8 +28,6 @@ from cmd_editor import editor
 from clusterfuzz import common
 
 
-CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
-CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_DIR, 'builds')
 logger = logging.getLogger('clusterfuzz')
 
 
@@ -84,23 +82,24 @@ class BinaryProvider(object):
       return build_dir
 
     logger.info('Downloading build data...')
-    if not os.path.exists(CLUSTERFUZZ_BUILDS_DIR):
-      os.makedirs(CLUSTERFUZZ_BUILDS_DIR)
+    if not os.path.exists(common.CLUSTERFUZZ_BUILDS_DIR):
+      os.makedirs(common.CLUSTERFUZZ_BUILDS_DIR)
 
     gsutil_path = self.build_url.replace(
         'https://storage.cloud.google.com/', 'gs://')
-    common.execute('gsutil', 'cp %s .' % gsutil_path, CLUSTERFUZZ_DIR)
+    common.execute(
+        'gsutil', 'cp %s .' % gsutil_path, common.CLUSTERFUZZ_CACHE_DIR)
 
     filename = os.path.split(gsutil_path)[1]
-    saved_file = os.path.join(CLUSTERFUZZ_DIR, filename)
+    saved_file = os.path.join(common.CLUSTERFUZZ_CACHE_DIR, filename)
 
     common.execute(
-        'unzip', '-q %s -d %s' % (saved_file, CLUSTERFUZZ_BUILDS_DIR),
-        cwd=CLUSTERFUZZ_DIR)
+        'unzip', '-q %s -d %s' % (saved_file, common.CLUSTERFUZZ_BUILDS_DIR),
+        cwd=common.CLUSTERFUZZ_DIR)
 
     logger.info('Cleaning up...')
     os.remove(saved_file)
-    os.rename(os.path.join(CLUSTERFUZZ_BUILDS_DIR,
+    os.rename(os.path.join(common.CLUSTERFUZZ_BUILDS_DIR,
                            os.path.splitext(filename)[0]), build_dir)
     stats = os.stat(binary_location)
     os.chmod(binary_location, stats.st_mode | stat.S_IEXEC)
@@ -110,7 +109,7 @@ class BinaryProvider(object):
 
   def build_dir_name(self):
     """Returns a build number's respective directory."""
-    return os.path.join(CLUSTERFUZZ_BUILDS_DIR,
+    return os.path.join(common.CLUSTERFUZZ_BUILDS_DIR,
                         str(self.testcase_id) + '_build')
 
 

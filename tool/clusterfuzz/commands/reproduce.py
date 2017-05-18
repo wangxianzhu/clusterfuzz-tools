@@ -215,9 +215,11 @@ def maybe_warn_unreproducible(current_testcase):
 def execute(testcase_id, current, build, disable_goma, j, iterations,
             disable_xvfb, target_args, edit_mode):
   """Execute the reproduce command."""
+  logger.info('----- START -----')
   logger.info('Reproducing testcase %s', testcase_id)
-  logger.debug('(testcase_id:%s, current=%s, build=%s, disable_goma=%s)',
-               testcase_id, current, build, disable_goma)
+  logger.debug(
+      '  testcase_id: %s\n  current: %s\n  build: %s\n  disable_goma: %s',
+      testcase_id, current, build, disable_goma)
   logger.info('Downloading testcase information...')
 
   response = get_testcase_info(testcase_id)

@@ -250,6 +250,7 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
         self.mock.prepare_binary_and_get_version, [mock.call('master')])
     self.assert_exact_calls(self.mock.call, [
         mock.call('git checkout -f HEAD', cwd=main.CHROMIUM_SRC),
+        mock.call('git clean -d -f -f', cwd=main.CHROMIUM_SRC),
     ])
 
 

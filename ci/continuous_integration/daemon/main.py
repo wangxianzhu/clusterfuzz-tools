@@ -173,6 +173,10 @@ def reset_and_run_testcase(testcase_id, test_type, release):
   delete_if_exists(CLUSTERFUZZ_CACHE_DIR)
   call('git checkout -f HEAD', cwd=CHROMIUM_SRC)
 
+  # Clean untracked files. Because untracked files in submodules are not removed
+  # with `git checkout -f HEAD`.
+  call('git clean -d -f -f', cwd=CHROMIUM_SRC)
+
   version = prepare_binary_and_get_version(release)
   update_auth_header()
   stackdriver_logging.send_run(

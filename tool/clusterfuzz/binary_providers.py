@@ -206,7 +206,7 @@ class GenericBuilder(BinaryProvider):
         'Proceed with the following command:\n'
         '%s %s in %s?' % (binary, args, self.source_directory))
     if self.source_dir_is_dirty():
-      logger.info('Your source directory has uncommitted changes: please'
+      logger.info('Your source directory has uncommitted changes: please '
                   'commit or stash these changes and re-run this tool.')
       sys.exit(1)
     common.execute(binary, args, self.source_directory)

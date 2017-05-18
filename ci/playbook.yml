@@ -60,11 +60,10 @@
         shell: /bin/bash
     - apt:
         update_cache: yes
-    - pam_limits:
-        domain: clusterfuzz
-        limit_type: hard
-        limit_item: nofile
-        value: 100000
+    - pam_limits: domain=* limit_type={{item}} limit_item=nofile value=1000000
+      with_items:
+        - hard
+        - soft
     - apt: name={{item}} state=latest
       with_items:
         - python-dev
@@ -92,6 +91,7 @@
   connection: ssh
   become: true
   tasks:
+    - shell: "sv stop python-daemon"
     - file: path="{{item}}"
             state=directory
             owner=clusterfuzz
@@ -145,6 +145,6 @@
       with_items:
         - { src: '/etc/sv/python-daemon', dest: '/etc/service/python-daemon' }
     - pause:
-        seconds: 10
-        prompt: Waiting 10 seconds for the server to acknowledge the CI service
-    - shell: "sv restart python-daemon"
+        seconds: 1
+        prompt: Waiting 1 second for the server to acknowledge the CI service
+    - shell: "sv start python-daemon"

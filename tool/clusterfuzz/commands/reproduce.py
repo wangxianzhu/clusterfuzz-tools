@@ -59,6 +59,7 @@ class SuppressOutput(object):
   def __exit__(self, unused_type, unused_value, unused_traceback):
     os.dup2(self.stdout, 1)
     os.dup2(self.stderr, 2)
+    return True
 
 
 def get_verification_header():
@@ -74,8 +75,8 @@ def get_verification_header():
   print
 
   verification = common.ask(
-      'Please login on the opened webpage and enter your verification code',
-      'Please enter a code', bool)
+      'Please login using the above URL and get your verification code',
+      'Please enter the verification code', bool)
   return 'VerificationCode %s' % verification
 
 

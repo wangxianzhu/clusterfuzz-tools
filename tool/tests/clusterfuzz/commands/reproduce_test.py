@@ -441,12 +441,9 @@ class SuppressOutputTest(helpers.ExtendedTestCase):
         self.mock.dup2, [mock.call('out', 1), mock.call('err', 2)])
 
   def test_exception(self):
-    """Test propagate exception."""
-    with self.assertRaises(Exception) as cm:
-      with reproduce.SuppressOutput():
-        raise Exception('test_exc')
-
-    self.assertEqual('test_exc', cm.exception.message)
+    """Test absorbing exception."""
+    with reproduce.SuppressOutput():
+      raise Exception('test_exc')
 
     self.assert_exact_calls(self.mock.dup, [mock.call(1), mock.call(2)])
     self.assert_exact_calls(self.mock.close, [mock.call(1), mock.call(2)])

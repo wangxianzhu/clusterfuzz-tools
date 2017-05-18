@@ -66,18 +66,18 @@
         - soft
     - apt: name={{item}} state=latest
       with_items:
-        - python-dev
-        - python2.7-dbg
-        - gdb
-        - python-pip
-        - runit
-        - git
-        - pkg-config
         - blackbox
-        - unzip
+        - gdb
+        - git
+        - libffi-dev
         - libssl-dev
         - openjdk-7-jdk
-        - libffi-dev
+        - pkg-config
+        - python-dev
+        - python-pip
+        - python2.7-dbg
+        - runit
+        - unzip
     - name: Upgrade PIP
       pip: name={{item}} state=latest
       with_items:
@@ -93,7 +93,8 @@
   connection: ssh
   become: true
   tasks:
-    - shell: "sv stop python-daemon"
+    - command: "sv stop python-daemon"
+      ignore_errors: yes
     - file: path="{{item}}"
             state=directory
             owner=clusterfuzz
@@ -149,4 +150,4 @@
     - pause:
         seconds: 1
         prompt: Waiting 1 second for the server to acknowledge the CI service
-    - shell: "sv start python-daemon"
+    - shell: "sv restart python-daemon"

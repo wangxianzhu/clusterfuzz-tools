@@ -67,6 +67,8 @@
     - apt: name={{item}} state=latest
       with_items:
         - python-dev
+        - python2.7-dbg
+        - gdb
         - python-pip
         - runit
         - git

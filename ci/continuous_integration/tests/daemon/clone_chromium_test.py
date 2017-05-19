@@ -24,7 +24,7 @@ class CloneChromiumTest(helpers.ExtendedTestCase):
   """Tests the clone_chromium method."""
 
   def setUp(self):
-    helpers.patch(self, ['subprocess.call'])
+    helpers.patch(self, ['subprocess.check_call'])
     self.setup_fake_filesystem()
 
   def test_insalls_correctly(self):
@@ -34,7 +34,7 @@ class CloneChromiumTest(helpers.ExtendedTestCase):
     self.assertFalse(os.path.exists(clone_chromium.CHROMIUM_DIR))
 
     clone_chromium.clone_chromium()
-    self.assert_exact_calls(self.mock.call, [
+    self.assert_exact_calls(self.mock.check_call, [
         mock.call(
             ('git clone --depth 1 '
              'https://chromium.googlesource.com/chromium/tools/'
@@ -45,11 +45,3 @@ class CloneChromiumTest(helpers.ExtendedTestCase):
         mock.call('build/install-build-deps.sh --no-prompt',
                   cwd=clone_chromium.CHROMIUM_SRC, shell=True)
     ])
-
-  def test_no_install_if_already_exists(self):
-    """Ensures it does not try to clone chrome twice."""
-
-    os.makedirs(clone_chromium.CHROMIUM_SRC)
-    clone_chromium.clone_chromium()
-
-    self.assert_n_calls(0, [self.mock.call])

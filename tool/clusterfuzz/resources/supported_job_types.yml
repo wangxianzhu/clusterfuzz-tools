@@ -47,7 +47,6 @@ presets: #Any parameters in a preset can be overridden in the actual definition
             preset: linux_content_shell
             sanitizer: ASAN
 standalone:
-        afl_chrome_asan: { preset: afl, sanitizer: ASAN }
         linux_asan_d8: { preset: linux_asan_d8_standalone }
         linux_asan_d8_dbg: { preset: linux_asan_d8_standalone }
         linux_asan_d8_v8_arm_dbg: { preset: linux_asan_d8_standalone, builder: V8_32 }
@@ -59,6 +58,7 @@ standalone:
         linux_ubsan_pdfium: { preset: pdfium_standalone, sanitizer: UBSAN }
         linux_v8_d8_tot: { preset: linux_asan_d8_standalone }
 chromium:
+        afl_chrome_asan: { preset: afl, sanitizer: ASAN }       
         libfuzzer_chrome_asan: { preset: libfuzzer, sanitizer: ASAN }
         libfuzzer_chrome_asan_debug: { preset: libfuzzer, sanitizer: ASAN }
         libfuzzer_chrome_msan: { preset: libfuzzer, builder: MsanChromium, sanitizer: MSAN }

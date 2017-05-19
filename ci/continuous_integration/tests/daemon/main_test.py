@@ -30,7 +30,6 @@ class MainTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, ['daemon.main.load_sanity_check_testcases',
                          'daemon.main.reset_and_run_testcase',
-                         'daemon.clone_chromium.clone_chromium',
                          'daemon.main.update_auth_header',
                          'daemon.main.load_new_testcases',
                          'time.sleep'])
@@ -48,7 +47,6 @@ class MainTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.load_sanity_check_testcases,
                             [mock.call()])
-    self.assert_exact_calls(self.mock.clone_chromium, [mock.call()])
     self.assert_exact_calls(self.mock.load_new_testcases, [mock.call(),
                                                            mock.call()])
     self.assert_exact_calls(self.mock.reset_and_run_testcase, [

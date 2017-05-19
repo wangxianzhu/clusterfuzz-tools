@@ -9,7 +9,6 @@ import yaml
 import requests
 
 import stackdriver_logging #pylint: disable=relative-import
-import clone_chromium #pylint: disable=relative-import
 
 from oauth2client.client import GoogleCredentials
 from lru import LRUCacheDict
@@ -185,7 +184,6 @@ def reset_and_run_testcase(testcase_id, test_type, release):
 
 def main():
   release = sys.argv[1]
-  clone_chromium.clone_chromium()
 
   for testcase in load_sanity_check_testcases():
     reset_and_run_testcase(testcase, 'sanity', release)

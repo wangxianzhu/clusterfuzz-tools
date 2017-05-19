@@ -1,0 +1,12 @@
+---
+
+# Increment the number when modifying the image.
+image_name: chromium-image-1
+
+project_id: 981641712411
+zone: us-central1-a
+
+service_account_email: ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com
+credentials_file: /auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json
+
+size_gb: 100

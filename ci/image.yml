@@ -1,0 +1,153 @@
+---
+
+- name: Setup the instance on GCE
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Create storage disk
+      gce_pd:
+        disk_type: pd-ssd
+        zone: "{{ zone }}"
+        project_id: "{{ project_id }}"
+        size_gb: "{{ size_gb }}"
+        image: ubuntu-1404
+        name: "{{ image_name }}-disk"
+        state: present
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        delete_on_termination: no
+    - name: Create the instance
+      gce:
+        disks:
+          - name: "{{ image_name }}-disk"
+            mode: READ_WRITE
+        instance_names: "{{ image_name }}-instance"
+        machine_type: n1-standard-32
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"
+        disk_auto_delete: false
+      register: gce
+    - name: Wait for SSH to come up
+      wait_for: host={{ gce.instance_data[0].public_ip }}
+                port=22
+                timeout=60
+    - name: Add host to groupname
+      add_host: hostname={{ gce.instance_data[0].public_ip }}
+                groupname=instances
+
+- name: Configure users and dependencies
+  hosts: instances
+  connection: ssh
+  become: true
+  tasks:
+    - group:
+        name: clusterfuzz
+        state: present
+    - name: Allow clusterfuzz group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%clusterfuzz'
+        line: '%clusterfuzz ALL=(ALL) NOPASSWD: ALL'
+    - user:
+        name: clusterfuzz
+        state: present
+        groups: clusterfuzz
+        shell: /bin/bash
+    - apt:
+        update_cache: yes
+    - pam_limits: domain=* limit_type={{ item }} limit_item=nofile value=1000000
+      with_items:
+        - hard
+        - soft
+    - apt: name={{item}} state=latest
+      with_items:
+        - blackbox
+        - gdb
+        - git
+        - libffi-dev
+        - libssl-dev
+        - openjdk-7-jdk
+        - pkg-config
+        - python-dev
+        - python-pip
+        - python2.7-dbg
+        - runit
+        - unzip
+    - name: Upgrade PIP
+      pip: name={{item}} state=latest
+      with_items:
+        - pip
+        - oauth2client
+        - httplib2
+        - pyyaml
+        - crcmod
+        - requests[security]
+        - py_lru_cache
+
+- name: Setup Chrome
+  hosts: instances
+  connection: ssh
+  become: true
+  become_user: clusterfuzz
+  vars:
+    home: /home/clusterfuzz
+  environment:
+    PATH: "{{ home }}/depot_tools:{{ ansible_env.PATH }}"
+  tasks:
+    - name: Clone depot_tools
+      git:
+        repo: 'https://chromium.googlesource.com/chromium/tools/depot_tools.git'
+        dest: "{{ home }}/depot_tools"
+        version: master
+        depth: 1
+    - name: Create Chromium directory
+      file:
+        path: "{{ home }}/chromium"
+        state: directory
+        owner: clusterfuzz
+        group: clusterfuzz
+        mode: 0777
+    - name: Fetch Chromium
+      command: "fetch --nohooks --force --no-history chromium"
+      args:
+        chdir: "{{ home }}/chromium"
+    - name: Accept mscorefonts EULA
+      command: bash -c "echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections"
+    - name: Run install-build-deps.sh
+      command: "build/install-build-deps.sh --lib32 --syms --chromeos-fonts --no-prompt"
+      args:
+        chdir: "{{ home }}/chromium/src"
+
+- name: Create image and terminate
+  hosts: instances
+  connection: local
+  tasks:
+    - name: Delete the instance
+      gce:
+        instance_names: "{{ image_name }}-instance"
+        state: deleted
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"
+    - name: Make an image from the disk
+      gce_img:
+        name: "{{ image_name }}"
+        source: "{{ image_name }}-disk"
+        state: present
+        service_account_email: "{{ service_account_email }}"
+        pem_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"
+    - name: Delete the disk
+      gce_pd:
+        name: "{{ image_name }}-disk"
+        state: deleted
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"

@@ -6,14 +6,14 @@
     - name: Create storage disk
       gce_pd:
         disk_type: pd-ssd
-        zone: "us-central1-a"
-        project_id: "981641712411"
-        size_gb: 100
-        image: ubuntu-1404
+        zone: "{{ zone }}"
+        project_id: "{{ project_id }}"
+        size_gb: "{{ size_gb }}"
+        image: "{{ image_name }}"
         name: "{{ machine }}-ci-boot"
         state: present
-        service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
     - name: Create the instance
       gce:
         disks:
@@ -21,10 +21,10 @@
             mode: READ_WRITE
         instance_names: "{{ machine }}-ci"
         machine_type: n1-standard-64
-        service_account_email: "ci-round-2@clusterfuzz-tools.iam.gserviceaccount.com"
-        credentials_file: "/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json"
-        project_id: "981641712411"
-        zone: "us-central1-a"
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"
       register: gce
     - name: Wait for SSH to come up
       wait_for: host={{ gce.instance_data[0].public_ip }}
@@ -32,64 +32,21 @@
                 timeout=60
     - name: Add host to groupname
       add_host: hostname={{ gce.instance_data[0].public_ip }}
-                groupname=continuous-integration-instances
+                groupname=instances
 - name: Configure users and dependencies
-  hosts: continuous-integration-instances
+  hosts: instances
   connection: ssh
   become: true
   tasks:
-    - group:
-        name: clusterfuzz
-        state: present
-    - name: Allow clusterfuzz group to have passwordless sudo
-      lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: '^%clusterfuzz'
-        line: '%clusterfuzz ALL=(ALL) NOPASSWD: ALL'
     - name: Set release type environment variable
       lineinfile:
         dest: /etc/environment
         state: present
         regexp: 'RELEASE="([a-z])\w+"'
         line: 'RELEASE="{{ release }}"'
-    - user:
-        name: clusterfuzz
-        state: present
-        groups: clusterfuzz
-        shell: /bin/bash
-    - apt:
-        update_cache: yes
-    - pam_limits: domain=* limit_type={{item}} limit_item=nofile value=1000000
-      with_items:
-        - hard
-        - soft
-    - apt: name={{item}} state=latest
-      with_items:
-        - blackbox
-        - gdb
-        - git
-        - libffi-dev
-        - libssl-dev
-        - openjdk-7-jdk
-        - pkg-config
-        - python-dev
-        - python-pip
-        - python2.7-dbg
-        - runit
-        - unzip
-    - name: Upgrade PIP
-      pip: name={{item}} state=latest
-      with_items:
-        - pip
-        - oauth2client
-        - httplib2
-        - pyyaml
-        - crcmod
-        - requests[security]
-        - py_lru_cache
+
 - name: Setup python-daemon (runit service, folder, log folder, and service)
-  hosts: continuous-integration-instances
+  hosts: instances
   connection: ssh
   become: true
   tasks:
@@ -148,6 +105,6 @@
       with_items:
         - { src: '/etc/sv/python-daemon', dest: '/etc/service/python-daemon' }
     - pause:
-        seconds: 1
-        prompt: Waiting 1 second for the server to acknowledge the CI service
+        seconds: 3
+        prompt: Waiting 3 second for the server to acknowledge the CI service
     - shell: "sv restart python-daemon"

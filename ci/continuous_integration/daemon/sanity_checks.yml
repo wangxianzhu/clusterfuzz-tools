@@ -17,3 +17,5 @@ testcases:
   - 5844907341381632
   # linux_asan_filter_fuzz_stub_32bit
   - 6071590721945600
+  # afl_chrome_asan
+  - 6425104480468992

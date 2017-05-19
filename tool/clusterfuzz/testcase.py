@@ -35,26 +35,40 @@ class Testcase(object):
     else:
       return '.%s' % split_filename[-1]
 
+  def _unescape(self, string):
+    """Un-escape a string."""
+    string = string.replace("&lt;", "<")
+    string = string.replace("&gt;", ">")
+    string = string.replace("&apos;", "'")
+    string = string.replace("&quot;", "\"")
+    # This has to be last call.
+    string = string.replace("&amp;", "&")
+    return string
 
   def get_environment_and_args(self):
     """Sets up the environment by parsing stacktrace lines."""
 
     new_env = {}
     args = ''
-    stacktrace_lines = [l['content']  for l in self.stacktrace_lines]
-    for l in stacktrace_lines:
-      if '[Environment] ' in l:
-        l = l.replace('[Environment] ', '')
-        name, value = l.split(' = ')
+    stacktrace_lines = [self._unescape(line['content'])
+                        for line in self.stacktrace_lines]
+    for line in stacktrace_lines:
+      if '[Environment] ' in line:
+        line = line.replace('[Environment] ', '')
+        name, value = line.split(' = ')
         if '_OPTIONS' in name:
           value = value.replace('symbolize=0', 'symbolize=1')
           if 'symbolize=1' not in value:
             value += ':symbolize=1'
         new_env[name] = value
-      elif 'Running command: ' in l:
-        l = l.replace('Running command: ', '').split(' ')
-        l = l[1:len(l)-1] #Strip off the binary & testcase paths
-        args = " ".join(l)
+
+      elif 'Running command: ' in line:
+        line = line.replace('Running command: ', '').split(' ')
+
+        # Strip off the binary & testcase paths.
+        line = line[1:len(line)-1]
+
+        args = " ".join(line)
 
     return new_env, args
 

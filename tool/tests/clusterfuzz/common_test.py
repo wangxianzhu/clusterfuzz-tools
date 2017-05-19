@@ -586,3 +586,26 @@ class ExecuteWithShellTest(helpers.ExtendedTestCase):
 
     self.mock.check_binary.assert_called_once_with('test', '/dir')
     self.mock.system.assert_called_once_with('cd /dir && test args')
+
+
+class GetStdinAndFilterArgsTest(helpers.ExtendedTestCase):
+  """Tests for get_stdin_and_filter_args."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    with open('/testcase', 'wb') as file_handle:
+      file_handle.write('PASS')
+
+  def test_without_piped_input(self):
+    """Test without piped input."""
+    stdin_handle, args = common.get_stdin_and_filter_args(
+        '--arg1 /testcase')
+    self.assertEqual(args, '--arg1 /testcase')
+    self.assertEqual(stdin_handle, subprocess.PIPE)
+
+  def test_with_piped_input(self):
+    """Test with piped input."""
+    stdin_handle, args = common.get_stdin_and_filter_args(
+        '--arg1 < /testcase')
+    self.assertEqual(args, '--arg1')
+    self.assertEqual(stdin_handle.read(), 'PASS')

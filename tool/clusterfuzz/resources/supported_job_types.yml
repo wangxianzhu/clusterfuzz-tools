@@ -21,6 +21,8 @@ presets: #Any parameters in a preset can be overridden in the actual definition
             builder: Chromium
             source: CHROMIUM_SRC
             reproducer: Base
+        afl:
+            preset: chromium
         libfuzzer:
             preset: chromium
             reproducer: LibfuzzerJob
@@ -45,6 +47,7 @@ presets: #Any parameters in a preset can be overridden in the actual definition
             preset: linux_content_shell
             sanitizer: ASAN
 standalone:
+        afl_chrome_asan: { preset: afl, sanitizer: ASAN }
         linux_asan_d8: { preset: linux_asan_d8_standalone }
         linux_asan_d8_dbg: { preset: linux_asan_d8_standalone }
         linux_asan_d8_v8_arm_dbg: { preset: linux_asan_d8_standalone, builder: V8_32 }

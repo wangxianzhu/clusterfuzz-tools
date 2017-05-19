@@ -93,6 +93,32 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     self.assertTrue(result.reproducible)
     self.assertEqual(result.gestures, [])
 
+  def test_parsing_json_with_piped_input(self):
+    """Ensures the JSON is parsed correctly."""
+
+    stacktrace_lines = [
+        {'content': '[Environment] TEST_ARGS = first=1:second=2'},
+        {'content': 'Not an env line'},
+        {'content': '[Environment] ASAN_OPTIONS = x=1:symbolize=0'},
+        {'content': '[Environment] LSAN_OPTIONS = y=1'},
+        {'content': ('Running command: /path/to/binary '
+                     '--random-seed=&quot;23&quot; '
+                     '--turbo &lt; /path/to/testcase')},
+        {'content': '[Environment] TEST_TWO = third=3:fourth=4'}]
+    result = build_base_testcase(
+        stacktrace_lines=stacktrace_lines, revision=5, build_url='build_url',
+        gestures=True)
+    self.assertEqual(result.id, '12345')
+    self.assertEqual(result.revision, 5)
+    self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second=2',
+                                          'TEST_TWO': 'third=3:fourth=4',
+                                          'ASAN_OPTIONS': 'x=1:symbolize=1',
+                                          'LSAN_OPTIONS': 'y=1:symbolize=1'})
+    self.assertEqual(result.reproduction_args, '--random-seed="23" --turbo <')
+    self.assertEqual(result.build_url, 'build_url')
+    self.assertTrue(result.reproducible)
+    self.assertEqual(result.gestures, [])
+
 
 class GetTestcasePathTest(helpers.ExtendedTestCase):
   """Tests the get_testcase_path method."""

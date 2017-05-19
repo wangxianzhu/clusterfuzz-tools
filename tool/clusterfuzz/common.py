@@ -242,10 +242,22 @@ def check_binary(binary, cwd):
     raise NotInstalledError(binary)
 
 
+def get_stdin_and_filter_args(args):
+  """Filter arguments to remove piped input, and return as stdin."""
+  match = re.match('(.*)<(.*)', args)
+  if not match:
+    return subprocess.PIPE, args
+
+  args = match.group(1).strip()
+  stdin_handle = open(match.group(2).strip(), 'rb')
+  return stdin_handle, args
+
+
 def start_execute(binary, args, cwd, env=None, print_command=True):
   """Runs a command, and returns the subprocess.Popen object."""
 
   check_binary(binary, cwd)
+  stdin_handle, args = get_stdin_and_filter_args(args)
 
   command = (binary + ' ' + args).strip()
   env = env or {}
@@ -271,7 +283,7 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
   return subprocess.Popen(
       command,
       shell=True,
-      stdin=subprocess.PIPE,
+      stdin=stdin_handle,
       stdout=subprocess.PIPE,
       stderr=subprocess.STDOUT,
       cwd=cwd,

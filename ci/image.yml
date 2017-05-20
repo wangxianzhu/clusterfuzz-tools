@@ -112,7 +112,7 @@
         group: clusterfuzz
         mode: 0777
     - name: Fetch Chromium
-      command: "fetch --nohooks --force --no-history chromium"
+      command: "fetch --nohooks --force chromium"
       args:
         chdir: "{{ home }}/chromium"
     - name: Accept mscorefonts EULA

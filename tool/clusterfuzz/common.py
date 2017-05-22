@@ -15,6 +15,7 @@
 
 from __future__ import print_function
 
+import collections
 import os
 import sys
 import stat
@@ -27,6 +28,12 @@ import shutil
 
 from backports.shutil_get_terminal_size import get_terminal_size
 from clusterfuzz import local_logging
+from clusterfuzz import output_transformer
+
+
+BASH_GREEN_MARKER = '\033[92m'
+BASH_RESET_MARKER = '\033[0m'
+
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_CACHE_DIR = os.path.join(CLUSTERFUZZ_DIR, 'cache')
@@ -34,9 +41,21 @@ CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'testcases')
 CLUSTERFUZZ_BUILDS_DIR = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'builds')
 AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'auth_header')
 DOMAIN_NAME = 'clusterfuzz.com'
-DEBUG_PRINT = os.environ.get('CF_DEBUG')
 TERMINAL_WIDTH = get_terminal_size().columns
 logger = logging.getLogger('clusterfuzz')
+
+
+def get_os_name():
+  """We need this method because we cannot mock os.name."""
+  return os.name
+
+
+def colorize(s):
+  """Wrap the string with bash-compatible color."""
+  if get_os_name() == 'posix':
+    return BASH_GREEN_MARKER + s + BASH_RESET_MARKER
+  else:
+    return s
 
 
 def get_binary_name(stacktrace):
@@ -203,37 +222,6 @@ def wait_timeout(proc, timeout):
         raise
 
 
-def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1,
-                       length=min(100, TERMINAL_WIDTH-26), fill='='):
-  """Prints a progress bar on the same line.
-
-  From: http://stackoverflow.com/a/34325723."""
-
-  percent = ("{0:." + str(decimals) + "f}").format(
-      100 * (iteration / float(total)))
-  filled_length = int(length * iteration // total)
-  bar = fill * filled_length + '-' * (length - filled_length)
-  full_line = '\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
-  print(full_line, end='\r')
-  if iteration == total:
-    print()
-  return full_line
-
-
-def interpret_ninja_output(line):
-  """Call print progress bar with the right params if line is valid.
-
-  In this case, valid implies line is of a form similar to:
-  [12/1000] CXX /filename/1...."""
-
-  if not re.search(r'\[[0-9]{1,6}\/[0-9]{1,6}\] [A-Z]*', line):
-    return
-  progress = line.split(' ')[0]
-  current, total = [int(x) for x in (progress.replace('[', '')
-                                     .replace(']', '').split('/'))]
-  print_progress_bar(current, total, prefix='Ninja progress:')
-
-
 def check_binary(binary, cwd):
   """Check if the binary exists."""
   try:
@@ -271,7 +259,7 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
   env_str = ' '.join(
       ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
 
-  log = ('Running: %s', ' '.join([env_str, command]).strip())
+  log = (colorize('Running: %s'), ' '.join([env_str, command]).strip())
   if print_command:
     logger.info(*log)
   else:
@@ -285,41 +273,60 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
       shell=True,
       stdin=stdin_handle,
       stdout=subprocess.PIPE,
-      stderr=subprocess.STDOUT,
+      stderr=subprocess.PIPE,
       cwd=cwd,
       env=final_env,
       preexec_fn=os.setsid)
 
 
+_Pipe = collections.namedtuple('_Pipe', ['source', 'transformer', 'sink'])
+
+
+def create_sink(pipe):
+  """Create a function that writes to pipe and flush."""
+  def _write(s):
+    pipe.write(s)
+    pipe.flush()
+  return _write
+
+
 def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
-                 timeout=None, ninja_command=False):
+                 timeout=None, stdout_transformer=None,
+                 stderr_transformer=None):
   """Looks after a command as it runs, and prints/returns its output after."""
 
   def _print(s):
     if print_output:
       logger.debug(s)
 
+  if stdout_transformer is None:
+    stdout_transformer = output_transformer.Hidden()
+
+  if stderr_transformer is None:
+    stderr_transformer = output_transformer.Identity()
+
   _print('---------------------------------------')
   output_chunks = []
-  current_line = []
   wait_timeout(proc, timeout)
-  for chunk in iter(lambda: proc.stdout.read(100), b''):
+
+  pipes = [
+      _Pipe(proc.stdout, stdout_transformer, create_sink(sys.stdout)),
+      _Pipe(proc.stderr, stderr_transformer, create_sink(sys.stderr))
+  ]
+
+  for pipe in pipes:
+    for chunk in iter(lambda p=pipe: p.source.read(10), b''):
+      if print_output:
+        local_logging.send_output(chunk)
+        pipe.transformer.process(chunk, pipe.sink)
+      if capture_output:
+        # According to: http://stackoverflow.com/questions/19926089, this is the
+        # fastest way to build strings.
+        output_chunks.append(chunk)
+
     if print_output:
-      local_logging.send_output(chunk)
-      if ninja_command and not DEBUG_PRINT:
-        for x in chunk:
-          if x == '\n':
-            interpret_ninja_output(''.join(current_line))
-            current_line = []
-          else:
-            current_line.append(x)
-      elif not DEBUG_PRINT:
-        sys.stdout.write('.')
-        sys.stdout.flush()
-    if capture_output:
-      # According to: http://stackoverflow.com/questions/19926089, this is the
-      # fastest way to build strings.
-      output_chunks.append(chunk)
+      pipe.transformer.flush(pipe.sink)
+
   proc.wait()
   if print_output:
     print()
@@ -333,11 +340,15 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
 
 
 def execute(binary, args, cwd, print_command=True, print_output=True,
-            capture_output=True, exit_on_error=True, env=None):
+            capture_output=True, exit_on_error=True, env=None,
+            stdout_transformer=None, stderr_transformer=None):
   """Execute a bash command."""
   proc = start_execute(binary, args, cwd, env=env, print_command=print_command)
-  return wait_execute(proc, exit_on_error, capture_output, print_output,
-                      ninja_command=binary == 'ninja')
+  return wait_execute(
+      proc=proc, exit_on_error=exit_on_error, capture_output=capture_output,
+      print_output=print_output, timeout=None,
+      stdout_transformer=stdout_transformer,
+      stderr_transformer=stderr_transformer)
 
 
 def execute_with_shell(binary, args, cwd):

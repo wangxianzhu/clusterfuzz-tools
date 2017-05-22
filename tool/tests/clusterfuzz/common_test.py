@@ -99,41 +99,21 @@ class ExecuteTest(helpers.ExtendedTestCase):
                          'logging.config.dictConfig',
                          'clusterfuzz.common.check_binary',
                          'clusterfuzz.common.wait_timeout',
-                         'clusterfuzz.common.interpret_ninja_output',
                          'os.environ.copy'])
     self.mock.copy.return_value = {'OS': 'ENVIRON'}
     self.mock.dictConfig.return_value = {}
 
     from clusterfuzz import local_logging
     local_logging.start_loggers()
-    self.lines = 'Line 1\nLine 2\nLine 3'
+    self.stdout = 'Line 1\nLine 2\nLine 3'
+    self.stderr = 'Err 1\nErr 2\nErr 3'
 
   def build_popen_mock(self, code):
     """Builds the mocked Popen object."""
     return mock.MagicMock(
-        stdout=cStringIO.StringIO(self.lines),
+        stdout=cStringIO.StringIO(self.stdout),
+        stderr=cStringIO.StringIO(self.stderr),
         returncode=code)
-
-  def test_with_ninja(self):
-    """Ensure interpret_ninja_output is run when the ninja flag is set."""
-
-    x = mock.Mock()
-    x.read.side_effect = ['part1', 'part2\n']
-    self.mock.Popen.return_value = mock.Mock(stdout=x, returncode=0)
-    common.execute('ninja', 'do this plz', '~/working/directory',
-                   print_output=True, exit_on_error=True,
-                   env={'a': 'b', 1: 2, 'c': None})
-    self.assert_n_calls(1, [self.mock.interpret_ninja_output])
-    self.mock.Popen.assert_called_once_with(
-        'ninja do this plz',
-        shell=True,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        cwd='~/working/directory',
-        env={'a': 'b', 'OS': 'ENVIRON', '1': '2'},
-        preexec_fn=os.setsid
-    )
 
   def run_execute(self, print_cmd, print_out, exit_on_err):
     return common.execute(
@@ -141,7 +121,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
         '~/working/directory',
         print_command=print_cmd,
         print_output=print_out,
-        exit_on_error=exit_on_err)
+        exit_on_error=exit_on_err,
+        env={'TEST': 'VALUE'})
 
   def run_popen_assertions(
       self, code, print_cmd=True, print_out=True, exit_on_err=True):
@@ -157,22 +138,25 @@ class ExecuteTest(helpers.ExtendedTestCase):
       with self.assertRaises(SystemExit):
         return_code, returned_lines = self.run_execute(
             print_cmd, print_out, exit_on_err)
+
+      self.assertEqual(return_code, None if will_exit else code)
+      self.assertEqual(returned_lines, None if will_exit else self.stdout + ' ')
     else:
       return_code, returned_lines = self.run_execute(
           print_cmd, print_out, exit_on_err)
+      self.assertEqual(return_code, code)
+      self.assertEqual(returned_lines, self.stdout + self.stderr)
 
-    self.assertEqual(return_code, None if will_exit else code)
-    self.assertEqual(returned_lines, None if will_exit else self.lines)
     self.assert_exact_calls(self.mock.Popen.return_value.wait, [mock.call()])
     self.assert_exact_calls(self.mock.Popen, [
         mock.call(
             'cmd',
             shell=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
             stdin=subprocess.PIPE,
             cwd='~/working/directory',
-            env={'OS': 'ENVIRON'},
+            env={'OS': 'ENVIRON', 'TEST': 'VALUE'},
             preexec_fn=os.setsid),
     ])
 
@@ -454,47 +438,6 @@ class WaitTimeoutTest(helpers.ExtendedTestCase):
     self.assert_n_calls(10, [self.mock.sleep])
 
 
-class InterpretNinjaOutputTest(helpers.ExtendedTestCase):
-  """Tests the interpret_ninja_output method."""
-
-  def setUp(self):
-    helpers.patch(self, ['clusterfuzz.common.print_progress_bar'])
-
-  def test_invalid_string(self):
-    """Ensures it doesn't try to print from an invalid input."""
-
-    common.interpret_ninja_output('wrong')
-    self.assert_n_calls(0, [self.mock.print_progress_bar])
-
-  def test_correct_parsing(self):
-    """Ensure valid ninja commands are parsed correctly."""
-
-    common.interpret_ninja_output('[23/100] CXX ../file/name /second/file')
-    self.assert_exact_calls(self.mock.print_progress_bar, [
-        mock.call(23, 100, prefix='Ninja progress:')])
-
-
-class PrintProgressBarTest(helpers.ExtendedTestCase):
-  """Ensures the print_progress_bar method works properly."""
-
-  def setUp(self):
-    helpers.patch(self,
-                  ['__builtin__.print',
-                   'backports.shutil_get_terminal_size.get_terminal_size'])
-    self.mock.get_terminal_size.return_value = mock.Mock(columns=150)
-    reload(common)
-
-  def test_call(self):
-    """Ensures print is called with the correct parameters."""
-
-    result = common.print_progress_bar(50, 100, prefix='Progress')
-    bar = '|%s%s|' % ('=' * 50, '-' * 50)
-    self.assertEqual(result, '\rProgress %s 50.0%% ' % bar)
-    result = common.print_progress_bar(100, 100, prefix='Progress')
-    bar = '|%s|' % ('=' * 100)
-    self.assertEqual(result, '\rProgress %s 100.0%% ' % bar)
-
-
 class DeleteIfExistsTest(helpers.ExtendedTestCase):
   """Tests the delete_if_exists method."""
 
@@ -609,3 +552,22 @@ class GetStdinAndFilterArgsTest(helpers.ExtendedTestCase):
         '--arg1 < /testcase')
     self.assertEqual(args, '--arg1')
     self.assertEqual(stdin_handle.read(), 'PASS')
+
+
+class ColorizeTest(helpers.ExtendedTestCase):
+  """Test colorize."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.get_os_name'])
+
+  def test_posix(self):
+    """Test posix."""
+    self.mock.get_os_name.return_value = 'posix'
+    self.assertEqual(
+        common.BASH_GREEN_MARKER + 'test' + common.BASH_RESET_MARKER,
+        common.colorize('test'))
+
+  def test_not_posix(self):
+    """Test not posix."""
+    self.mock.get_os_name.return_value = 'windows'
+    self.assertEqual('test', common.colorize('test'))

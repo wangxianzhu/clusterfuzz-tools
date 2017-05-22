@@ -26,6 +26,7 @@ import urlfetch
 
 from cmd_editor import editor
 from clusterfuzz import common
+from clusterfuzz import output_transformer
 
 
 logger = logging.getLogger('clusterfuzz')
@@ -302,11 +303,13 @@ class GenericBuilder(BinaryProvider):
     self.pre_build_steps()
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()
+
     common.execute(
         'ninja',
         "-w 'dupbuild=err' -C %s -j %i -l 15 %s" % (
             self.build_directory, goma_cores, self.target),
-        self.source_directory, capture_output=False)
+        self.source_directory, capture_output=False,
+        stdout_transformer=output_transformer.Ninja())
 
   def get_build_directory(self):
     """Returns the location of the correct build to use for reproduction."""

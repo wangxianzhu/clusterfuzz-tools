@@ -20,6 +20,7 @@ import mock
 import helpers
 from clusterfuzz import binary_providers
 from clusterfuzz import common
+from clusterfuzz import output_transformer
 
 
 class BuildRevisionToShaUrlTest(helpers.ExtendedTestCase):
@@ -288,8 +289,12 @@ class BuildTargetTest(helpers.ExtendedTestCase):
             ("-w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
              '-j 120 -l 15 d8'),
             chrome_source,
-            capture_output=False)
+            capture_output=False,
+            stdout_transformer=mock.ANY)
     ])
+    self.assertIsInstance(
+        self.mock.execute.call_args[1]['stdout_transformer'],
+        output_transformer.Ninja)
     self.assert_exact_calls(self.mock.setup_gn_args, [mock.call(builder)])
 
 
@@ -554,7 +559,14 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
         mock.call(
             'ninja',
             "-w 'dupbuild=err' -C /build/dir -j 120 -l 15 pdfium_test",
-            '/source/dir', capture_output=False)])
+            '/source/dir',
+            capture_output=False,
+            stdout_transformer=mock.ANY)
+    ])
+    self.assertIsInstance(
+        self.mock.execute.call_args[1]['stdout_transformer'],
+        output_transformer.Ninja)
+
 
 class ChromiumBuilderTest(helpers.ExtendedTestCase):
   """Tests the methods in ChromiumBuilder."""
@@ -627,7 +639,12 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
             ("-w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
              '-j 120 -l 15 target'),
             '/chrome/src',
-            capture_output=False)])
+            capture_output=False,
+            stdout_transformer=mock.ANY)
+    ])
+    self.assertIsInstance(
+        self.mock.execute.call_args[1]['stdout_transformer'],
+        output_transformer.Ninja)
 
   def test_get_binary_path(self):
     """Tests the get_binary_path method."""

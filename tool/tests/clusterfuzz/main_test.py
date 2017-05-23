@@ -38,29 +38,40 @@ class MainTest(unittest.TestCase):
     main.execute(['reproduce', '1234', '--build', 'chromium', '-i', '500'])
     main.execute(['reproduce', '1234', '--target-args', '--test --test2'])
     main.execute(['reproduce', '1234', '--edit-mode'])
+    main.execute(['reproduce', '1234', '--disable-gclient'])
 
     self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
         mock.call(build='chromium', current=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=True, target_args='', edit_mode=False),
+                  disable_xvfb=True, target_args='', edit_mode=False,
+                  disable_gclient=False),
         mock.call(build='chromium', current=True, disable_goma=False,
                   j=25, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=False),
+                  disable_xvfb=False, target_args='', edit_mode=False,
+                  disable_gclient=False),
         mock.call(build='download', current=False, disable_goma=True,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=False),
+                  disable_xvfb=False, target_args='', edit_mode=False,
+                  disable_gclient=False),
         mock.call(build='standalone', current=True, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=False),
+                  disable_xvfb=False, target_args='', edit_mode=False,
+                  disable_gclient=False),
         mock.call(build='chromium', current=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=500,
-                  disable_xvfb=False, target_args='', edit_mode=False),
+                  disable_xvfb=False, target_args='', edit_mode=False,
+                  disable_gclient=False),
         mock.call(build='chromium', current=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
                   disable_xvfb=False, target_args='--test --test2',
-                  edit_mode=False),
+                  edit_mode=False, disable_gclient=False),
         mock.call(build='chromium', current=False, disable_goma=False,
                   j=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=True)
+                  disable_xvfb=False, target_args='', edit_mode=True,
+                  disable_gclient=False),
+        mock.call(build='chromium', current=False, disable_goma=False,
+                  j=None, testcase_id='1234', iterations=10,
+                  disable_xvfb=False, target_args='', edit_mode=False,
+                  disable_gclient=True),
     ])

@@ -64,6 +64,9 @@ def execute(argv=None):
   reproduce.add_argument(
       '--edit-mode', action='store_true', default=False,
       help='Edit args.gn before building and target arguments before running.')
+  reproduce.add_argument(
+      '--disable-gclient', action='store_true', default=False,
+      help='Disable running gclient commands (e.g. sync, runhooks).')
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

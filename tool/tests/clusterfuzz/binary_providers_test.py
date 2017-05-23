@@ -174,7 +174,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
                          gn_args=None)
     binary_definition = mock.Mock(source_var='V8_SRC')
     provider = binary_providers.V8Builder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
     result = provider.get_build_directory()
     self.assertEqual(result, os.path.join(self.chrome_source, 'out',
@@ -194,7 +194,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
                          gn_args=None)
     binary_definition = mock.Mock(source_var='V8_SRC')
     provider = binary_providers.V8Builder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
     self.mock.get_source_directory.return_value = self.chrome_source
 
@@ -213,7 +213,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=12345, build_url=self.build_url, revision=54321)
     binary_definition = mock.Mock(source_var='V8_SRC')
     provider = binary_providers.V8Builder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
     provider.build_directory = 'dir/already/set'
 
@@ -276,7 +276,7 @@ class BuildTargetTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': chrome_source})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     builder = binary_providers.V8Builder(
-        testcase, binary_definition, False, goma_dir, None, False)
+        testcase, binary_definition, False, goma_dir, None, False, False)
     builder.build_directory = '/chrome/source/out/clusterfuzz_54321'
     builder.build_target()
 
@@ -313,7 +313,7 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
     binary_definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.V8Builder(
-        testcase, binary_definition, False, '/goma/dir', None, True)
+        testcase, binary_definition, False, '/goma/dir', None, True, False)
 
     def edit(content, prefix, comment):  # pylint: disable=unused-argument
       return content + '\nedited'
@@ -379,7 +379,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': self.chrome_source})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.ChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
     self.builder.git_sha = '1a2s3d4f'
 
   def test_dirty_dir(self):
@@ -445,7 +445,7 @@ class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=1234, build_url='', revision=54321)
     binary_definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.V8Builder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_clean_dir(self):
     """Tests when no changes have been made to the dir."""
@@ -479,7 +479,7 @@ class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
     binary_definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.PdfiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
     self.testcase_dir = os.path.expanduser(os.path.join('~', 'test_dir'))
     self.mock.execute.return_value = (0, '12345')
 
@@ -545,7 +545,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
     binary_definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.PdfiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_build_target(self):
     """Ensures that all build calls are made correctly."""
@@ -584,7 +584,8 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.binary_definition = mock.Mock(
         source_var='V8_SRC', binary_name='binary', target='target')
     self.builder = binary_providers.ChromiumBuilder(
-        self.testcase, self.binary_definition, False, '/goma/dir', None, False)
+        self.testcase, self.binary_definition, False, '/goma/dir', None, False,
+        False)
     self.builder.build_directory = '/chrome/src/out/clusterfuzz_builds'
 
   def test_get_goma_cores(self):
@@ -594,7 +595,8 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     self.mock.cpu_count.return_value = 12
 
     builder = binary_providers.ChromiumBuilder(
-        self.testcase, self.binary_definition, False, '/goma/dir', None, False)
+        self.testcase, self.binary_definition, False, '/goma/dir', None, False,
+        False)
 
     builder.goma_dir = False
     result = builder.get_goma_cores()
@@ -617,7 +619,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
                          stacktrace_lines=stacktrace)
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name=None)
     builder = binary_providers.ChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
     self.assertEqual(builder.binary_name, 'binary')
 
@@ -669,7 +671,7 @@ class CfiChromiumBuilderTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.CfiChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
@@ -694,7 +696,7 @@ class MsanChromiumBuilderTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.MsanChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_setup_gn_args(self):
     """Test the pre_build_steps method."""
@@ -720,7 +722,7 @@ class MsanV8BuilderTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.MsanV8Builder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_setup_gn_args(self):
     """Test the pre_build_steps method."""
@@ -745,7 +747,7 @@ class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.ChromiumBuilder32Bit(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
@@ -772,7 +774,7 @@ class V8Builder32BitTest(helpers.ExtendedTestCase):
     self.mock_os_environment({'V8_SRC': '/chrome/src'})
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.V8Builder32Bit(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
 
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
@@ -802,7 +804,7 @@ class GetCurrentShaTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     builder = binary_providers.ChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
     with self.assertRaises(SystemExit):
       builder.get_current_sha()
 
@@ -817,7 +819,7 @@ class GetGomaCoresTest(helpers.ExtendedTestCase):
     testcase = mock.Mock(id=12345, build_url='', revision=4567)
     binary_definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.ChromiumBuilder(
-        testcase, binary_definition, False, '/goma/dir', None, False)
+        testcase, binary_definition, False, '/goma/dir', None, False, False)
     self.mock.cpu_count.return_value = 64
 
   def test_select_correct_cores(self):

@@ -142,7 +142,8 @@ class GenericBuilder(BinaryProvider):
   """Provides a base for binary builders."""
 
   def __init__(self, testcase_id, build_url, revision, current, goma_dir,
-               source, binary_name, target, goma_threads, edit_mode):
+               source, binary_name, target, goma_threads, edit_mode,
+               disable_gclient):
     """self.git_sha must be set in a subclass, or some of these
     instance methods may not work."""
     super(GenericBuilder, self).__init__(testcase_id, build_url, binary_name)
@@ -156,6 +157,7 @@ class GenericBuilder(BinaryProvider):
     self.gn_flags = '--check'
     self.goma_threads = goma_threads
     self.edit_mode = edit_mode
+    self.disable_gclient = disable_gclient
 
   def get_current_sha(self):
     try:
@@ -297,8 +299,8 @@ class GenericBuilder(BinaryProvider):
 
   def build_target(self):
     """Build the correct revision in the source directory."""
-    # Note: gclient sync must be run before setting up the gn args.
-    common.execute('gclient', 'sync', self.source_directory)
+    if not self.disable_gclient:
+      common.execute('gclient', 'sync', self.source_directory)
 
     self.pre_build_steps()
     self.setup_gn_args()
@@ -338,11 +340,11 @@ class PdfiumBuilder(GenericBuilder):
   """Build a fresh Pdfium binary."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads, edit_mode):
+               goma_threads, edit_mode, disable_gclient):
     super(PdfiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), 'pdfium_test',
-        None, goma_threads, edit_mode)
+        None, goma_threads, edit_mode, disable_gclient)
     self.chromium_sha = sha_from_revision(self.revision, 'chromium/src')
     self.name = 'Pdfium'
     self.git_sha = get_pdfium_sha(self.chromium_sha)
@@ -355,17 +357,18 @@ class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads, edit_mode):
+               goma_threads, edit_mode, disable_gclient):
     super(V8Builder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current, goma_dir,
         os.environ.get(binary_definition.source_var), 'd8', None, goma_threads,
-        edit_mode)
+        edit_mode, disable_gclient)
     self.git_sha = sha_from_revision(self.revision, 'v8/v8')
     self.gn_args = testcase.gn_args
     self.name = 'V8'
 
   def pre_build_steps(self):
-    common.execute('gclient', 'runhooks', self.source_directory)
+    if not self.disable_gclient:
+      common.execute('gclient', 'runhooks', self.source_directory)
     if not self.current:
       common.execute('python', 'tools/clang/scripts/update.py',
                      self.source_directory)
@@ -374,7 +377,7 @@ class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
   def __init__(self, testcase, binary_definition, current, goma_dir,
-               goma_threads, edit_mode):
+               goma_threads, edit_mode, disable_gclient):
     target_name = None
     binary_name = binary_definition.binary_name
     if binary_definition.target:
@@ -384,13 +387,14 @@ class ChromiumBuilder(GenericBuilder):
     super(ChromiumBuilder, self).__init__(
         testcase.id, testcase.build_url, testcase.revision, current,
         goma_dir, os.environ.get(binary_definition.source_var), binary_name,
-        target_name, goma_threads, edit_mode)
+        target_name, goma_threads, edit_mode, disable_gclient)
     self.git_sha = sha_from_revision(self.revision, 'chromium/src')
     self.gn_args = testcase.gn_args
     self.name = 'chromium'
 
   def pre_build_steps(self):
-    common.execute('gclient', 'runhooks', self.source_directory)
+    if not self.disable_gclient:
+      common.execute('gclient', 'runhooks', self.source_directory)
     if not self.current:
       common.execute('python', 'tools/clang/scripts/update.py',
                      self.source_directory)
@@ -416,11 +420,12 @@ class MsanChromiumBuilder(ChromiumBuilder):
     msan_track_origins_value = (int(args_hash['msan_track_origins'])
                                 if 'msan_track_origins' in args_hash
                                 else 2)
-    common.execute('gclient', 'runhooks', self.source_directory,
-                   env={'GYP_DEFINES':
-                        ('msan=1 msan_track_origins=%d '
-                         'use_prebuilt_instrumented_libraries=1') %
-                        msan_track_origins_value})
+    if not self.disable_gclient:
+      common.execute('gclient', 'runhooks', self.source_directory,
+                     env={'GYP_DEFINES':
+                          ('msan=1 msan_track_origins=%d '
+                           'use_prebuilt_instrumented_libraries=1') %
+                          msan_track_origins_value})
 
 
 class MsanV8Builder(V8Builder):
@@ -434,11 +439,12 @@ class MsanV8Builder(V8Builder):
     msan_track_origins_value = (int(args_hash['msan_track_origins'])
                                 if 'msan_track_origins' in args_hash
                                 else 2)
-    common.execute('gclient', 'runhooks', self.source_directory,
-                   env={'GYP_DEFINES':
-                        ('msan=1 msan_track_origins=%d '
-                         'use_prebuilt_instrumented_libraries=1') %
-                        msan_track_origins_value})
+    if not self.disable_gclient:
+      common.execute('gclient', 'runhooks', self.source_directory,
+                     env={'GYP_DEFINES':
+                          ('msan=1 msan_track_origins=%d '
+                           'use_prebuilt_instrumented_libraries=1') %
+                          msan_track_origins_value})
 
 
 class ChromiumBuilder32Bit(ChromiumBuilder):

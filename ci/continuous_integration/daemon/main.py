@@ -1,5 +1,6 @@
 """The main module for the CI server."""
 
+import collections
 import os
 import subprocess
 import shutil
@@ -31,10 +32,13 @@ TESTCASE_CACHE = LRUCacheDict(max_size=1000, expiration=172800)
 SLEEP_TIME = 30
 
 
-def load_sanity_check_testcases():
+Testcase = collections.namedtuple('Testcase', ['id', 'job_type'])
+
+
+def load_sanity_check_testcase_ids():
   """Return a list of all testcases to try."""
   with open(SANITY_CHECKS) as stream:
-    return yaml.load(stream)['testcases']
+    return yaml.load(stream)['testcase_ids']
 
 
 def build_command(args):
@@ -112,24 +116,34 @@ def load_new_testcases():
     auth_header = f.read()
 
   testcases = []
+  testcase_ids = set()
   page = 1
   supported_jobtypes = get_supported_jobtypes()
 
-  def _validate_testcase(testcase):
+  def _is_valid(testcase):
     """Filter by jobtype and whether it has been successfully reproduced."""
-    return (testcase['jobType'] in supported_jobtypes['chromium'] and not
-            (testcase['id'] in TESTCASE_CACHE and
-             TESTCASE_CACHE[testcase['id']]))
+    return (testcase['jobType'] in supported_jobtypes['chromium'] and
+            not testcase['id'] in TESTCASE_CACHE and
+            not testcase['id'] in testcase_ids)
 
   while len(testcases) < 40:
     r = requests.post('https://clusterfuzz.com/v2/testcases/load',
                       headers={'Authorization': auth_header},
                       json={'page': page, 'reproducible': 'yes'})
-    new_testcases = r.json()['items']
-    new_testcases = [testcase['id'] for testcase in new_testcases
-                     if _validate_testcase(testcase)]
-    testcases.extend(t for t in new_testcases if t not in testcases)
+
+    has_valid_testcase = False
+    for testcase in r.json()['items']:
+      if not _is_valid(testcase):
+        continue
+
+      testcases.append(Testcase(testcase['id'], testcase['jobType']))
+      testcase_ids.add(testcase['id'])
+      has_valid_testcase = True
+
+    if not has_valid_testcase:
+      break
     page += 1
+
   return testcases
 
 
@@ -154,7 +168,9 @@ def build_master_and_get_version():
   shutil.copy(os.path.join(TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
               BINARY_LOCATION)
 
-  return call('git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE).strip()
+  # The full SHA is too long and unpleasant to show in logs. So, we use the
+  # first 7 characters of the SHA instead.
+  return call('git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE).strip()[:7]
 
 
 def prepare_binary_and_get_version(release):
@@ -165,7 +181,7 @@ def prepare_binary_and_get_version(release):
     return get_binary_version()
 
 
-def reset_and_run_testcase(testcase_id, test_type, release):
+def reset_and_run_testcase(testcase_id, category, release):
   """Resets the chromium repo and runs the testcase."""
 
   delete_if_exists(CHROMIUM_OUT)
@@ -179,20 +195,20 @@ def reset_and_run_testcase(testcase_id, test_type, release):
   version = prepare_binary_and_get_version(release)
   update_auth_header()
   stackdriver_logging.send_run(
-      testcase_id, test_type, version, run_testcase(testcase_id))
+      testcase_id, category, version, release, run_testcase(testcase_id))
 
 
 def main():
   release = sys.argv[1]
 
-  for testcase in load_sanity_check_testcases():
-    reset_and_run_testcase(testcase, 'sanity', release)
+  for testcase_id in load_sanity_check_testcase_ids():
+    reset_and_run_testcase(testcase_id, 'sanity', release)
     time.sleep(SLEEP_TIME)
 
   while True:
     update_auth_header()
     for testcase in load_new_testcases():
-      reset_and_run_testcase(testcase, 'continuous', release)
+      reset_and_run_testcase(testcase.id, testcase.job_type, release)
       time.sleep(SLEEP_TIME)
 
 

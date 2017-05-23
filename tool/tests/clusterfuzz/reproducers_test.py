@@ -588,7 +588,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
         mock.Mock(text=json.dumps(wrong_response)),
         mock.Mock(text=json.dumps(wrong_response))]
 
-    with self.assertRaises(SystemExit):
+    with self.assertRaises(common.UnreproducibleError):
       self.reproducer.reproduce(2)
 
   def test_good_stacktrace(self):

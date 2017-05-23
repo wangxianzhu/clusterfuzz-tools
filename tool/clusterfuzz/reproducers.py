@@ -20,7 +20,6 @@ import subprocess
 import logging
 import json
 import HTMLParser
-import sys
 import requests
 import xvfbwrapper
 import psutil
@@ -274,7 +273,8 @@ class BaseReproducer(object):
                     'reproduce.', iterations)
       iterations += 1
       time.sleep(3)
-    sys.exit(1)
+
+    raise common.UnreproducibleError(iteration_max)
 
 
 class LibfuzzerJobReproducer(BaseReproducer):

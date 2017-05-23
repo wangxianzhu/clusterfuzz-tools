@@ -33,19 +33,20 @@ def send_log(params, success):
       body=json.dumps(structure))
 
 
-def send_run(testcase_id, testcase_type, version, success):
+def send_run(testcase_id, testcase_type, version, release, success):
   if success:
-    message = '%s reproduced %s successfully (%s).' % (
-        version, testcase_id, testcase_type)
+    message = '%s (%s) reproduced %s successfully (%s).' % (
+        version, release, testcase_id, testcase_type)
   else:
-    message = '%s failed to reproduce %s (%s).' % (
-        version, testcase_id, testcase_type)
+    message = '%s (%s) failed to reproduce %s (%s).' % (
+        version, release, testcase_id, testcase_type)
 
   send_log(
       params={
           'testcaseId': testcase_id,
           'type': testcase_type, # Sanity check or pulled testcase
           'version': version,
-          'message': message
+          'message': message,
+          'release': release
       },
       success=success)

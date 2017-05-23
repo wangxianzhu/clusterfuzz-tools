@@ -28,14 +28,17 @@ class MainTest(helpers.ExtendedTestCase):
   """Test main."""
 
   def setUp(self):
-    helpers.patch(self, ['daemon.main.load_sanity_check_testcases',
+    helpers.patch(self, ['daemon.main.load_sanity_check_testcase_ids',
                          'daemon.main.reset_and_run_testcase',
                          'daemon.main.update_auth_header',
                          'daemon.main.load_new_testcases',
                          'time.sleep'])
     self.setup_fake_filesystem()
-    self.mock.load_sanity_check_testcases.return_value = [1, 2]
-    self.mock.load_new_testcases.side_effect = [[3, 4], [5]]
+    self.mock.load_sanity_check_testcase_ids.return_value = [1, 2]
+    self.mock.load_new_testcases.side_effect = [
+        [main.Testcase(3, 'job'), main.Testcase(4, 'job')],
+        [main.Testcase(5, 'job')]
+    ]
     self.mock.reset_and_run_testcase.side_effect = [None, None, None, None,
                                                     SystemExit]
 
@@ -45,16 +48,16 @@ class MainTest(helpers.ExtendedTestCase):
     with self.assertRaises(SystemExit):
       main.main()
 
-    self.assert_exact_calls(self.mock.load_sanity_check_testcases,
+    self.assert_exact_calls(self.mock.load_sanity_check_testcase_ids,
                             [mock.call()])
     self.assert_exact_calls(self.mock.load_new_testcases, [mock.call(),
                                                            mock.call()])
     self.assert_exact_calls(self.mock.reset_and_run_testcase, [
         mock.call(1, 'sanity', sys.argv[1]),
         mock.call(2, 'sanity', sys.argv[1]),
-        mock.call(3, 'continuous', sys.argv[1]),
-        mock.call(4, 'continuous', sys.argv[1]),
-        mock.call(5, 'continuous', sys.argv[1])])
+        mock.call(3, 'job', sys.argv[1]),
+        mock.call(4, 'job', sys.argv[1]),
+        mock.call(5, 'job', sys.argv[1])])
     self.assertEqual(2, self.mock.update_auth_header.call_count)
 
 
@@ -99,7 +102,6 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
     ])
 
 
-
 class LoadSanityCheckTestcasesTest(helpers.ExtendedTestCase):
   """Tests the load_sanity_check_testcases method."""
 
@@ -107,15 +109,16 @@ class LoadSanityCheckTestcasesTest(helpers.ExtendedTestCase):
     self.setup_fake_filesystem()
     os.makedirs('/python-daemon/daemon')
     with open(main.SANITY_CHECKS, 'w') as f:
-      f.write('testcases:\n')
+      f.write('testcase_ids:\n')
       f.write('#ignore\n')
       f.write('        - 5899279404367872')
 
   def test_reading_testcases(self):
     """Ensures that testcases are read properly."""
 
-    result = main.load_sanity_check_testcases()
+    result = main.load_sanity_check_testcase_ids()
     self.assertEqual(result, [5899279404367872])
+
 
 class UpdateAuthHeadertest(helpers.ExtendedTestCase):
   """Tests the update_auth_header method."""
@@ -188,31 +191,35 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
     self.mock.get_supported_jobtypes.return_value = {'chromium': [
         'supported', 'support']}
 
-  def test_no_latest_testcase(self):
-    """Tests when no previous tests have been run."""
-
-    returned_json = {
-        'items': [{'jobType': 'supported', 'id': 12345},
-                  {'jobType': 'unsupported', 'id': 98765},
-                  {'jobType': 'support', 'id': 23456},
-                  {'jobType': 'supported', 'id': 23456}]
+  def test_get_testcase(self):
+    """Tests get testcase."""
+    resp = mock.Mock()
+    resp.json.return_value = {
+        'items': [
+            {'jobType': 'supported', 'id': 12345},
+            {'jobType': 'unsupported', 'id': 98765},
+            {'jobType': 'support', 'id': 23456},
+            {'jobType': 'supported', 'id': 23456},
+            {'jobType': 'supported', 'id': 30},
+        ]
     }
-    for i in range(0, 40):
-      returned_json['items'].append({'jobType': 'supported', 'id': i})
+    self.mock.post.return_value = resp
+    main.TESTCASE_CACHE[30] = True
 
-    self.mock.post.return_value.json.return_value = returned_json
-
-    main.TESTCASE_CACHE[39] = True
-    main.TESTCASE_CACHE[38] = False
     result = main.load_new_testcases()
-    correct_result = [12345, 23456]
-    correct_result.extend(range(0, 39))
-    self.assertEqual(result, correct_result)
+
+    self.assertEqual(
+        [main.Testcase(12345, 'supported'), main.Testcase(23456, 'support')],
+        result)
     self.assert_exact_calls(self.mock.post, [
         mock.call(
             'https://clusterfuzz.com/v2/testcases/load',
             headers={'Authorization': 'Bearer xyzabc'},
-            json={'page': 1, 'reproducible': 'yes'})
+            json={'page': 1, 'reproducible': 'yes'}),
+        mock.call(
+            'https://clusterfuzz.com/v2/testcases/load',
+            headers={'Authorization': 'Bearer xyzabc'},
+            json={'page': 2, 'reproducible': 'yes'})
     ])
 
 
@@ -243,7 +250,7 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.update_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.send_run, [
-        mock.call(1234, 'sanity', '0.2.2rc10', 'run_testcase')])
+        mock.call(1234, 'sanity', '0.2.2rc10', 'master', 'run_testcase')])
     self.assert_exact_calls(
         self.mock.prepare_binary_and_get_version, [mock.call('master')])
     self.assert_exact_calls(self.mock.call, [

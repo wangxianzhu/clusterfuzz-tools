@@ -63,21 +63,23 @@ class SendRunTest(helpers.ExtendedTestCase):
     helpers.patch(self, ['daemon.stackdriver_logging.send_log'])
 
   def _test(self, success, message):
-    stackdriver_logging.send_run(1234, 'sanity', '0.2.2rc3', success)
+    stackdriver_logging.send_run(1234, 'sanity', '0.2.2rc3', 'master', success)
     self.assert_exact_calls(self.mock.send_log, [
         mock.call(
             params={
                 'testcaseId': 1234,
                 'type': 'sanity',
                 'version': '0.2.2rc3',
-                'message': message},
+                'message': message,
+                'release': 'master'
+            },
             success=success)
     ])
 
   def test_succeed(self):
     """Test send success log."""
-    self._test(True, '0.2.2rc3 reproduced 1234 successfully (sanity).')
+    self._test(True, '0.2.2rc3 (master) reproduced 1234 successfully (sanity).')
 
   def test_fail(self):
     """Test send failure log."""
-    self._test(False, '0.2.2rc3 failed to reproduce 1234 (sanity).')
+    self._test(False, '0.2.2rc3 (master) failed to reproduce 1234 (sanity).')

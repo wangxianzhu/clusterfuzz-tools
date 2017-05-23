@@ -175,6 +175,14 @@ class BadJobTypeDefinitionError(ExpectedException):
     super(BadJobTypeDefinitionError, self).__init__(message)
 
 
+class UnreproducibleError(ExpectedException):
+  """An exception raised when the testcase cannot be reproduced."""
+
+  def __init__(self, count):
+    super(UnreproducibleError, self).__init__(
+        'The testcase cannot be reproduced after trying %d times.' % count)
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 

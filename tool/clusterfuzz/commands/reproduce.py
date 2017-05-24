@@ -22,8 +22,6 @@ import webbrowser
 import logging
 import yaml
 
-import requests
-
 from clusterfuzz import common
 from clusterfuzz import stackdriver_logging
 from clusterfuzz import testcase
@@ -89,7 +87,7 @@ def send_request(url, data):
   header = common.get_stored_auth_header() or get_verification_header()
   response = None
   for _ in range(2):
-    response = requests.post(
+    response = common.post(
         url=url, headers={
             'Authorization': header,
             'User-Agent': 'clusterfuzz-tools'},

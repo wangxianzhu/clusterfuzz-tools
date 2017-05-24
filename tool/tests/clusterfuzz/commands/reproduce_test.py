@@ -200,7 +200,7 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.get_stored_auth_header',
         'clusterfuzz.common.store_auth_header',
         'clusterfuzz.commands.reproduce.get_verification_header',
-        'requests.post'])
+        'clusterfuzz.common.post'])
 
   def test_correct_stored_authorization(self):
     """Ensures that the testcase info is returned when stored auth is correct"""

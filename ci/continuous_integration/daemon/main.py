@@ -7,12 +7,14 @@ import shutil
 import sys
 import time
 import yaml
+
 import requests
-
-import stackdriver_logging #pylint: disable=relative-import
-
+from requests.packages.urllib3.util import retry
+from requests import adapters
 from oauth2client.client import GoogleCredentials
 from lru import LRUCacheDict
+
+import stackdriver_logging #pylint: disable=relative-import
 
 
 HOME = os.path.expanduser('~')
@@ -33,6 +35,23 @@ SLEEP_TIME = 30
 
 
 Testcase = collections.namedtuple('Testcase', ['id', 'job_type'])
+
+
+# Configuring backoff retrying because sending a request to ClusterFuzz
+# might fail during a deployment.
+http = requests.Session()
+http.mount(
+    'https://',
+    adapters.HTTPAdapter(
+        # backoff_factor is 0.5. Therefore, the max wait time is 16s.
+        retry.Retry(
+            total=5, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]))
+)
+
+
+def post(*args, **kwargs):  # pragma: no cover
+  """Make a post request. This method is needed for mocking."""
+  return http.post(*args, **kwargs)
 
 
 def load_sanity_check_testcase_ids():
@@ -127,9 +146,9 @@ def load_new_testcases():
             not testcase['id'] in testcase_ids)
 
   while len(testcases) < 40:
-    r = requests.post('https://clusterfuzz.com/v2/testcases/load',
-                      headers={'Authorization': auth_header},
-                      json={'page': page, 'reproducible': 'yes'})
+    r = post('https://clusterfuzz.com/v2/testcases/load',
+             headers={'Authorization': auth_header},
+             json={'page': page, 'reproducible': 'yes'})
 
     has_valid_testcase = False
     for testcase in r.json()['items']:

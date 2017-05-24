@@ -294,7 +294,7 @@ class CheckConfirmTest(helpers.ExtendedTestCase):
 
   def test_answer_no(self):
     self.mock.confirm.return_value = False
-    with self.assertRaises(SystemExit):
+    with self.assertRaises(common.UserRespondingNoError):
       common.check_confirm('Question?')
     self.assert_exact_calls(self.mock.confirm, [mock.call('Question?')])
 
@@ -564,10 +564,10 @@ class ColorizeTest(helpers.ExtendedTestCase):
     """Test posix."""
     self.mock.get_os_name.return_value = 'posix'
     self.assertEqual(
-        common.BASH_GREEN_MARKER + 'test' + common.BASH_RESET_MARKER,
-        common.colorize('test'))
+        common.BASH_BLUE_MARKER + 'test' + common.BASH_RESET_MARKER,
+        common.colorize('test', common.BASH_BLUE_MARKER))
 
   def test_not_posix(self):
     """Test not posix."""
     self.mock.get_os_name.return_value = 'windows'
-    self.assertEqual('test', common.colorize('test'))
+    self.assertEqual('test', common.colorize('test', common.BASH_BLUE_MARKER))

@@ -139,7 +139,10 @@ def log(func):
                      command=command_name, **kwargs)
         raise
     except (KeyboardInterrupt, common.ExpectedException) as e:
-      logger.info('%s: %s', e.__class__.__name__, e.message)
+      print
+      logger.info(
+          common.colorize('%s: %s', common.BASH_YELLOW_MARKER),
+          e.__class__.__name__, e.message)
       sys.exit(1)
     finally:
       print ('\nDetailed log of this run can be found in: %s' %

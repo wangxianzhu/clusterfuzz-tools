@@ -20,7 +20,6 @@ import subprocess
 import logging
 import json
 import HTMLParser
-import requests
 import xvfbwrapper
 import psutil
 
@@ -202,7 +201,7 @@ class BaseReproducer(object):
   def get_stacktrace_info(self, trace):
     """Post a stacktrace, return (crash_state, crash_type)."""
 
-    response = requests.post(
+    response = common.post(
         url=('https://clusterfuzz.com/v2/parse_stacktrace'),
         data=json.dumps({'job': self.job_type, 'stacktrace': trace}))
     response = json.loads(response.text)

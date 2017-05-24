@@ -185,7 +185,7 @@ class LoadNewTestcasesTest(helpers.ExtendedTestCase):
       f.write('Bearer xyzabc')
 
     helpers.patch(self, ['daemon.main.get_supported_jobtypes',
-                         'requests.post',
+                         'daemon.main.post',
                          'random.randint'])
     self.mock.randint.return_value = 6
     self.mock.get_supported_jobtypes.return_value = {'chromium': [

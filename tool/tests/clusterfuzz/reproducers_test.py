@@ -24,7 +24,7 @@ from clusterfuzz import common
 def patch_stacktrace_info(obj):
   """Patches get_stacktrace_info for initializing a Reproducer."""
 
-  patcher = mock.patch('requests.post',
+  patcher = mock.patch('clusterfuzz.common.post',
                        return_value=mock.Mock(text=json.dumps({
                            'crash_state': 'original\nstate',
                            'crash_type': 'original_type'})))
@@ -570,7 +570,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize',
-        'requests.post',
+        'clusterfuzz.common.post',
         'time.sleep'])
     self.mock.reproduce_crash.return_value = (0, ['stuff'])
     self.mock.post_run_symbolize.return_value = 'stuff'

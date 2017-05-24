@@ -26,12 +26,17 @@ import re
 import signal
 import shutil
 
+import requests
+from requests.packages.urllib3.util import retry
+from requests import adapters
 from backports.shutil_get_terminal_size import get_terminal_size
+
 from clusterfuzz import local_logging
 from clusterfuzz import output_transformer
 
 
-BASH_GREEN_MARKER = '\033[92m'
+BASH_BLUE_MARKER = '\033[1;36m'
+BASH_YELLOW_MARKER = '\033[1;33m'
 BASH_RESET_MARKER = '\033[0m'
 
 
@@ -45,15 +50,32 @@ TERMINAL_WIDTH = get_terminal_size().columns
 logger = logging.getLogger('clusterfuzz')
 
 
+# Configuring backoff retrying because sending a request to ClusterFuzz
+# might fail during a deployment.
+http = requests.Session()
+http.mount(
+    'https://',
+    adapters.HTTPAdapter(
+        # backoff_factor is 0.5. Therefore, the max wait time is 16s.
+        retry.Retry(
+            total=5, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]))
+)
+
+
+def post(*args, **kwargs):  # pragma: no cover
+  """Make a post request. This method is needed for mocking."""
+  return http.post(*args, **kwargs)
+
+
 def get_os_name():
   """We need this method because we cannot mock os.name."""
   return os.name
 
 
-def colorize(s):
+def colorize(s, color):
   """Wrap the string with bash-compatible color."""
   if get_os_name() == 'posix':
-    return BASH_GREEN_MARKER + s + BASH_RESET_MARKER
+    return color + s + BASH_RESET_MARKER
   else:
     return s
 
@@ -183,6 +205,14 @@ class UnreproducibleError(ExpectedException):
         'The testcase cannot be reproduced after trying %d times.' % count)
 
 
+class UserRespondingNoError(ExpectedException):
+  """An exception raised when the user decides not to proceed."""
+
+  def __init__(self, question):
+    super(UserRespondingNoError, self).__init__(
+        'User responding "no" to "%s".' % question)
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 
@@ -267,7 +297,8 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
   env_str = ' '.join(
       ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
 
-  log = (colorize('Running: %s'), ' '.join([env_str, command]).strip())
+  log = (colorize('Running: %s', BASH_BLUE_MARKER),
+         ' '.join([env_str, command]).strip())
   if print_command:
     logger.info(*log)
   else:
@@ -394,7 +425,7 @@ def check_confirm(question):
   """Exits the program if the answer is negative, does nothing otherwise."""
 
   if not confirm(question):
-    sys.exit()
+    raise UserRespondingNoError(question)
 
 
 def ask(question, error_message, validate_fn):

@@ -47,10 +47,10 @@ def execute(argv=None):
       choices=['download', 'chromium', 'standalone'],
       help='Select which type of build to run the testcase against.')
   reproduce.add_argument(
-      '-dg', '--disable-goma', action='store_true', default=False,
+      '--disable-goma', action='store_true', default=False,
       help='Disable GOMA when building binaries locally.')
   reproduce.add_argument(
-      '-j', action='store', default=None, type=int,
+      '-j', '--goma-threads', action='store', default=None, type=int,
       help='Manually specify the number of concurrent jobs for a ninja build.')
   reproduce.add_argument(
       '-i', '--iterations', action='store', default=10, type=int,

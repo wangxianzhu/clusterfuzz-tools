@@ -83,42 +83,21 @@ def send_log(params, stacktrace=None):
       body=json.dumps(structure))
 
 
-def make_basic_params(command, testcase_id, build, current, disable_goma, j,
-                      iterations, disable_xvfb, target_args, edit_mode,
-                      disable_gclient):
-  """Creates the basic paramater dict."""
-
-  return {'testcaseId': testcase_id,
-          'buildType': build,
-          'current': current,
-          'command': command,
-          'disableGoma': disable_goma,
-          'j': j,
-          'iterations': iterations,
-          'disableXvfb': disable_xvfb,
-          'targetArgs': target_args,
-          'editMode': edit_mode,
-          'disableGclient': disable_gclient}
-
-
-def send_start(**kwargs):
+def send_start(params):
   """Sends the basic testcase details to show a run has started."""
+  send_log(params)
 
-  send_log(make_basic_params(**kwargs))
 
-
-def send_success(**kwargs):
+def send_success(params):
   """Sends a success message to show the reproduction completed."""
-
-  params = make_basic_params(**kwargs)
+  params = params.copy()
   params['success'] = True
   send_log(params)
 
 
-def send_failure(exception_name, stacktrace, **kwargs):
+def send_failure(exception_name, stacktrace, params):
   """Sends a log with success set to False."""
-
-  params = make_basic_params(**kwargs)
+  params = params.copy()
   params['exception'] = exception_name
   params['success'] = False
   send_log(params, stacktrace)
@@ -127,16 +106,21 @@ def send_failure(exception_name, stacktrace, **kwargs):
 def log(func):
   """Log to stackdriver at the start & end of a command."""
   @functools.wraps(func)
-  def wrapped(*args, **kwargs):
-    command_name = func.__module__.split('.')[-1]
+  def wrapped(*args, **params):
+    if args:
+      raise Exception(
+          'Invoking %s with positional arguments is not allowed.' %
+          func.__name__)
+
+    log_params = params.copy()
+    log_params['command'] = func.__module__.split('.')[-1]
     try:
       try:
-        send_start(*args, command=command_name, **kwargs)
-        func(*args, **kwargs)
-        send_success(*args, command=command_name, **kwargs)
+        send_start(log_params)
+        func(**params)
+        send_success(log_params)
       except BaseException as e:
-        send_failure(e.__class__.__name__, traceback.format_exc(), *args,
-                     command=command_name, **kwargs)
+        send_failure(e.__class__.__name__, traceback.format_exc(), log_params)
         raise
     except (KeyboardInterrupt, common.ExpectedException) as e:
       print

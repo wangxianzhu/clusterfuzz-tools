@@ -20,6 +20,7 @@ import mock
 import helpers
 from clusterfuzz import reproducers
 from clusterfuzz import common
+from tests import libs
 
 def patch_stacktrace_info(obj):
   """Patches get_stacktrace_info for initializing a Reproducer."""
@@ -40,7 +41,8 @@ def create_reproducer(klass):
   binary_provider.get_build_directory.return_value = '/fake/build_dir'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
                        job_type='job_type', reproduction_args='--original')
-  reproducer = klass(binary_provider, testcase, 'UBSAN', False, '--test', False)
+  reproducer = klass(binary_provider, testcase, 'UBSAN',
+                     libs.make_options(target_args='--test'))
   reproducer.args = '--always-opt'
   reproducer.environment = {}
   reproducer.source_directory = '/fake/source_dir'
@@ -74,7 +76,8 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
         {'content': 'line'}], job_type='job_type', reproduction_args='--orig')
     self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN', False, '--test', False)
+        self.binary_provider, self.testcase, 'UBSAN',
+        libs.make_options(target_args='--test'))
 
     self.reproducer.environment = {
         'UBSAN_OPTIONS': ('external_symbolizer_path=/not/correct/path:other_'
@@ -85,7 +88,7 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     result = self.reproducer.environment
     for i in result:
       if '_OPTIONS' in i:
-        result[i] = self.reproducer.deserialize_sanitizer_options(result[i])
+        result[i] = reproducers.deserialize_sanitizer_options(result[i])
     self.assertEqual(result, {
         'UBSAN_OPTIONS': {
             'external_symbolizer_path':
@@ -107,13 +110,6 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
 class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
   """Test the serializer & deserializers for sanitizer options."""
 
-  def setUp(self):
-    self.binary_provider = mock.Mock(symbolizer_path='/path/to/symbolizer')
-    self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
-        {'content': 'line'}], job_type='job_type', reproduction_args='--orig')
-    self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN', False, '--test', False)
-
   def test_serialize(self):
     in_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
                'option': '1',
@@ -121,8 +117,7 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
     out_str = ('suppressions=/a/b/c/d/suppresions.txt:option=1'
                ':symbolizer=abcde/llvm-symbolizer')
 
-    self.assertEqual(self.reproducer.serialize_sanitizer_options(in_dict),
-                     out_str)
+    self.assertEqual(reproducers.serialize_sanitizer_options(in_dict), out_str)
 
   def test_deserialize(self):
     out_dict = {'suppressions': '/a/b/c/d/suppresions.txt',
@@ -131,8 +126,8 @@ class SanitizerOptionsSerializerTest(helpers.ExtendedTestCase):
     in_str = ('suppressions=/a/b/c/d/suppresions.txt:option=1'
               ':symbolizer=abcde/llvm-symbolizer')
 
-    self.assertEqual(self.reproducer.deserialize_sanitizer_options(in_str),
-                     out_dict)
+    self.assertEqual(
+        reproducers.deserialize_sanitizer_options(in_str), out_dict)
 
 class ReproduceCrashTest(helpers.ExtendedTestCase):
   """Tests the reproduce_crash method."""
@@ -171,7 +166,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.BaseReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN', False, '--test', False)
+        mocked_provider, mocked_testcase, 'UBSAN',
+        libs.make_options(target_args='--test'))
     reproducer.setup_args()
     reproducer.reproduce_crash()
     self.assert_exact_calls(self.mock.execute, [
@@ -198,7 +194,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.BaseReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN', False, '--test', False)
+        mocked_provider, mocked_testcase, 'UBSAN',
+        libs.make_options(target_args='--test'))
     reproducer.setup_args()
     reproducer.reproduce_crash()
     self.assert_exact_calls(self.mock.execute, [
@@ -228,7 +225,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN', False, '--test', False)
+        mocked_provider, mocked_testcase, 'UBSAN',
+        libs.make_options(target_args='--test'))
     reproducer.gestures = ['gesture,1', 'gesture,2']
     reproducer.setup_args()
     err, text = reproducer.reproduce_crash()
@@ -273,21 +271,24 @@ class SetupArgsTest(helpers.ExtendedTestCase):
   def test_disable_xvfb(self):
     """Test disable xvfb."""
     reproducer = reproducers.LinuxChromeJobReproducer(
-        self.provider, self.testcase, 'UBSAN', True,
-        '--test --disable-gl-drawing-for-tests', False)
+        self.provider, self.testcase, 'UBSAN',
+        libs.make_options(
+            disable_xvfb=True,
+            target_args='--test --disable-gl-drawing-for-tests'))
 
     reproducer.setup_args()
     self.assertEqual('--repro --test %s' % self.testcase_path,
                      reproducer.args)
 
   def test_enable_xvfb(self):
-    """Test disable xvfb."""
+    """Test enable xvfb and edit args."""
     def edit(content, prefix, comment):  # pylint: disable=unused-argument
       return '--new-argument' + ' ' + content
     self.mock.edit.side_effect = edit
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        self.provider, self.testcase, 'UBSAN', False, '--test', True)
+        self.provider, self.testcase, 'UBSAN',
+        libs.make_options(target_args='--test', edit_mode=True))
 
     reproducer.setup_args()
     self.assertEqual(

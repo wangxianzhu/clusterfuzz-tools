@@ -129,6 +129,24 @@ class TestSendLog(helpers.ExtendedTestCase):
              method='POST', body=json.dumps(structure))])
 
 
+@stackdriver_logging.log
+def raise_func(param):  # pylint: disable=unused-argument
+  """Raise a normal exception."""
+  raise Exception('Oops')
+
+
+@stackdriver_logging.log
+def raise_keyboard_interrupt(param):  # pylint: disable=unused-argument
+  """Raise KeyboardInterrupt."""
+  raise KeyboardInterrupt()
+
+
+@stackdriver_logging.log
+def not_raise(param):  # pylint: disable=unused-argument
+  """Dummy function."""
+  pass
+
+
 class LogTest(helpers.ExtendedTestCase):
   """Tests the log method."""
 
@@ -137,18 +155,48 @@ class LogTest(helpers.ExtendedTestCase):
                          'clusterfuzz.stackdriver_logging.send_success',
                          'clusterfuzz.stackdriver_logging.send_failure'])
 
-  def raise_func(self):
-    raise Exception('Oops')
-
   def test_raise_exception(self):
     """Test raising a non clusterfuzz exception."""
+    with self.assertRaises(Exception) as cm:
+      raise_func(param='yes')
 
-    to_call = stackdriver_logging.log(self.raise_func)
-    with self.assertRaises(Exception):
-      to_call()
+    self.assertEqual('Oops', cm.exception.message)
+    self.mock.send_start.assert_called_once_with(
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+    self.mock.send_failure.assert_called_once_with(
+        'Exception', mock.ANY,
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+
+  def test_keyboard_interrupt(self):
+    """Test raising a KeyboardInterrupt exception."""
+    with self.assertRaises(SystemExit) as cm:
+      raise_keyboard_interrupt(param='yes')
+
+    self.assertEqual(1, cm.exception.code)
+    self.mock.send_start.assert_called_once_with(
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+    self.mock.send_failure.assert_called_once_with(
+        'KeyboardInterrupt', mock.ANY,
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+
+  def test_success(self):
+    """Test succeeding."""
+    not_raise(param='yes')
+    self.mock.send_start.assert_called_once_with(
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+    self.mock.send_success.assert_called_once_with(
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+
+  def test_on_positional_args(self):
+    """Test error on positional arguments."""
+    with self.assertRaises(Exception) as cm:
+      not_raise('yes')
+    self.assertEqual(
+        'Invoking not_raise with positional arguments is not allowed.',
+        cm.exception.message)
 
 
-class TestGetSessionId(helpers.ExtendedTestCase):
+class GetSessionIdTest(helpers.ExtendedTestCase):
   """Tests the get session ID method"""
 
   def test_get_session(self):
@@ -159,3 +207,21 @@ class TestGetSessionId(helpers.ExtendedTestCase):
     self.assertEqual(user, actual_user)
     self.assertTrue(float(timestamp) < time.time())
     self.assertEqual(len(random_string), 40)
+
+
+class SendSuccessFailureTest(helpers.ExtendedTestCase):
+  """Test send_failure and send_success."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.stackdriver_logging.send_log'])
+
+  def test_send_failure(self):
+    """Test send failure."""
+    stackdriver_logging.send_failure('Ex', 'trace', {'test': 'yes'})
+    self.mock.send_log.assert_called_once_with(
+        {'test': 'yes', 'exception': 'Ex', 'success': False}, 'trace')
+
+  def test_send_success(self):
+    """Test send success."""
+    stackdriver_logging.send_success({'test': 'yes'})
+    self.mock.send_log.assert_called_once_with({'test': 'yes', 'success': True})

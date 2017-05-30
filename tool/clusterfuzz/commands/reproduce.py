@@ -211,14 +211,25 @@ def maybe_warn_unreproducible(current_testcase):
     return True
 
 @stackdriver_logging.log
-def execute(testcase_id, current, build, disable_goma, j, iterations,
-            disable_xvfb, target_args, edit_mode, disable_gclient):
+def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
+            disable_xvfb, target_args, edit_mode, disable_gclient,
+            goma_dir=None):
   """Execute the reproduce command."""
-  logger.info('----- START -----')
+  options = common.Options(
+      testcase_id=testcase_id,
+      current=current,
+      build=build,
+      disable_goma=disable_goma,
+      goma_threads=goma_threads,
+      iterations=iterations,
+      disable_xvfb=disable_xvfb,
+      target_args=target_args,
+      edit_mode=edit_mode,
+      disable_gclient=disable_gclient,
+      goma_dir=goma_dir)
+
   logger.info('Reproducing testcase %s', testcase_id)
-  logger.debug(
-      '  testcase_id: %s\n  current: %s\n  build: %s\n  disable_goma: %s',
-      testcase_id, current, build, disable_goma)
+  logger.debug('%s', str(options))
   logger.info('Downloading testcase information...')
 
   response = get_testcase_info(testcase_id)
@@ -238,16 +249,21 @@ def execute(testcase_id, current, build, disable_goma, j, iterations,
     else:
       binary_name = common.get_binary_name(current_testcase.stacktrace_lines)
     binary_provider = binary_providers.DownloadedBinary(
-        current_testcase.id, current_testcase.build_url, binary_name)
+        testcase_id=current_testcase.id,
+        build_url=current_testcase.build_url,
+        binary_name=binary_name)
   else:
-    goma_dir = None if disable_goma else ensure_goma()
+    options.goma_dir = None if options.disable_goma else ensure_goma()
     binary_provider = definition.builder(
-        current_testcase, definition, current, goma_dir, j, edit_mode,
-        disable_gclient)
+        testcase=current_testcase,
+        binary_definition=definition,
+        options=options)
 
   reproducer = definition.reproducer(
-      binary_provider, current_testcase, definition.sanitizer, disable_xvfb,
-      target_args, edit_mode)
+      binary_provider=binary_provider,
+      testcase=current_testcase,
+      sanitizer=definition.sanitizer,
+      options=options)
   try:
     reproducer.reproduce(iterations)
   finally:

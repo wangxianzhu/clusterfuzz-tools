@@ -101,6 +101,24 @@ def is_similar(new_type, new_state_lines, original_type, original_state_lines):
   return count >= len(original_state_lines)
 
 
+def deserialize_sanitizer_options(options):
+  """Read options from a variable like ASAN_OPTIONS into a dict."""
+  pairs = options.split(':')
+  return_dict = {}
+  for pair in pairs:
+    k, v = pair.split('=')
+    return_dict[k] = v
+  return return_dict
+
+
+def serialize_sanitizer_options(options):
+  """Takes dict of sanitizer options, returns command-line friendly string."""
+  pairs = []
+  for key, value in options.iteritems():
+    pairs.append('%s=%s' % (key, value))
+  return ':'.join(pairs)
+
+
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
 
@@ -114,14 +132,12 @@ class BaseReproducer(object):
       gesture_start_time = DEFAULT_GESTURE_TIME
     return gesture_start_time
 
-  def __init__(self, binary_provider, testcase, sanitizer, disable_xvfb,
-               target_args, edit_mode):
+  def __init__(self, binary_provider, testcase, sanitizer, options):
     self.original_testcase_path = testcase.absolute_path
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
     self.args = testcase.reproduction_args
-    self.target_args = target_args
     self.binary_path = binary_provider.get_binary_path()
     self.build_directory = binary_provider.get_build_directory()
     self.source_directory = binary_provider.source_directory
@@ -129,8 +145,7 @@ class BaseReproducer(object):
         0755, 'resources', 'llvm-symbolizer')
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
-    self.disable_xvfb = disable_xvfb
-    self.edit_mode = edit_mode
+    self.options = options
 
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
@@ -141,23 +156,6 @@ class BaseReproducer(object):
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
 
-  def deserialize_sanitizer_options(self, options):
-    """Read options from a variable like ASAN_OPTIONS into a dict."""
-
-    pairs = options.split(':')
-    return_dict = {}
-    for pair in pairs:
-      k, v = pair.split('=')
-      return_dict[k] = v
-    return return_dict
-
-  def serialize_sanitizer_options(self, options):
-    """Takes dict of sanitizer options, returns command-line friendly string."""
-
-    pairs = []
-    for key, value in options.iteritems():
-      pairs.append('%s=%s' % (key, value))
-    return ':'.join(pairs)
 
   def set_up_symbolizers_suppressions(self):
     """Sets up the symbolizer variables for an environment."""
@@ -168,7 +166,7 @@ class BaseReproducer(object):
     for variable in env:
       if '_OPTIONS' not in variable:
         continue
-      options = self.deserialize_sanitizer_options(env[variable])
+      options = deserialize_sanitizer_options(env[variable])
 
       if 'external_symbolizer_path' in options:
         options['external_symbolizer_path'] = self.symbolizer_path
@@ -183,7 +181,7 @@ class BaseReproducer(object):
             0640, 'resources', 'suppressions',
             '%s_suppressions.txt' % suppressions_map[variable])
         options['suppressions'] = filename
-      env[variable] = self.serialize_sanitizer_options(options)
+      env[variable] = serialize_sanitizer_options(options)
     self.environment = env
 
   def pre_build_steps(self):
@@ -212,13 +210,13 @@ class BaseReproducer(object):
   def setup_args(self):
     """Setup args."""
     # Add custom args if any.
-    if self.target_args:
-      self.args += ' %s' % self.target_args
+    if self.options.target_args:
+      self.args += ' %s' % self.options.target_args
 
     # --disable-gl-drawing-for-tests does not draw gl content on screen.
     # When running in regular mode, user would want to see screen, so
     # remove this argument.
-    if (self.disable_xvfb and
+    if (self.options.disable_xvfb and
         DISABLE_GL_DRAW_ARG in self.args):
       self.args = self.args.replace(' %s' % DISABLE_GL_DRAW_ARG, '')
       self.args = self.args.replace(DISABLE_GL_DRAW_ARG, '')
@@ -232,7 +230,7 @@ class BaseReproducer(object):
     else:
       self.args += ' %s' % self.testcase_path
 
-    if self.edit_mode:
+    if self.options.edit_mode:
       self.args = editor.edit(
           self.args, prefix='edit-args-',
           comment='Edit arguments before running %s' % self.binary_path)
@@ -444,7 +442,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
   def reproduce_crash(self):
     """Reproduce the crash, running gestures if necessary."""
 
-    with Xvfb(self.disable_xvfb) as display_name:
+    with Xvfb(self.options.disable_xvfb) as display_name:
       self.environment['DISPLAY'] = display_name
 
       process = common.start_execute(

@@ -2,6 +2,7 @@ backports.shutil_get_terminal_size==1.0.0
 coveralls==1.1
 httplib2==0.10.3
 mock==2.0.0
+namedlist==1.7
 oauth2client==4.0.0
 psutil==5.2.0
 pyOpenSSL==16.2.0

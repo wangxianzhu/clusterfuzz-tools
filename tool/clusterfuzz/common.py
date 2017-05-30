@@ -26,6 +26,7 @@ import re
 import signal
 import shutil
 
+import namedlist
 import requests
 from requests.packages.urllib3.util import retry
 from requests import adapters
@@ -48,6 +49,14 @@ AUTH_HEADER_FILE = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'auth_header')
 DOMAIN_NAME = 'clusterfuzz.com'
 TERMINAL_WIDTH = get_terminal_size().columns
 logger = logging.getLogger('clusterfuzz')
+
+
+Options = namedlist.namedlist(
+    'Options',
+    ['testcase_id', 'current', 'build', 'disable_goma', 'goma_threads',
+     'iterations', 'disable_xvfb', 'target_args', 'edit_mode',
+     'disable_gclient', 'goma_dir']
+)
 
 
 # Configuring backoff retrying because sending a request to ClusterFuzz

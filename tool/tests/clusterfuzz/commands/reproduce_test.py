@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-
 import json
 import os
 import mock
@@ -23,6 +21,7 @@ from clusterfuzz import common
 from clusterfuzz import binary_providers
 from clusterfuzz import reproducers
 from clusterfuzz.commands import reproduce
+from tests import libs
 import helpers
 
 
@@ -48,14 +47,16 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
     self.mock_os_environment({'V8_SRC': '/v8/src', 'CHROME_SRC': '/pdf/src'})
     helpers.patch(self, [
+        'clusterfuzz.commands.reproduce.get_binary_definition',
         'clusterfuzz.commands.reproduce.get_testcase_info',
         'clusterfuzz.testcase.Testcase',
         'clusterfuzz.commands.reproduce.ensure_goma',
         'clusterfuzz.binary_providers.DownloadedBinary',
         'clusterfuzz.binary_providers.V8Builder',
-        'clusterfuzz.binary_providers.ChromiumBuilder'])
+        'clusterfuzz.binary_providers.ChromiumBuilder',
+    ])
     self.response = {
-        'testcase': {},
+        'testcase': {'gestures': 'test'},
         'id': 1234,
         'crash_type': 'Bad Crash',
         'crash_state': ['halted'],
@@ -65,131 +66,102 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.get_testcase_info.return_value = self.response
     self.mock.ensure_goma.return_value = '/goma/dir'
 
-  def test_gesture_job(self):
-    """Ensures an excpetion is thrown when running a job with gestures."""
+    self.builder = mock.Mock(symbolizer_path='/path/to/symbolizer')
+    self.builder.get_binary_path.return_value = '/path/to/binary'
 
-    self.mock.get_testcase_info.return_value = {'testcase': {'gestures': 'yes'}}
-    self.mock.Testcase.return_value = mock.Mock(job_type='good_job')
+    self.binary_definition = mock.Mock(
+        kwargs={}, source_var='V8_SRC', sanitizer='ASAN')
 
-    with self.assertRaises(SystemExit):
-      reproduce.execute(testcase_id='1234', current=False, build='standalone',
-                        disable_goma=False, j=None, iterations=None,
-                        disable_xvfb=False, target_args='--test',
-                        edit_mode=True, disable_gclient=False)
+    self.binary_definition.builder.return_value = self.builder
+    self.mock.get_binary_definition.return_value = self.binary_definition
 
-  def test_unsupported_job(self):
-    """Tests to ensure an exception is thrown with an unsupported job type."""
-
-    self.mock.get_testcase_info.return_value = {'testcase': {}}
-    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='fuzzlibber_xunil')
-    self.mock.Testcase.return_value = testcase
-    with self.assertRaises(SystemExit):
-      reproduce.execute(testcase_id='1234', current=False, build='standalone',
-                        disable_goma=False, j=None, iterations=None,
-                        disable_xvfb=False, target_args='--test',
-                        edit_mode=True, disable_gclient=False)
+    self.testcase = mock.Mock(
+        id=1234, build_url='chrome_build_url', revision=123456,
+        job_type='linux_asan_d8', reproducible=True,
+        reproduction_args='--always-opt')
+    self.mock.Testcase.return_value = self.testcase
+    self.options = libs.make_options(testcase_id=str(self.testcase.id))
 
   def test_download_no_defined_binary(self):
     """Test what happens when no binary name is defined."""
-    helpers.patch(self, [
-        'clusterfuzz.commands.reproduce.get_binary_definition'])
-    self.mock.get_binary_definition.return_value = mock.Mock(
-        binary_name=None, sanitizer='ASAN')
-    self.mock.DownloadedBinary.return_value = mock.Mock(symbolizer_path=(
-        '/path/to/symbolizer'))
-    self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
-        '/path/to/binary')
-    stacktrace = [
+    self.binary_definition.binary_name = None
+    self.testcase.stacktrace_lines = [
         {'content': 'incorrect'}, {'content': '[Environment] A = b'},
-        {'content': ('Running command: path/to/binary --args --arg2 '
+        {'content': ('Running command: path/to/stacktrace_binary --args --arg2 '
                      '/path/to/testcase')}]
-    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='linux_asan_d8',
-                         stacktrace_lines=stacktrace, reproducible=True,
-                         reproduction_args='--always-opt')
-    self.mock.Testcase.return_value = testcase
-    reproduce.execute(testcase_id='1234', current=False, build='download',
-                      disable_goma=False, j=None, iterations=None,
-                      disable_xvfb=False, target_args='--test',
-                      edit_mode=True, disable_gclient=False)
+
+    self.options.build = 'download'
+    reproduce.execute(**vars(self.options))
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
-    self.assert_exact_calls(self.mock.DownloadedBinary,
-                            [mock.call(1234, 'chrome_build_url', 'binary')])
     self.assert_exact_calls(
-        self.mock.get_binary_definition.return_value.reproducer,
-        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN',
-                   False, '--test', True)])
+        self.mock.DownloadedBinary,
+        [mock.call(1234, 'chrome_build_url', 'stacktrace_binary')])
+    self.assert_exact_calls(
+        self.binary_definition.reproducer,
+        [
+            mock.call(
+                binary_provider=self.mock.DownloadedBinary.return_value,
+                testcase=self.testcase,
+                sanitizer=self.binary_definition.sanitizer,
+                options=self.options)
+        ])
 
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
-
-    helpers.patch(self, [
-        'clusterfuzz.commands.reproduce.get_binary_definition'])
-    self.mock.get_binary_definition.return_value = mock.Mock(
-        binary_name='binary', sanitizer='ASAN')
-    self.mock.DownloadedBinary.return_value = mock.Mock(symbolizer_path=(
-        '/path/to/symbolizer'))
-    self.mock.DownloadedBinary.return_value.get_binary_path.return_value = (
-        '/path/to/binary')
-    stacktrace = [
+    self.binary_definition.binary_name = 'defined_binary'
+    self.testcase.stacktrace_lines = [
         {'content': 'incorrect'}, {'content': '[Environment] A = b'},
-        {'content': ('Running command: path/to/binary --args --arg2 '
+        {'content': ('Running command: path/to/stacktrace_binary --args --arg2 '
                      '/path/to/testcase')}]
-    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='linux_asan_d8',
-                         stacktrace_lines=stacktrace, reproducible=True)
-    self.mock.Testcase.return_value = testcase
-    reproduce.execute(testcase_id='1234', current=False, build='download',
-                      disable_goma=False, j=None, iterations=None,
-                      disable_xvfb=False, target_args='--test',
-                      edit_mode=True, disable_gclient=False)
+
+    self.options.build = 'download'
+    reproduce.execute(**vars(self.options))
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_n_calls(0, [self.mock.ensure_goma])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
-    self.assert_exact_calls(self.mock.DownloadedBinary,
-                            [mock.call(1234, 'chrome_build_url', 'binary')])
     self.assert_exact_calls(
-        self.mock.get_binary_definition.return_value.reproducer,
-        [mock.call(self.mock.DownloadedBinary.return_value, testcase, 'ASAN',
-                   False, '--test', True)])
+        self.mock.DownloadedBinary,
+        [mock.call(1234, 'chrome_build_url', 'defined_binary')])
+    self.assert_exact_calls(
+        self.binary_definition.reproducer,
+        [
+            mock.call(
+                binary_provider=self.mock.DownloadedBinary.return_value,
+                testcase=self.testcase,
+                sanitizer=self.binary_definition.sanitizer,
+                options=self.options)
+        ])
 
   def test_grab_data_standalone(self):
     """Ensures all method calls are made correctly when building locally."""
-
-    helpers.patch(self, [
-        'clusterfuzz.commands.reproduce.get_binary_definition'])
-    self.mock.get_binary_definition.return_value = mock.Mock(
-        kwargs={}, source_var='V8_SRC', sanitizer='ASAN')
-    (self.mock.get_binary_definition.return_value.builder.return_value
-     .get_binary_path.return_value) = '/path/to/binary'
-    (self.mock.get_binary_definition.return_value.builder.return_value
-     .symbolizer_path) = '/path/to/symbolizer'
-    testcase = mock.Mock(id=1234, build_url='chrome_build_url',
-                         revision=123456, job_type='linux_asan_d8',
-                         reproducible=True, reproduction_args='--always-opt')
-    self.mock.Testcase.return_value = testcase
-    reproduce.execute(testcase_id='1234', current=False, build='standalone',
-                      disable_goma=False, j=22, iterations=None,
-                      disable_xvfb=False, target_args='--test', edit_mode=True,
-                      disable_gclient=False)
+    self.options.build = 'standalone'
+    reproduce.execute(**vars(self.options))
+    self.options.goma_dir = '/goma/dir'
 
     self.assert_exact_calls(self.mock.get_testcase_info, [mock.call('1234')])
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(
-        self.mock.get_binary_definition.return_value.builder, [
-            mock.call(testcase, self.mock.get_binary_definition.return_value,
-                      False, '/goma/dir', 22, True, False)])
+        self.binary_definition.builder,
+        [
+            mock.call(
+                testcase=self.testcase,
+                binary_definition=self.binary_definition,
+                options=self.options)
+        ])
     self.assert_exact_calls(
-        self.mock.get_binary_definition.return_value.reproducer,
-        [mock.call(
-            self.mock.get_binary_definition.return_value.builder.return_value,
-            testcase, 'ASAN', False, '--test', True)])
+        self.binary_definition.reproducer,
+        [
+            mock.call(
+                binary_provider=self.builder,
+                testcase=self.testcase,
+                sanitizer=self.binary_definition.sanitizer,
+                options=self.options)
+        ])
 
 
 class GetTestcaseInfoTest(helpers.ExtendedTestCase):
@@ -489,13 +461,19 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
 class GetSupportedJobsTest(helpers.ExtendedTestCase):
   """Tests the get_supported_jobs method."""
 
-  def setUp(self):
+  def test_raise_from_key_error(self):
+    """Tests that a BadJobTypeDefinition error is raised when parsing fails."""
     helpers.patch(self, [
         'clusterfuzz.commands.reproduce.build_binary_definition'])
     self.mock.build_binary_definition.side_effect = KeyError
 
-  def test_raise_from_key_error(self):
-    """Tests that a BadJobTypeDefinition error is raised when parsing fails."""
-
     with self.assertRaises(common.BadJobTypeDefinitionError):
       reproduce.get_supported_jobs()
+
+  def test_get(self):
+    """Test getting supported job types."""
+    results = reproduce.get_supported_jobs()
+    self.assertIn('chromium', results)
+    self.assertIn('libfuzzer_chrome_ubsan', results['chromium'])
+    self.assertIn('standalone', results)
+    self.assertIn('linux_asan_pdfium', results['standalone'])

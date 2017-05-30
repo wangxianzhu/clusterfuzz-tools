@@ -299,31 +299,37 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
 
   def setUp(self):
-    self.setup_fake_filesystem()
     helpers.patch(self, [
         'clusterfuzz.reproducers.BaseReproducer.pre_build_steps',
+        'clusterfuzz.reproducers.ensure_user_data_dir_if_needed',
+        'clusterfuzz.reproducers.update_testcase_path_in_layout_test',
         'clusterfuzz.common.get_resource',
         'pyfakefs.fake_filesystem.FakeFilesystem.RenameObject',
     ])
     self.mock.get_resource.return_value = 'llvm'
-    os.makedirs('/tmp/clusterfuzz-user-profile-data')
+    self.mock.ensure_user_data_dir_if_needed.side_effect = (
+        lambda args, require_user_data_dir: args + ' --test-user-data-dir')
+    self.mock.update_testcase_path_in_layout_test.return_value = '/new-path'
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
+    self.reproducer.binary_definition.require_user_data_dir = False
     self.reproducer.original_testcase_path = '/fake/LayoutTests/testcase'
 
   def test_reproduce_crash(self):
     """Ensures pre-build steps run correctly."""
 
     self.reproducer.pre_build_steps()
-    self.assertFalse(os.path.exists('/tmp/user-profile-data'))
+    self.assertEqual(self.reproducer.testcase_path, '/new-path')
+    self.assert_exact_calls(
+        self.mock.pre_build_steps, [mock.call(self.reproducer)])
     self.assertEqual(
-        self.reproducer.testcase_path,
-        '/fake/source_dir/third_party/WebKit/LayoutTests/testcase')
-    self.assert_exact_calls(self.mock.pre_build_steps,
-                            [mock.call(self.reproducer)])
-    self.assertEqual(
-        self.reproducer.args,
-        '--always-opt --user-data-dir=/tmp/clusterfuzz-user-profile-data')
+        self.reproducer.args, '--always-opt --test-user-data-dir')
+    self.mock.ensure_user_data_dir_if_needed.assert_called_once_with(
+        '--always-opt', False)
+    self.mock.update_testcase_path_in_layout_test.assert_called_once_with(
+        '/fake/testcase_dir/testcase', '/fake/LayoutTests/testcase',
+        '/fake/source_dir')
+
 
 class XdotoolCommandTest(helpers.ExtendedTestCase):
   """Tests the xdotool_command method."""
@@ -762,3 +768,63 @@ class IsSimilarTest(helpers.ExtendedTestCase):
         't', ['a', 'b', 'd'], 't', ['a', 'b', 'c']))
     self.assertTrue(reproducers.is_similar(
         't', ['a', 'b'], 't', ['a', 'b', 'c']))
+
+
+class EnsureUserDataDirIfNeededTest(helpers.ExtendedTestCase):
+  """Test ensure_user_data_dir_if_needed."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    os.makedirs(reproducers.USER_DATA_DIR_PATH)
+    self.assertTrue(os.path.exists(reproducers.USER_DATA_DIR_PATH))
+
+  def test_doing_nothing(self):
+    """Test doing nothing."""
+    self.assertEqual(
+        '--something',
+        reproducers.ensure_user_data_dir_if_needed('--something', False))
+
+  def test_add_because_it_should(self):
+    """Test adding arg because it should have."""
+    self.assertEqual(
+        '--something --user-data-dir=%s' % reproducers.USER_DATA_DIR_PATH,
+        reproducers.ensure_user_data_dir_if_needed('--something', True))
+    self.assertFalse(os.path.exists(reproducers.USER_DATA_DIR_PATH))
+
+  def test_add_because_of_previous_args(self):
+    """Test replacing arg because it exists."""
+    self.assertEqual(
+        '--something  --user-data-dir=%s' % reproducers.USER_DATA_DIR_PATH,
+        reproducers.ensure_user_data_dir_if_needed(
+            '--something --user-data-dir=/tmp/random', False))
+    self.assertFalse(os.path.exists(reproducers.USER_DATA_DIR_PATH))
+
+
+class UpdateTestcasePathInLayoutTestTest(helpers.ExtendedTestCase):
+  """Test update_testcase_path_in_layout_test."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+    os.makedirs('/testcase_dir')
+    self.fs.CreateFile('/testcase_dir/testcase', contents='Some test')
+    os.makedirs('/source/third_party/WebKit/LayoutTests/original_dir')
+
+  def test_doing_nothing(self):
+    """Test doing nothing."""
+    self.assertEqual(
+        '/testpath/testcase',
+        reproducers.update_testcase_path_in_layout_test(
+            '/testpath/testcase', '/original/testcase', '/source'))
+
+  def test_update(self):
+    """Update the testcase path."""
+    new_path = (
+        '/source/third_party/WebKit/LayoutTests/original_dir/original_file')
+    self.assertEqual(
+        new_path,
+        reproducers.update_testcase_path_in_layout_test(
+            '/testcase_dir/testcase',
+            '/original/LayoutTests/original_dir/original_file',
+            '/source/'))
+    with open(new_path) as f:
+      self.assertEqual('Some test', f.read())

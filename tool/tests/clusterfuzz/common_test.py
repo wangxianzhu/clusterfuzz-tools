@@ -347,7 +347,10 @@ class BinaryDefinitionTest(helpers.ExtendedTestCase):
 
   def test_no_sanitizer(self):
     with self.assertRaises(common.SanitizerNotProvidedError):
-      common.BinaryDefinition('builder', 'CHROME_SRC', 'reproducer')
+      common.BinaryDefinition(
+          builder='builder', source_var='CHROME_SRC', reproducer='reproducer',
+          binary_name=None, sanitizer=None, target=None,
+          require_user_data_dir=False)
 
 
 class WaitTimeoutTest(helpers.ExtendedTestCase):

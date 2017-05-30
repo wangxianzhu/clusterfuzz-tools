@@ -433,8 +433,13 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
     self.mock.get_supported_jobs.return_value = {
         'chromium': {
             'libfuzzer_chrome_msan': common.BinaryDefinition(
-                binary_providers.ChromiumBuilder, 'CHROMIUM_SRC',
-                reproducers.BaseReproducer, sanitizer='MSAN')},
+                builder=binary_providers.ChromiumBuilder,
+                source_var='CHROMIUM_SRC',
+                reproducer=reproducers.BaseReproducer,
+                binary_name=None,
+                sanitizer='MSAN',
+                target=None,
+                require_user_data_dir=False)},
         'standalone': {}}
 
   def test_download_param(self):

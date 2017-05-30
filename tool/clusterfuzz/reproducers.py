@@ -29,6 +29,8 @@ from clusterfuzz import common
 DISABLE_GL_DRAW_ARG = '--disable-gl-drawing-for-tests'
 DEFAULT_GESTURE_TIME = 5
 TEST_TIMEOUT = 30
+USER_DATA_DIR_PATH = '/tmp/clusterfuzz-user-data-dir'
+USER_DATA_DIR_ARG = '--user-data-dir'
 logger = logging.getLogger('clusterfuzz')
 
 
@@ -119,6 +121,33 @@ def serialize_sanitizer_options(options):
   return ':'.join(pairs)
 
 
+def ensure_user_data_dir_if_needed(args, require_user_data_dir):
+  """Ensure the right user-data-dir."""
+  if not require_user_data_dir and USER_DATA_DIR_ARG not in args:
+    return args
+
+  # Remove --user-data-dir-arg if exist.
+  args = re.sub('%s[^ ]+' % USER_DATA_DIR_ARG, '', args)
+  common.delete_if_exists(USER_DATA_DIR_PATH)
+  return '%s %s=%s' % (args, USER_DATA_DIR_ARG, USER_DATA_DIR_PATH)
+
+
+def update_testcase_path_in_layout_test(
+    testcase_path, original_testcase_path, source_directory):
+  """Update the testcase path if it's a layout test."""
+  search_string = '%sLayoutTests%s' % (os.sep, os.sep)
+  if search_string not in original_testcase_path:
+    return testcase_path
+
+  # Move testcase to LayoutTests directory if needed.
+  search_index = original_testcase_path.find(search_string)
+  new_testcase_path = os.path.join(
+      source_directory, 'third_party', 'WebKit', 'LayoutTests',
+      original_testcase_path[search_index + len(search_string):])
+  os.rename(testcase_path, new_testcase_path)
+  return new_testcase_path
+
+
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
 
@@ -138,6 +167,7 @@ class BaseReproducer(object):
     self.job_type = testcase.job_type
     self.environment = testcase.environment
     self.args = testcase.reproduction_args
+    self.binary_definition = binary_provider.binary_definition
     self.binary_path = binary_provider.get_binary_path()
     self.build_directory = binary_provider.get_build_directory()
     self.source_directory = binary_provider.source_directory
@@ -397,22 +427,10 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
   def pre_build_steps(self):
     """Steps to run before building."""
-    # Add argument for user profile directory.
-    user_profile_dir = '/tmp/clusterfuzz-user-profile-data'
-    common.delete_if_exists(user_profile_dir)
-    user_data_str = ' --user-data-dir=%s' % user_profile_dir
-    if user_data_str not in self.args:
-      self.args += user_data_str
-
-    # Move testcase to LayoutTests directory if needed.
-    search_string = '%sLayoutTests%s' % (os.sep, os.sep)
-    if search_string in self.original_testcase_path:
-      search_index = self.original_testcase_path.find(search_string)
-      new_testcase_path = os.path.join(
-          self.source_directory, 'third_party', 'WebKit', 'LayoutTests',
-          self.original_testcase_path[search_index + len(search_string):])
-      os.rename(self.testcase_path, new_testcase_path)
-      self.testcase_path = new_testcase_path
+    self.args = ensure_user_data_dir_if_needed(
+        self.args, self.binary_definition.require_user_data_dir)
+    self.testcase_path = update_testcase_path_in_layout_test(
+        self.testcase_path, self.original_testcase_path, self.source_directory)
 
     self.environment.pop('ASAN_SYMBOLIZER_PATH', None)
     super(LinuxChromeJobReproducer, self).pre_build_steps()

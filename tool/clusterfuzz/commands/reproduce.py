@@ -159,9 +159,13 @@ def build_binary_definition(job_definition, presets):
   result = parse_job_definition(job_definition, presets)
 
   return common.BinaryDefinition(
-      builders[result['builder']], result['source'],
-      reproducer_map[result['reproducer']], result.get('binary'),
-      result.get('sanitizer'), result.get('target'))
+      builder=builders[result['builder']],
+      source_var=result['source'],
+      reproducer=reproducer_map[result['reproducer']],
+      binary_name=result.get('binary'),
+      sanitizer=result.get('sanitizer'),
+      target=result.get('target'),
+      require_user_data_dir=result.get('require_user_data_dir', False))
 
 
 def get_supported_jobs():

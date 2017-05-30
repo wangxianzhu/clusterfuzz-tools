@@ -126,8 +126,8 @@ class SanitizerNotProvidedError(ExpectedException):
 class BinaryDefinition(object):
   """Holds all the necessary information to initialize a job's builder."""
 
-  def __init__(self, builder, source_var, reproducer, binary_name=None,
-               sanitizer=None, target=None):
+  def __init__(self, builder, source_var, reproducer, binary_name,
+               sanitizer, target, require_user_data_dir):
     if not sanitizer:
       raise SanitizerNotProvidedError()
     self.builder = builder
@@ -136,6 +136,7 @@ class BinaryDefinition(object):
     self.sanitizer = sanitizer
     self.reproducer = reproducer
     self.target = target
+    self.require_user_data_dir = require_user_data_dir
 
 
 class ClusterfuzzAuthError(ExpectedException):

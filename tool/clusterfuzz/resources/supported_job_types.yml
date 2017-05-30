@@ -26,19 +26,25 @@ presets: #Any parameters in a preset can be overridden in the actual definition
         libfuzzer:
             preset: chromium
             reproducer: LibfuzzerJob
-        linux_chromium:
+        linux:
             preset: chromium
             reproducer: LinuxChromeJob
             binary: chrome
             target: chromium_builder_asan
+        linux_chromium:
+            preset: linux
+            reproducer: LinuxChromeJob
+            binary: chrome
+            target: chromium_builder_asan
+            require_user_data_dir: true
         linux_content_shell:
             preset: linux_chromium
             binary: content_shell
         linux_filter_stub:
-            preset: linux_chromium
+            preset: linux
             binary: filter_fuzz_stub
         linux_d8_chromium:
-            preset: linux_chromium
+            preset: linux
             binary: d8
         linux_asan_chromium:
             preset: linux_chromium
@@ -58,7 +64,7 @@ standalone:
         linux_ubsan_pdfium: { preset: pdfium_standalone, sanitizer: UBSAN }
         linux_v8_d8_tot: { preset: linux_asan_d8_standalone }
 chromium:
-        afl_chrome_asan: { preset: afl, sanitizer: ASAN }       
+        afl_chrome_asan: { preset: afl, sanitizer: ASAN }
         libfuzzer_chrome_asan: { preset: libfuzzer, sanitizer: ASAN }
         libfuzzer_chrome_asan_debug: { preset: libfuzzer, sanitizer: ASAN }
         libfuzzer_chrome_msan: { preset: libfuzzer, builder: MsanChromium, sanitizer: MSAN }

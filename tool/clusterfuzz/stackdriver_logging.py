@@ -61,9 +61,9 @@ def send_log(params, stacktrace=None):
   params['message'] = ('%s %s running %s with testcase=%s, build_type=%s, '
                        'current=%s, and goma=%s' % (
                            params['user'], prefix, params['command'],
-                           params['testcaseId'], params['buildType'],
+                           params['testcase_id'], params['build'],
                            params['current'],
-                           'disabled' if params['disableGoma'] else 'enabled'))
+                           'disabled' if params['disable_goma'] else 'enabled'))
   if stacktrace:
     params['message'] += '\n%s' % stacktrace
 

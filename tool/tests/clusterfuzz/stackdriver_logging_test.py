@@ -36,12 +36,12 @@ class TestSendLog(helpers.ExtendedTestCase):
     """Test to ensure stacktrace and params are sent properly."""
     self.mock.get_session_id.return_value = 'user:1234:sessionid'
 
-    params = {'testcaseId': 123456,
+    params = {'testcase_id': 123456,
               'success': True,
               'command': 'reproduce',
-              'buildType': 'chromium',
+              'build': 'chromium',
               'current': True,
-              'disableGoma': True}
+              'disable_goma': True}
     stackdriver_logging.send_log(params, 'Stacktrace')
 
     params['user'] = 'name'
@@ -68,12 +68,12 @@ class TestSendLog(helpers.ExtendedTestCase):
     """Test to ensure params are sent properly."""
     self.mock.get_session_id.return_value = 'user:1234:sessionid'
 
-    params = {'testcaseId': 123456,
+    params = {'testcase_id': 123456,
               'success': True,
               'command': 'reproduce',
-              'buildType': 'chromium',
+              'build': 'chromium',
               'current': True,
-              'disableGoma': True}
+              'disable_goma': True}
     stackdriver_logging.send_log(params)
 
     params['user'] = 'name'
@@ -101,11 +101,11 @@ class TestSendLog(helpers.ExtendedTestCase):
     """Test to ensure params are sent properly."""
     self.mock.get_session_id.return_value = 'user:1234:sessionid'
 
-    params = {'testcaseId': 123456,
+    params = {'testcase_id': 123456,
               'command': 'reproduce',
-              'buildType': 'chromium',
+              'build': 'chromium',
               'current': True,
-              'disableGoma': True}
+              'disable_goma': True}
     stackdriver_logging.send_log(params)
 
     params['user'] = 'name'

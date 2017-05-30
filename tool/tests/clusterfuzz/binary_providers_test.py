@@ -370,7 +370,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.check_confirm',
         'clusterfuzz.binary_providers.sha_exists',
         'clusterfuzz.binary_providers.sha_from_revision',
-        'clusterfuzz.binary_providers.GenericBuilder.source_dir_is_dirty',
+        'clusterfuzz.binary_providers.is_repo_dirty',
     ])
     self.mock.sha_exists.return_value = False
     self.chrome_source = '/usr/local/google/home/user/repos/chromium/src'
@@ -385,9 +385,9 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
   def test_dirty_dir(self):
     """Tests when the correct git sha is not already checked out."""
 
-    self.mock.source_dir_is_dirty.return_value = True
+    self.mock.is_repo_dirty.return_value = True
     self.mock.execute.return_value = [0, 'not_the_same']
-    with self.assertRaises(SystemExit):
+    with self.assertRaises(common.DirtyRepoError):
       self.builder.checkout_source_by_sha()
 
     self.assert_exact_calls(self.mock.execute, [
@@ -402,7 +402,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
   def test_not_already_checked_out(self):
     """Tests when the correct git sha is not already checked out."""
 
-    self.mock.source_dir_is_dirty.return_value = False
+    self.mock.is_repo_dirty.return_value = False
     self.mock.execute.return_value = [0, 'not_the_same']
     self.builder.checkout_source_by_sha()
 
@@ -447,20 +447,12 @@ class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
     self.builder = binary_providers.V8Builder(
         testcase, binary_definition, libs.make_options(testcase_id=testcase.id))
 
-  def test_clean_dir(self):
+  def test_dir(self):
     """Tests when no changes have been made to the dir."""
 
     self.mock.execute.side_effect = [[0, self.sha], [0, '']]
     result = self.builder.out_dir_name()
     self.assertEqual(result, '/source/dir/out/clusterfuzz_1234_1a2s3d4f5g6h')
-
-  def test_dirty_dir(self):
-    """Tests when changes have been made to the dir."""
-
-    self.mock.execute.side_effect = [[0, self.sha], [0, 'changes']]
-    result = self.builder.out_dir_name()
-    self.assertEqual(result,
-                     '/source/dir/out/clusterfuzz_1234_1a2s3d4f5g6h_dirty')
 
 
 class PdfiumSetupGnArgsTest(helpers.ExtendedTestCase):
@@ -834,3 +826,26 @@ class ShaExistsTest(helpers.ExtendedTestCase):
 
     self.mock.execute.assert_called_once_with(
         'git', 'cat-file -e SHA', cwd='/dir', exit_on_error=False)
+
+
+class IsRepoDirtyTest(helpers.ExtendedTestCase):
+  """Tests for is_repo_dirty."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute'])
+
+  def test_clean(self):
+    """Test exists."""
+    self.mock.execute.return_value = (0, '')
+    self.assertFalse(binary_providers.is_repo_dirty('/dir'))
+
+    self.mock.execute.assert_called_once_with(
+        'git', 'diff', '/dir', print_command=False, print_output=False)
+
+  def test_dirty(self):
+    """Test not exists."""
+    self.mock.execute.return_value = (0, 'some change')
+    self.assertTrue(binary_providers.is_repo_dirty('/dir'))
+
+    self.mock.execute.assert_called_once_with(
+        'git', 'diff', '/dir', print_command=False, print_output=False)

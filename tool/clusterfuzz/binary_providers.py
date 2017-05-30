@@ -18,7 +18,6 @@ import stat
 import multiprocessing
 import urllib
 import json
-import sys
 import base64
 import string
 import logging
@@ -66,6 +65,14 @@ def sha_exists(sha, source_dir):
   returncode, _ = common.execute(
       'git', 'cat-file -e %s' % sha, cwd=source_dir, exit_on_error=False)
   return returncode == 0
+
+
+def is_repo_dirty(path):
+  """Returns true if the source dir has uncommitted changes."""
+  # `git diff` always return 0 (even when there's change).
+  _, diff_result = common.execute(
+      'git', 'diff', path, print_command=False, print_output=False)
+  return bool(diff_result)
 
 
 class BinaryProvider(object):
@@ -167,29 +174,15 @@ class GenericBuilder(BinaryProvider):
       raise
     return current_sha.strip()
 
-  def source_dir_is_dirty(self):
-    """Returns true if the source dir has uncommitted changes."""
-
-    _, diff_result = common.execute(
-        'git', 'diff', self.source_directory, print_command=False,
-        print_output=False)
-    return bool(diff_result)
-
   def out_dir_name(self):
     """Returns the correct out dir in which to build the revision.
-
-    Directory name is of the format clusterfuzz_<testcase_id>_<git_sha>,
-    with a possible '_dirty' on the end. Based on the current git sha, and
-    whether changes have been made to the repo."""
+      Directory name is of the format clusterfuzz_<testcase_id>_<git_sha>."""
 
     dir_name = os.path.join(
         self.source_directory, 'out',
         'clusterfuzz_%s_%s' % (self.options.testcase_id, self.get_current_sha())
     )
-    if self.source_dir_is_dirty():
-      dir_name += '_dirty'
     return dir_name
-
 
   def checkout_source_by_sha(self):
     """Checks out the correct revision."""
@@ -206,10 +199,8 @@ class GenericBuilder(BinaryProvider):
     common.check_confirm(
         'Proceed with the following command:\n'
         '%s %s in %s?' % (binary, args, self.source_directory))
-    if self.source_dir_is_dirty():
-      logger.info('Your source directory has uncommitted changes: please '
-                  'commit or stash these changes and re-run this tool.')
-      sys.exit(1)
+    if is_repo_dirty(self.source_directory):
+      raise common.DirtyRepoError()
     common.execute(binary, args, self.source_directory)
 
   def deserialize_gn_args(self, args):

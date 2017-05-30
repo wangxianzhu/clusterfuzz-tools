@@ -222,6 +222,16 @@ class UserRespondingNoError(ExpectedException):
         'User responding "no" to "%s".' % question)
 
 
+class DirtyRepoError(ExpectedException):
+  """An exception raised when the repo is dirty. Therefore, we cannot checkout
+    to a wanted sha."""
+
+  def __init__(self):
+    super(DirtyRepoError, self).__init__(
+        'Your source directory has uncommitted changes: please '
+        'commit or stash these changes and re-run this tool.')
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 

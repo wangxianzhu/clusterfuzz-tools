@@ -1,5 +1,6 @@
 """Test output_transformer."""
 
+import StringIO
 import helpers
 
 from clusterfuzz import output_transformer
@@ -10,15 +11,15 @@ class HiddenTest(helpers.ExtendedTestCase):
 
   def test_print_dot(self):
     """Test printing dot every n characters."""
-    self.output = ''
-    def output_fn(s):
-      self.output += s
+    self.output = StringIO.StringIO()
 
     transformer = output_transformer.Hidden()
-    transformer.process('a' * 1001, output_fn)
-    transformer.flush(output_fn)
+    transformer.set_output(self.output)
+    transformer.process('a' * 1001)
+    transformer.flush()
 
-    self.assertEqual('.' * 11 + '\n', self.output)
+    self.assertEqual('.' * 11 + '\n', self.output.getvalue())
+    self.output.close()
 
 
 class IdentityTest(helpers.ExtendedTestCase):
@@ -26,15 +27,15 @@ class IdentityTest(helpers.ExtendedTestCase):
 
   def test_print(self):
     """Test printing dot every n characters."""
-    self.output = ''
-    def output_fn(s):
-      self.output += s
+    self.output = StringIO.StringIO()
 
     transformer = output_transformer.Identity()
-    transformer.process('a' * 1001, output_fn)
-    transformer.flush(output_fn)
+    transformer.set_output(self.output)
+    transformer.process('a' * 1001)
+    transformer.flush()
 
-    self.assertEqual('a' * 1001, self.output)
+    self.assertEqual('a' * 1001, self.output.getvalue())
+    self.output.close()
 
 
 class NinjaTest(helpers.ExtendedTestCase):
@@ -42,16 +43,17 @@ class NinjaTest(helpers.ExtendedTestCase):
 
   def test_print(self):
     """Test ninja output."""
-    self.output = ''
-    def output_fn(s):
-      self.output += s
+    self.output = StringIO.StringIO()
 
     transformer = output_transformer.Ninja()
-    transformer.process('aaaaa\n', output_fn)
-    transformer.process('bbb', output_fn)
-    transformer.process('\nccc', output_fn)
-    transformer.process('c\ndddddd', output_fn)
-    transformer.flush(output_fn)
+    transformer.set_output(self.output)
+    transformer.process('aaaaa\n')
+    transformer.process('bbb')
+    transformer.process('\nccc')
+    transformer.process('c\ndddddd')
+    transformer.flush()
 
     self.assertEqual(
-        'aaaaa\b\b\b\b\bbbb  \b\b\b\b\bcccc \b\b\b\b\bdddddd\n', self.output)
+        'aaaaa\b\b\b\b\bbbb  \b\b\b\b\bcccc \b\b\b\b\bdddddd\n',
+        self.output.getvalue())
+    self.output.close()

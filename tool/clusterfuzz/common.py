@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import os
 import sys
 import stat
@@ -344,17 +343,6 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
       preexec_fn=os.setsid)
 
 
-_Pipe = collections.namedtuple('_Pipe', ['source', 'transformer', 'sink'])
-
-
-def create_sink(pipe):
-  """Create a function that writes to pipe and flush."""
-  def _write(s):
-    pipe.write(s)
-    pipe.flush()
-  return _write
-
-
 def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
                  timeout=None, stdout_transformer=None,
                  stderr_transformer=None):
@@ -366,28 +354,37 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
     stderr_transformer = output_transformer.Identity()
 
   logger.debug('---------------------------------------')
-  output_chunks = []
   wait_timeout(proc, timeout)
 
-  pipes = [
-      _Pipe(proc.stdout, stdout_transformer, create_sink(sys.stdout)),
-      _Pipe(proc.stderr, stderr_transformer, create_sink(sys.stderr))
-  ]
+  output_chunks = []
+  stdout_transformer.set_output(sys.stdout)
+  stderr_transformer.set_output(sys.stderr)
 
-  for pipe in pipes:
-    for chunk in iter(lambda p=pipe: p.source.read(10), b''):
-      if print_output:
-        local_logging.send_output(chunk)
-        pipe.transformer.process(chunk, pipe.sink)
-      if capture_output:
-        # According to: http://stackoverflow.com/questions/19926089, this is the
-        # fastest way to build strings.
-        output_chunks.append(chunk)
+  # Stdout is printed as the process runs because some commands (e.g. ninja)
+  # might take a long time to run.
+  for chunk in iter(lambda: proc.stdout.read(10), b''):
+    if print_output:
+      local_logging.send_output(chunk)
+      stdout_transformer.process(chunk)
+    if capture_output:
+      # According to: http://stackoverflow.com/questions/19926089, this is the
+      # fastest way to build strings.
+      output_chunks.append(chunk)
+
+  # We cannot read from stderr because it might cause a hang.
+  # Therefore, we use communicate() to get stderr instead.
+  # See: https://github.com/google/clusterfuzz-tools/issues/278
+  stdout_data, stderr_data = proc.communicate()
+
+  for (transformer, data) in [(stdout_transformer, stdout_data),
+                              (stderr_transformer, stderr_data)]:
+    if capture_output:
+      output_chunks.append(data)
 
     if print_output:
-      pipe.transformer.flush(pipe.sink)
-
-  proc.wait()
+      local_logging.send_output(data)
+      transformer.process(data)
+      transformer.flush()
 
   logger.debug('---------------------------------------')
   if proc.returncode != 0:

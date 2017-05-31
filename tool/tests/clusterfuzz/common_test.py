@@ -105,7 +105,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
     from clusterfuzz import local_logging
     local_logging.start_loggers()
-    self.stdout = 'Line 1\nLine 2\nLine 3'
+    self.stdout = 'Line 1\nLine 2\nLine 3\n'
+    self.residue_stdout = 'residue'
     self.stderr = 'Err 1\nErr 2\nErr 3'
 
   def build_popen_mock(self, code):
@@ -130,7 +131,8 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
     self.mock.Popen.reset_mock()
     self.mock.Popen.return_value = self.build_popen_mock(code)
-    self.mock.Popen.return_value.wait.return_value = True
+    self.mock.Popen.return_value.communicate.return_value = (
+        self.residue_stdout, self.stderr)
     self.mock.Popen.return_value.args = 'cmd'
     will_exit = exit_on_err and code != 0
 
@@ -144,9 +146,11 @@ class ExecuteTest(helpers.ExtendedTestCase):
       return_code, returned_lines = self.run_execute(
           print_cmd, print_out, exit_on_err)
       self.assertEqual(return_code, code)
-      self.assertEqual(returned_lines, self.stdout + self.stderr)
+      self.assertEqual(
+          returned_lines, self.stdout + self.residue_stdout + self.stderr)
 
-    self.assert_exact_calls(self.mock.Popen.return_value.wait, [mock.call()])
+    self.assert_exact_calls(
+        self.mock.Popen.return_value.communicate, [mock.call()])
     self.assert_exact_calls(self.mock.Popen, [
         mock.call(
             'cmd',

@@ -4,11 +4,20 @@
 class Base(object):
   """Transform output and send to the output function."""
 
-  def process(self, string, output_fn):
+  def set_output(self, output):
+    """Set output."""
+    self.output = output
+
+  def write(self, s):
+    """Write string to output."""
+    self.output.write(s)
+    self.output.flush()
+
+  def process(self, string):
     """Process string and send to output_fn."""
     raise NotImplementedError
 
-  def flush(self, output_fn):
+  def flush(self):
     """Send the residue to output_fn."""
     raise NotImplementedError
 
@@ -20,7 +29,7 @@ class Hidden(Base):
     self.n = n
     self.count = 0
 
-  def process(self, string, output_fn):
+  def process(self, string):
     """Process string and send to output_fn."""
     all_count = self.count + len(string)
 
@@ -29,25 +38,25 @@ class Hidden(Base):
       return
 
     for _ in xrange(int(all_count / self.n)):
-      output_fn('.')
+      self.write('.')
 
     self.count = all_count % self.n
 
-  def flush(self, output_fn):
+  def flush(self):
     """Send the residue to output_fn."""
-    output_fn('.\n')
+    self.write('.\n')
 
 
 class Identity(Base):
   """Print output as it comes."""
 
-  def process(self, string, output_fn):
+  def process(self, string):
     """Process string and send to output_fn."""
-    output_fn(string)
+    self.write(string)
 
-  def flush(self, output_fn):
+  def flush(self):
     """Send the residue to output_fn."""
-    output_fn('')
+    self.write('')
 
 
 class Ninja(Base):
@@ -57,7 +66,7 @@ class Ninja(Base):
     self.current_line = ''
     self.previous_line_size = 0
 
-  def process(self, string, output_fn):
+  def process(self, string):
     """Replace the previous line and print output."""
     if '\n' in string:
       tokens = string.split('\n')
@@ -67,8 +76,8 @@ class Ninja(Base):
       if current_line_size < self.previous_line_size:
         self.current_line += ' ' * (self.previous_line_size - current_line_size)
 
-      output_fn('\b' * self.previous_line_size)
-      output_fn(self.current_line)
+      self.write('\b' * self.previous_line_size)
+      self.write(self.current_line)
 
       self.previous_line_size = len(self.current_line)
 
@@ -76,7 +85,7 @@ class Ninja(Base):
     else:
       self.current_line += string
 
-  def flush(self, output_fn):
+  def flush(self):
     """Print the residue output."""
-    self.process('\n', output_fn)
-    output_fn('\n')
+    self.process('\n')
+    self.write('\n')

@@ -116,14 +116,14 @@ class ExpectedException(Exception):
 
 
 class SanitizerNotProvidedError(ExpectedException):
-  """An error to notify when a sanitizer isn't passed to a BinaryDefinition"""
+  """An error to notify when a sanitizer isn't passed to a Definition"""
 
   def __init__(self):
-    message = 'A sanitizer must be provided with each BinaryDefinition.'
+    message = 'A sanitizer must be provided with each Definition.'
     super(SanitizerNotProvidedError, self).__init__(message)
 
 
-class BinaryDefinition(object):
+class Definition(object):
   """Holds all the necessary information to initialize a job's builder."""
 
   def __init__(self, builder, source_var, reproducer, binary_name,

@@ -47,7 +47,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.chrome_src = '/usr/local/google/home/user/repos/chromium/src'
     self.mock_os_environment({'V8_SRC': '/v8/src', 'CHROME_SRC': '/pdf/src'})
     helpers.patch(self, [
-        'clusterfuzz.commands.reproduce.get_binary_definition',
+        'clusterfuzz.commands.reproduce.get_definition',
         'clusterfuzz.commands.reproduce.get_testcase_info',
         'clusterfuzz.testcase.Testcase',
         'clusterfuzz.commands.reproduce.ensure_goma',
@@ -69,11 +69,11 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.builder = mock.Mock(symbolizer_path='/path/to/symbolizer')
     self.builder.get_binary_path.return_value = '/path/to/binary'
 
-    self.binary_definition = mock.Mock(
+    self.definition = mock.Mock(
         kwargs={}, source_var='V8_SRC', sanitizer='ASAN')
 
-    self.binary_definition.builder.return_value = self.builder
-    self.mock.get_binary_definition.return_value = self.binary_definition
+    self.definition.builder.return_value = self.builder
+    self.mock.get_definition.return_value = self.definition
 
     self.testcase = mock.Mock(
         id=1234, build_url='chrome_build_url', revision=123456,
@@ -84,7 +84,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
   def test_download_no_defined_binary(self):
     """Test what happens when no binary name is defined."""
-    self.binary_definition.binary_name = None
+    self.definition.binary_name = None
     self.testcase.stacktrace_lines = [
         {'content': 'incorrect'}, {'content': '[Environment] A = b'},
         {'content': ('Running command: path/to/stacktrace_binary --args --arg2 '
@@ -100,18 +100,19 @@ class ExecuteTest(helpers.ExtendedTestCase):
         self.mock.DownloadedBinary,
         [mock.call(1234, 'chrome_build_url', 'stacktrace_binary')])
     self.assert_exact_calls(
-        self.binary_definition.reproducer,
+        self.definition.reproducer,
         [
             mock.call(
                 binary_provider=self.mock.DownloadedBinary.return_value,
+                definition=self.definition,
                 testcase=self.testcase,
-                sanitizer=self.binary_definition.sanitizer,
+                sanitizer=self.definition.sanitizer,
                 options=self.options)
         ])
 
   def test_grab_data_with_download(self):
     """Ensures all method calls are made correctly when downloading."""
-    self.binary_definition.binary_name = 'defined_binary'
+    self.definition.binary_name = 'defined_binary'
     self.testcase.stacktrace_lines = [
         {'content': 'incorrect'}, {'content': '[Environment] A = b'},
         {'content': ('Running command: path/to/stacktrace_binary --args --arg2 '
@@ -127,12 +128,13 @@ class ExecuteTest(helpers.ExtendedTestCase):
         self.mock.DownloadedBinary,
         [mock.call(1234, 'chrome_build_url', 'defined_binary')])
     self.assert_exact_calls(
-        self.binary_definition.reproducer,
+        self.definition.reproducer,
         [
             mock.call(
                 binary_provider=self.mock.DownloadedBinary.return_value,
+                definition=self.definition,
                 testcase=self.testcase,
-                sanitizer=self.binary_definition.sanitizer,
+                sanitizer=self.definition.sanitizer,
                 options=self.options)
         ])
 
@@ -146,20 +148,21 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.ensure_goma, [mock.call()])
     self.assert_exact_calls(self.mock.Testcase, [mock.call(self.response)])
     self.assert_exact_calls(
-        self.binary_definition.builder,
+        self.definition.builder,
         [
             mock.call(
                 testcase=self.testcase,
-                binary_definition=self.binary_definition,
+                definition=self.definition,
                 options=self.options)
         ])
     self.assert_exact_calls(
-        self.binary_definition.reproducer,
+        self.definition.reproducer,
         [
             mock.call(
                 binary_provider=self.builder,
+                definition=self.definition,
                 testcase=self.testcase,
-                sanitizer=self.binary_definition.sanitizer,
+                sanitizer=self.definition.sanitizer,
                 options=self.options)
         ])
 
@@ -425,14 +428,14 @@ class SuppressOutputTest(helpers.ExtendedTestCase):
         self.mock.dup2, [mock.call('out', 1), mock.call('err', 2)])
 
 
-class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
+class GetDefinitionTest(helpers.ExtendedTestCase):
   """Tests getting binary definitions."""
 
   def setUp(self):
     helpers.patch(self, ['clusterfuzz.commands.reproduce.get_supported_jobs'])
     self.mock.get_supported_jobs.return_value = {
         'chromium': {
-            'libfuzzer_chrome_msan': common.BinaryDefinition(
+            'libfuzzer_chrome_msan': common.Definition(
                 builder=binary_providers.ChromiumBuilder,
                 source_var='CHROMIUM_SRC',
                 reproducer=reproducers.BaseReproducer,
@@ -445,22 +448,20 @@ class GetBinaryDefinitionTest(helpers.ExtendedTestCase):
   def test_download_param(self):
     """Tests when the build_param is download"""
 
-    result = reproduce.get_binary_definition('libfuzzer_chrome_msan',
-                                             'download')
+    result = reproduce.get_definition('libfuzzer_chrome_msan', 'download')
     self.assertEqual(result.builder, binary_providers.ChromiumBuilder)
 
     with self.assertRaises(common.JobTypeNotSupportedError):
-      result = reproduce.get_binary_definition('fuzzlibber_nasm', 'download')
+      result = reproduce.get_definition('fuzzlibber_nasm', 'download')
 
   def test_build_param(self):
     """Tests when build_param is an option that requires building."""
 
-    result = reproduce.get_binary_definition('libfuzzer_chrome_msan',
-                                             'chromium')
+    result = reproduce.get_definition('libfuzzer_chrome_msan', 'chromium')
     self.assertEqual(result.builder, binary_providers.ChromiumBuilder)
 
     with self.assertRaises(common.JobTypeNotSupportedError):
-      result = reproduce.get_binary_definition('fuzzlibber_nasm', 'chromium')
+      result = reproduce.get_definition('fuzzlibber_nasm', 'chromium')
 
 
 class GetSupportedJobsTest(helpers.ExtendedTestCase):
@@ -469,8 +470,8 @@ class GetSupportedJobsTest(helpers.ExtendedTestCase):
   def test_raise_from_key_error(self):
     """Tests that a BadJobTypeDefinition error is raised when parsing fails."""
     helpers.patch(self, [
-        'clusterfuzz.commands.reproduce.build_binary_definition'])
-    self.mock.build_binary_definition.side_effect = KeyError
+        'clusterfuzz.commands.reproduce.build_definition'])
+    self.mock.build_definition.side_effect = KeyError
 
     with self.assertRaises(common.BadJobTypeDefinitionError):
       reproduce.get_supported_jobs()

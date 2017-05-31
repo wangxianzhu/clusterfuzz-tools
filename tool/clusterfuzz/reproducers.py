@@ -161,13 +161,13 @@ class BaseReproducer(object):
       gesture_start_time = DEFAULT_GESTURE_TIME
     return gesture_start_time
 
-  def __init__(self, binary_provider, testcase, sanitizer, options):
+  def __init__(self, definition, binary_provider, testcase, sanitizer, options):
+    self.definition = definition
     self.original_testcase_path = testcase.absolute_path
     self.testcase_path = testcase.get_testcase_path()
     self.job_type = testcase.job_type
     self.environment = testcase.environment
     self.args = testcase.reproduction_args
-    self.binary_definition = binary_provider.binary_definition
     self.binary_path = binary_provider.get_binary_path()
     self.build_directory = binary_provider.get_build_directory()
     self.source_directory = binary_provider.source_directory
@@ -428,7 +428,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
   def pre_build_steps(self):
     """Steps to run before building."""
     self.args = ensure_user_data_dir_if_needed(
-        self.args, self.binary_definition.require_user_data_dir)
+        self.args, self.definition.require_user_data_dir)
     self.testcase_path = update_testcase_path_in_layout_test(
         self.testcase_path, self.original_testcase_path, self.source_directory)
 

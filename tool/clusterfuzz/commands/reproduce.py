@@ -139,7 +139,7 @@ def parse_job_definition(job_definition, presets):
   return to_return
 
 
-def build_binary_definition(job_definition, presets):
+def build_definition(job_definition, presets):
   """Converts a job definition hash into a binary definition."""
 
   builders = {
@@ -158,7 +158,7 @@ def build_binary_definition(job_definition, presets):
 
   result = parse_job_definition(job_definition, presets)
 
-  return common.BinaryDefinition(
+  return common.Definition(
       builder=builders[result['builder']],
       source_var=result['source'],
       reproducer=reproducer_map[result['reproducer']],
@@ -182,7 +182,7 @@ def get_supported_jobs():
   for build_type in ['standalone', 'chromium']:
     for job_type, job_definition in job_types_yaml[build_type].iteritems():
       try:
-        to_return[build_type][job_type] = build_binary_definition(
+        to_return[build_type][job_type] = build_definition(
             job_definition, job_types_yaml['presets'])
       except KeyError:
         raise common.BadJobTypeDefinitionError(
@@ -191,7 +191,7 @@ def get_supported_jobs():
   return to_return
 
 
-def get_binary_definition(job_type, build_param):
+def get_definition(job_type, build_param):
   supported_jobs = get_supported_jobs()
   if build_param != 'download' and job_type in supported_jobs[build_param]:
     return supported_jobs[build_param][job_type]
@@ -243,7 +243,7 @@ def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
     logger.info(('Warning: testcases using gestures are still in development '
                  'and are not guaranteed to reproduce correctly.'))
 
-  definition = get_binary_definition(current_testcase.job_type, build)
+  definition = get_definition(current_testcase.job_type, build)
 
   maybe_warn_unreproducible(current_testcase)
 
@@ -260,10 +260,11 @@ def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
     options.goma_dir = None if options.disable_goma else ensure_goma()
     binary_provider = definition.builder(
         testcase=current_testcase,
-        binary_definition=definition,
+        definition=definition,
         options=options)
 
   reproducer = definition.reproducer(
+      definition=definition,
       binary_provider=binary_provider,
       testcase=current_testcase,
       sanitizer=definition.sanitizer,

@@ -148,7 +148,7 @@ class DownloadedBinary(BinaryProvider):
 class GenericBuilder(BinaryProvider):
   """Provides a base for binary builders."""
 
-  def __init__(self, testcase, binary_definition, binary_name, target, options):
+  def __init__(self, testcase, definition, binary_name, target, options):
     """self.git_sha must be set in a subclass, or some of these
     instance methods may not work."""
     super(GenericBuilder, self).__init__(
@@ -158,7 +158,7 @@ class GenericBuilder(BinaryProvider):
     self.testcase = testcase
     self.target = target if target else binary_name
     self.options = options
-    self.source_directory = os.environ.get(binary_definition.source_var)
+    self.source_directory = os.environ.get(definition.source_var)
     self.gn_args = None
     self.gn_args_options = None
     self.gn_flags = '--check'
@@ -180,8 +180,7 @@ class GenericBuilder(BinaryProvider):
 
     dir_name = os.path.join(
         self.source_directory, 'out',
-        'clusterfuzz_%s_%s' % (self.options.testcase_id, self.get_current_sha())
-    )
+        'clusterfuzz_%s' % self.options.testcase_id)
     return dir_name
 
   def checkout_source_by_sha(self):
@@ -325,10 +324,10 @@ class GenericBuilder(BinaryProvider):
 class PdfiumBuilder(GenericBuilder):
   """Build a fresh Pdfium binary."""
 
-  def __init__(self, testcase, binary_definition, options):
+  def __init__(self, testcase, definition, options):
     super(PdfiumBuilder, self).__init__(
         testcase=testcase,
-        binary_definition=binary_definition,
+        definition=definition,
         binary_name='pdfium_test',
         target=None,
         options=options)
@@ -343,10 +342,10 @@ class PdfiumBuilder(GenericBuilder):
 class V8Builder(GenericBuilder):
   """Builds a fresh v8 binary."""
 
-  def __init__(self, testcase, binary_definition, options):
+  def __init__(self, testcase, definition, options):
     super(V8Builder, self).__init__(
         testcase=testcase,
-        binary_definition=binary_definition,
+        definition=definition,
         binary_name='d8',
         target=None,
         options=options)
@@ -364,17 +363,17 @@ class V8Builder(GenericBuilder):
 class ChromiumBuilder(GenericBuilder):
   """Builds a specific target from inside a Chromium source repository."""
 
-  def __init__(self, testcase, binary_definition, options):
+  def __init__(self, testcase, definition, options):
     target_name = None
-    binary_name = binary_definition.binary_name
-    if binary_definition.target:
-      target_name = binary_definition.target
+    binary_name = definition.binary_name
+    if definition.target:
+      target_name = definition.target
     if not binary_name:
       binary_name = common.get_binary_name(testcase.stacktrace_lines)
 
     super(ChromiumBuilder, self).__init__(
         testcase=testcase,
-        binary_definition=binary_definition,
+        definition=definition,
         binary_name=binary_name,
         target=target_name,
         options=options)

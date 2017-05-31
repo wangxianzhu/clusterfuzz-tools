@@ -38,10 +38,9 @@ def execute(argv=None):
   reproduce.add_argument('testcase_id', help='The testcase ID.')
   reproduce.add_argument(
       '-c', '--current', action='store_true', default=False,
-      help=('Use the current tree; "gclient sync" and "gclient runhooks" will '
-            'not be run. On the other hand, without --current, the Chrome '
-            'repository will be switched to the commit specified in the '
-            'testcase.'))
+      help=('Use the current tree; On the other hand, without --current, '
+            'the Chrome repository will be switched to the commit specified in '
+            'the testcase.'))
   reproduce.add_argument(
       '-b', '--build', action='store', default='chromium',
       choices=['download', 'chromium', 'standalone'],

@@ -41,8 +41,12 @@ def create_reproducer(klass):
   binary_provider.get_build_directory.return_value = '/fake/build_dir'
   testcase = mock.Mock(gestures=None, stacktrace_lines=[{'content': 'line'}],
                        job_type='job_type', reproduction_args='--original')
-  reproducer = klass(binary_provider, testcase, 'UBSAN',
-                     libs.make_options(target_args='--test'))
+  reproducer = klass(
+      definition=mock.Mock(),
+      binary_provider=binary_provider,
+      testcase=testcase,
+      sanitizer='UBSAN',
+      options=libs.make_options(target_args='--test'))
   reproducer.args = '--always-opt'
   reproducer.environment = {}
   reproducer.source_directory = '/fake/source_dir'
@@ -73,10 +77,11 @@ class SetUpSymbolizersSuppressionsTest(helpers.ExtendedTestCase):
     self.mock.get_resource.side_effect = get
 
     self.binary_provider = mock.Mock()
+    self.definition = mock.Mock()
     self.testcase = mock.Mock(gestures=None, stacktrace_lines=[
         {'content': 'line'}], job_type='job_type', reproduction_args='--orig')
     self.reproducer = reproducers.BaseReproducer(
-        self.binary_provider, self.testcase, 'UBSAN',
+        self.definition, self.binary_provider, self.testcase, 'UBSAN',
         libs.make_options(target_args='--test'))
 
     self.reproducer.environment = {
@@ -150,6 +155,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     self.app_directory = '/chrome/source/folder'
     self.testcase_path = os.path.expanduser(
         os.path.join('~', '.clusterfuzz', '1234_testcase', 'testcase.js'))
+    self.definition = mock.Mock()
 
   def test_base(self):
     """Test base's reproduce_crash."""
@@ -166,7 +172,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.BaseReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN',
+        self.definition, mocked_provider, mocked_testcase, 'UBSAN',
         libs.make_options(target_args='--test'))
     reproducer.setup_args()
     reproducer.reproduce_crash()
@@ -194,7 +200,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.BaseReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN',
+        self.definition, mocked_provider, mocked_testcase, 'UBSAN',
         libs.make_options(target_args='--test'))
     reproducer.setup_args()
     reproducer.reproduce_crash()
@@ -225,7 +231,7 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     mocked_provider.get_build_directory.return_value = self.app_directory
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        mocked_provider, mocked_testcase, 'UBSAN',
+        self.definition, mocked_provider, mocked_testcase, 'UBSAN',
         libs.make_options(target_args='--test'))
     reproducer.gestures = ['gesture,1', 'gesture,2']
     reproducer.setup_args()
@@ -267,11 +273,12 @@ class SetupArgsTest(helpers.ExtendedTestCase):
         symbolizer_path='/chrome/source/folder/llvm-symbolizer')
     self.provider.get_binary_path.return_value = '/chrome/source/folder/d8'
     self.provider.get_build_directory.return_value = '/chrome/source/folder'
+    self.definition = mock.Mock()
 
   def test_disable_xvfb(self):
     """Test disable xvfb."""
     reproducer = reproducers.LinuxChromeJobReproducer(
-        self.provider, self.testcase, 'UBSAN',
+        self.definition, self.provider, self.testcase, 'UBSAN',
         libs.make_options(
             disable_xvfb=True,
             target_args='--test --disable-gl-drawing-for-tests'))
@@ -287,7 +294,7 @@ class SetupArgsTest(helpers.ExtendedTestCase):
     self.mock.edit.side_effect = edit
 
     reproducer = reproducers.LinuxChromeJobReproducer(
-        self.provider, self.testcase, 'UBSAN',
+        self.definition, self.provider, self.testcase, 'UBSAN',
         libs.make_options(target_args='--test', edit_mode=True))
 
     reproducer.setup_args()
@@ -312,7 +319,7 @@ class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
     self.mock.update_testcase_path_in_layout_test.return_value = '/new-path'
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
-    self.reproducer.binary_definition.require_user_data_dir = False
+    self.reproducer.definition.require_user_data_dir = False
     self.reproducer.original_testcase_path = '/fake/LayoutTests/testcase'
 
   def test_reproduce_crash(self):

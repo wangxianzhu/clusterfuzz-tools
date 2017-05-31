@@ -342,12 +342,12 @@ class GetBinaryNameTest(helpers.ExtendedTestCase):
       ])
 
 
-class BinaryDefinitionTest(helpers.ExtendedTestCase):
-  """Tests the BinaryDefinition class."""
+class DefinitionTest(helpers.ExtendedTestCase):
+  """Tests the Definition class."""
 
   def test_no_sanitizer(self):
     with self.assertRaises(common.SanitizerNotProvidedError):
-      common.BinaryDefinition(
+      common.Definition(
           builder='builder', source_var='CHROME_SRC', reproducer='reproducer',
           binary_name=None, sanitizer=None, target=None,
           require_user_data_dir=False)

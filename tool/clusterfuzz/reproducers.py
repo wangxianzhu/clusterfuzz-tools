@@ -276,9 +276,6 @@ class BaseReproducer(object):
     while iterations <= iteration_max:
       _, output = self.reproduce_crash()
 
-      print
-      logger.info(output)
-
       new_crash_state, new_crash_type = self.get_stacktrace_info(output)
 
       logger.info(
@@ -470,6 +467,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
       if self.gestures:
         self.run_gestures(process, display_name)
 
-      err, out = common.wait_execute(process, exit_on_error=False,
-                                     timeout=TEST_TIMEOUT)
+      err, out = common.wait_execute(
+          process, exit_on_error=False, timeout=TEST_TIMEOUT,
+          print_output=False)
       return err, self.post_run_symbolize(out)

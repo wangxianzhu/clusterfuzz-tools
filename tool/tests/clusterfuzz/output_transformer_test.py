@@ -18,7 +18,7 @@ class HiddenTest(helpers.ExtendedTestCase):
     transformer.process('a' * 1001, output_fn)
     transformer.flush(output_fn)
 
-    self.assertEqual('.' * 11, self.output)
+    self.assertEqual('.' * 11 + '\n', self.output)
 
 
 class IdentityTest(helpers.ExtendedTestCase):

@@ -122,19 +122,17 @@ class Testcase(object):
     testcase_dir = self.testcase_dir_name()
     filename = os.path.join(testcase_dir, 'testcase%s' % self.file_extension)
     common.delete_if_exists(testcase_dir)
+    os.makedirs(testcase_dir)
 
     logger.info('Downloading testcase data...')
 
-    if not os.path.exists(common.CLUSTERFUZZ_TESTCASES_DIR):
-      os.makedirs(common.CLUSTERFUZZ_TESTCASES_DIR)
-    os.makedirs(testcase_dir)
-
     auth_header = common.get_stored_auth_header()
     args = (
-        '--no-verbose --waitretry=80 --retry-connrefused --content-disposition '
-        '--header="Authorization: %s" "%s"' %
+        '--remote-name --remote-header-name --retry-max-time 30 --retry 5 '
+        '--silent --show-error --fail --location '
+        '-H "Authorization: %s" %s' %
         (auth_header, CLUSTERFUZZ_TESTCASE_URL % self.id))
-    common.execute('wget', args, testcase_dir)
+    common.execute('curl', args, testcase_dir)
     downloaded_filename = os.listdir(testcase_dir)[0]
 
     filename = self.get_true_testcase_path(downloaded_filename)

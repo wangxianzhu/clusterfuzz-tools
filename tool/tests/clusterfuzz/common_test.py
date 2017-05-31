@@ -131,16 +131,15 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.mock.Popen.reset_mock()
     self.mock.Popen.return_value = self.build_popen_mock(code)
     self.mock.Popen.return_value.wait.return_value = True
-    return_code = returned_lines = None
+    self.mock.Popen.return_value.args = 'cmd'
     will_exit = exit_on_err and code != 0
 
     if will_exit:
-      with self.assertRaises(SystemExit):
-        return_code, returned_lines = self.run_execute(
-            print_cmd, print_out, exit_on_err)
+      with self.assertRaises(common.CommandFailedError) as cm:
+        self.run_execute(print_cmd, print_out, exit_on_err)
 
-      self.assertEqual(return_code, None if will_exit else code)
-      self.assertEqual(returned_lines, None if will_exit else self.stdout + ' ')
+      self.assertEqual(
+          '`cmd` failed with the return code 1.', cm.exception.message)
     else:
       return_code, returned_lines = self.run_execute(
           print_cmd, print_out, exit_on_err)

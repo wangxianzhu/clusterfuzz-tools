@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-
 import collections
 import os
 import sys
@@ -233,6 +231,14 @@ class DirtyRepoError(ExpectedException):
         'commit or stash these changes and re-run this tool.')
 
 
+class CommandFailedError(ExpectedException):
+  """An exception raised when the command doesn't return 0."""
+
+  def __init__(self, command, returncode):
+    super(CommandFailedError, self).__init__(
+        '`%s` failed with the return code %s.' % (command, returncode))
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 
@@ -353,18 +359,13 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
                  timeout=None, stdout_transformer=None,
                  stderr_transformer=None):
   """Looks after a command as it runs, and prints/returns its output after."""
-
-  def _print(s):
-    if print_output:
-      logger.debug(s)
-
   if stdout_transformer is None:
     stdout_transformer = output_transformer.Hidden()
 
   if stderr_transformer is None:
     stderr_transformer = output_transformer.Identity()
 
-  _print('---------------------------------------')
+  logger.debug('---------------------------------------')
   output_chunks = []
   wait_timeout(proc, timeout)
 
@@ -387,14 +388,13 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
       pipe.transformer.flush(pipe.sink)
 
   proc.wait()
-  if print_output:
-    print()
-  _print('---------------------------------------')
+
+  logger.debug('---------------------------------------')
   if proc.returncode != 0:
-    _print('| Return code is non-zero (%d).' % proc.returncode)
+    logger.debug('| Return code is non-zero (%d).', proc.returncode)
     if exit_on_error:
-      _print('| Exit.')
-      sys.exit(proc.returncode)
+      logger.debug('| Exit.')
+      raise CommandFailedError(proc.args, proc.returncode)
   return proc.returncode, ''.join(output_chunks)
 
 

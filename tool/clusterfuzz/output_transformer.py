@@ -35,7 +35,7 @@ class Hidden(Base):
 
   def flush(self, output_fn):
     """Send the residue to output_fn."""
-    output_fn('.')
+    output_fn('.\n')
 
 
 class Identity(Base):

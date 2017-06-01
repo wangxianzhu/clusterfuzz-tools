@@ -87,3 +87,10 @@ We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googl
 13. Push the tag `git push --tags`.
 
 
+Analytics
+--------------
+
+To see the usage from our users, please see the data in BigQuery. Here are some charts:
+
+- [Usage by users](https://bigquery.cloud.google.com/savedquery/981641712411:84ce1ae9f0b54c1faf3d27172587190b)
+

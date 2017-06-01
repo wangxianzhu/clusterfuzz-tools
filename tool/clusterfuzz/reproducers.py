@@ -468,6 +468,5 @@ class LinuxChromeJobReproducer(BaseReproducer):
         self.run_gestures(process, display_name)
 
       err, out = common.wait_execute(
-          process, exit_on_error=False, timeout=TEST_TIMEOUT,
-          print_output=False)
+          process, exit_on_error=False, timeout=TEST_TIMEOUT)
       return err, self.post_run_symbolize(out)

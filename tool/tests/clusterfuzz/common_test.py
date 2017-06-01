@@ -16,7 +16,9 @@
 import cStringIO
 import subprocess
 import os
+import signal
 import stat
+
 import mock
 
 from clusterfuzz import common
@@ -94,12 +96,16 @@ class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the execute method."""
 
   def setUp(self):
-    helpers.patch(self, ['subprocess.Popen',
-                         'logging.getLogger',
-                         'logging.config.dictConfig',
-                         'clusterfuzz.common.check_binary',
-                         'clusterfuzz.common.wait_timeout',
-                         'os.environ.copy'])
+    helpers.patch(self, [
+        'clusterfuzz.common.check_binary',
+        'clusterfuzz.common.kill',
+        'clusterfuzz.common.wait_timeout',
+        'logging.config.dictConfig',
+        'logging.getLogger',
+        'os.environ.copy',
+        'subprocess.Popen',
+        'time.sleep'
+    ])
     self.mock.copy.return_value = {'OS': 'ENVIRON'}
     self.mock.dictConfig.return_value = {}
 
@@ -129,6 +135,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
       self, code, print_cmd=True, print_out=True, exit_on_err=True):
     """Runs the popen command and tests the output."""
 
+    self.mock.kill.reset_mock()
     self.mock.Popen.reset_mock()
     self.mock.Popen.return_value = self.build_popen_mock(code)
     self.mock.Popen.return_value.communicate.return_value = (
@@ -149,6 +156,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
       self.assertEqual(
           returned_lines, self.stdout + self.residue_stdout + self.stderr)
 
+    self.mock.kill.assert_called_once_with(self.mock.Popen.return_value)
     self.assert_exact_calls(
         self.mock.Popen.return_value.communicate, [mock.call()])
     self.assert_exact_calls(self.mock.Popen, [
@@ -360,88 +368,92 @@ class WaitTimeoutTest(helpers.ExtendedTestCase):
   """Tests the wait_timeout method."""
 
   def setUp(self):
-    helpers.patch(self, ['time.sleep',
-                         'os.getpgid',
-                         'os.killpg'])
-
-  def test_kill_not_needed(self):
-    """Tests when the process exits without needing to be killed."""
-
-    class ProcMock(object):
-      poll_results = [1, None, None, None]
-      pid = 1234
-      def poll(self):
-        return self.poll_results.pop()
-    proc = ProcMock()
-
-    common.wait_timeout(proc, 5)
-
-    self.assert_n_calls(0, [self.mock.killpg])
-    self.assert_exact_calls(self.mock.sleep, [mock.call(0.5), mock.call(0.5),
-                                              mock.call(0.5), mock.call(0.5)])
-
-  def test_kill_needed(self):
-    """Tests when the process must be killed."""
-
-    self.mock.getpgid.return_value = 345
-    class ProcMock(object):
-      pid = 1234
-      def poll(self):
-        return None
-    proc = ProcMock()
-
-    common.wait_timeout(proc, 5)
-
-    self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
-    self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
-    self.assert_n_calls(11, [self.mock.sleep])
+    helpers.patch(self, ['time.sleep', 'clusterfuzz.common.kill'])
+    self.proc = mock.Mock()
 
   def test_no_timeout(self):
-    """Tests when no timeout is specified."""
+    """Test no timeout."""
+    common.wait_timeout(self.proc, None)
+    self.assertEqual(0, self.mock.sleep.call_count)
+    self.assertEqual(0, self.proc.poll.call_count)
 
-    common.wait_timeout(mock.Mock(), None)
+  def test_die_before(self):
+    """Tests when the process exits without needing to be killed."""
+    self.proc.poll.side_effect = [None, None, None, 1]
 
-    self.assert_n_calls(0, [self.mock.sleep, self.mock.getpgid,
-                            self.mock.killpg])
+    common.wait_timeout(self.proc, 5)
 
-  def test_no_process(self):
-    """Tests when process died maturely."""
-    error = OSError()
-    error.errno = 3  # No such process.
-    self.mock.killpg.side_effect = error
+    self.mock.kill.assert_called_once_with(self.proc)
+    self.assert_exact_calls(self.mock.sleep, [mock.call(0.5)] * 4)
 
-    self.mock.getpgid.return_value = 345
-    class ProcMock(object):
-      pid = 1234
-      def poll(self):
-        return None
-    proc = ProcMock()
+  def test_timeout(self):
+    """Tests when the process must be killed."""
+    self.proc.poll.return_value = None
 
-    common.wait_timeout(proc, 5)
+    common.wait_timeout(self.proc, 5)
 
-    self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
-    self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
-    self.assert_n_calls(10, [self.mock.sleep])
+    self.mock.kill.assert_called_once_with(self.proc)
+    self.assert_exact_calls(
+        self.mock.sleep, [mock.call(0.5)] * 10)
 
-  def test_kill_error(self):
-    """Test error when killing."""
+  def test_ignore_kill_error(self):
+    """Tests ignoring error from killing."""
+    self.mock.kill.side_effect = Exception()
+    common.wait_timeout(self.proc, 5)
+    self.mock.kill.assert_called_once_with(self.proc)
+
+
+class KillTest(helpers.ExtendedTestCase):
+  """Test kill method."""
+
+  def setUp(self):
+    helpers.patch(self, ['time.sleep', 'os.killpg', 'os.getpgid'])
+    self.proc = mock.Mock()
+    self.proc.args = 'cmd'
+    self.proc.pid = 1234
+    self.mock.getpgid.return_value = 999
+
+    self.no_process_error = OSError()
+    self.no_process_error.errno = common.NO_SUCH_PROCESS_ERRNO
+
+  def test_succeed(self):
+    """Test killing successfully."""
+    self.mock.killpg.side_effect = [None, None, None, self.no_process_error]
+    common.kill(self.proc)
+
+    self.assert_exact_calls(self.mock.killpg, [
+        mock.call(999, signal.SIGTERM), mock.call(999, signal.SIGTERM),
+        mock.call(999, signal.SIGKILL), mock.call(999, signal.SIGKILL)
+    ])
+    self.assert_exact_calls(self.mock.sleep, [mock.call(3)] * 3)
+
+  def test_fail(self):
+    """Test failing to kill."""
+    self.mock.killpg.side_effect = [None, None, None, None]
+
+    with self.assertRaises(common.KillProcessFailedError) as cm:
+      common.kill(self.proc)
+
+    self.assertEqual(
+        '`cmd` (pid=1234, pgid=999) cannot be killed.',
+        cm.exception.message)
+
+    self.assert_exact_calls(self.mock.killpg, [
+        mock.call(999, signal.SIGTERM), mock.call(999, signal.SIGTERM),
+        mock.call(999, signal.SIGKILL), mock.call(999, signal.SIGKILL)
+    ])
+    self.assert_exact_calls(self.mock.sleep, [mock.call(3)] * 4)
+
+  def test_other_error(self):
+    """Test raising other OSError."""
     error = OSError()
     error.errno = 4
     self.mock.killpg.side_effect = error
 
-    self.mock.getpgid.return_value = 345
-    class ProcMock(object):
-      pid = 1234
-      def poll(self):
-        return None
-    proc = ProcMock()
+    with self.assertRaises(OSError) as cm:
+      common.kill(self.proc)
 
-    with self.assertRaises(OSError):
-      common.wait_timeout(proc, 5)
-
-    self.assert_exact_calls(self.mock.killpg, [mock.call(345, 15)])
-    self.assert_exact_calls(self.mock.getpgid, [mock.call(1234)])
-    self.assert_n_calls(10, [self.mock.sleep])
+    self.assertEqual(4, cm.exception.errno)
 
 
 class DeleteIfExistsTest(helpers.ExtendedTestCase):

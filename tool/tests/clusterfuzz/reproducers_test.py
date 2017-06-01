@@ -250,8 +250,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     ])
     self.assert_exact_calls(self.mock.wait_execute, [
         mock.call(
-            self.mock.start_execute.return_value, print_output=False,
-            exit_on_error=False, timeout=30)
+            self.mock.start_execute.return_value, exit_on_error=False,
+            timeout=30)
     ])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])

@@ -38,6 +38,9 @@ BASH_YELLOW_MARKER = '\033[1;33m'
 BASH_RESET_MARKER = '\033[0m'
 
 
+NO_SUCH_PROCESS_ERRNO = 3
+
+
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_CACHE_DIR = os.path.join(CLUSTERFUZZ_DIR, 'cache')
 CLUSTERFUZZ_TESTCASES_DIR = os.path.join(CLUSTERFUZZ_CACHE_DIR, 'testcases')
@@ -238,6 +241,14 @@ class CommandFailedError(ExpectedException):
         '`%s` failed with the return code %s.' % (command, returncode))
 
 
+class KillProcessFailedError(ExpectedException):
+  """An exception raised when the process cannot be killed."""
+
+  def __init__(self, command, pid, pgid):
+    super(KillProcessFailedError, self).__init__(
+        '`%s` (pid=%s, pgid=%s) cannot be killed.' % (command, pid, pgid))
+
+
 def store_auth_header(auth_header):
   """Stores 'auth_header' locally for future access."""
 
@@ -270,19 +281,37 @@ def wait_timeout(proc, timeout):
   """If proc runs longer than <timeout> seconds, kill it."""
   if not timeout:
     return
-  for _ in range(0, timeout * 2):
-    time.sleep(0.5)
-    if proc.poll():
-      break
-  else:
+
+  try:
+    for _ in range(0, timeout * 2):
+      time.sleep(0.5)
+      if proc.poll():
+        break
+
+  finally:
     try:
-      os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+      kill(proc)
+    except:  # pylint: disable=bare-except
+      pass
+
+
+def kill(proc):
+  """Kill a process multiple times.
+    See: https://github.com/google/clusterfuzz-tools/pull/301"""
+  try:
+    for sig in [signal.SIGTERM, signal.SIGTERM,
+                signal.SIGKILL, signal.SIGKILL]:
+      pgid = os.getpgid(proc.pid)
+      logger.debug('Killing pgid=%s (pid=%s) with %s', pgid, proc.pid, sig)
+      os.killpg(pgid, sig)
 
       # Wait for any shutdown stacktrace to be dumped.
       time.sleep(3)
-    except OSError as e:
-      if e.errno != 3:  # No such process.
-        raise
+
+    raise KillProcessFailedError(proc.args, proc.pid, pgid)
+  except OSError as e:
+    if e.errno != NO_SUCH_PROCESS_ERRNO:
+      raise
 
 
 def check_binary(binary, cwd):
@@ -332,7 +361,7 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
   final_env = os.environ.copy()
   final_env.update(sanitized_env)
 
-  return subprocess.Popen(
+  proc = subprocess.Popen(
       command,
       shell=True,
       stdin=stdin_handle,
@@ -341,6 +370,9 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
       cwd=cwd,
       env=final_env,
       preexec_fn=os.setsid)
+
+  setattr(proc, 'args', command)
+  return proc
 
 
 def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
@@ -375,6 +407,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
   # Therefore, we use communicate() to get stderr instead.
   # See: https://github.com/google/clusterfuzz-tools/issues/278
   stdout_data, stderr_data = proc.communicate()
+  kill(proc)
 
   for (transformer, data) in [(stdout_transformer, stdout_data),
                               (stderr_transformer, stderr_data)]:
@@ -412,7 +445,7 @@ def execute_with_shell(binary, args, cwd):
   check_binary(binary, cwd)
 
   command = ('cd %s && %s %s' % (cwd, binary, args or '')).strip()
-  logger.info('Running: %s', command)
+  logger.info(colorize('Running: %s' % command, BASH_BLUE_MARKER))
   os.system(command)
 
 

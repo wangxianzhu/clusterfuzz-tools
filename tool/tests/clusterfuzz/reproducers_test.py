@@ -182,7 +182,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             '--repro --test %s' % self.testcase_path,
             '/chrome/source/folder',
             env={'ASAN_OPTIONS': 'test-asan'},
-            exit_on_error=False)
+            exit_on_error=False,
+            timeout=30)
     ])
 
   def test_base_with_env_args(self):
@@ -211,7 +212,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                                                    self.testcase_path),
             '/chrome/source/folder',
             env={'ASAN_OPTIONS': 'test-asan'},
-            exit_on_error=False)
+            exit_on_error=False,
+            timeout=30)
     ])
 
   def test_chromium(self):

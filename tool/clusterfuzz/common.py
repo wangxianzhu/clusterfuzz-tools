@@ -36,10 +36,7 @@ from clusterfuzz import output_transformer
 BASH_BLUE_MARKER = '\033[1;36m'
 BASH_YELLOW_MARKER = '\033[1;33m'
 BASH_RESET_MARKER = '\033[0m'
-
-
 NO_SUCH_PROCESS_ERRNO = 3
-
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_CACHE_DIR = os.path.join(CLUSTERFUZZ_DIR, 'cache')
@@ -430,12 +427,12 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
 
 def execute(binary, args, cwd, print_command=True, print_output=True,
             capture_output=True, exit_on_error=True, env=None,
-            stdout_transformer=None, stderr_transformer=None):
+            stdout_transformer=None, stderr_transformer=None, timeout=None):
   """Execute a bash command."""
   proc = start_execute(binary, args, cwd, env=env, print_command=print_command)
   return wait_execute(
       proc=proc, exit_on_error=exit_on_error, capture_output=capture_output,
-      print_output=print_output, timeout=None,
+      print_output=print_output, timeout=timeout,
       stdout_transformer=stdout_transformer,
       stderr_transformer=stderr_transformer)
 

@@ -31,6 +31,7 @@ DEFAULT_GESTURE_TIME = 5
 TEST_TIMEOUT = 30
 USER_DATA_DIR_PATH = '/tmp/clusterfuzz-user-data-dir'
 USER_DATA_DIR_ARG = '--user-data-dir'
+
 logger = logging.getLogger('clusterfuzz')
 
 
@@ -224,7 +225,7 @@ class BaseReproducer(object):
     return common.execute(
         self.binary_path, self.args,
         os.path.dirname(self.binary_path), env=self.environment,
-        exit_on_error=False)
+        exit_on_error=False, timeout=TEST_TIMEOUT)
 
   def get_stacktrace_info(self, trace):
     """Post a stacktrace, return (crash_state, crash_type)."""

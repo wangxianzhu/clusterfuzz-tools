@@ -71,20 +71,7 @@ We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googl
 
 1. Increment the version number in `tool/clusterfuzz/resources/VERSION`.
 2. Create and merge a pull request to increase the version number.
-3. Set the new version in the env: `export VERSION=<version>`.
-4. Build the Pex binary: `./pants binary tool:clusterfuzz-$VERSION`.
-5. Upload to our public storage: `gsutil cp dist/clusterfuzz-$VERSION.pex gs://clusterfuzz-tools/`.
-6. Make the link public: `gsutil acl set public-read gs://clusterfuzz-tools/clusterfuzz-$VERSION.pex`.
-7. Copy to X20: `cp dist/clusterfuzz-$VERSION.pex /google/data/rw/teams/clusterfuzz-tools/releases/`.
-8. Change permission: `chmod 775 /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz-$VERSION.pex`.
-9. Symlink:
-  * Release: `ln -sf /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz-$VERSION.pex /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz`
-  * Release Candidate: `ln -sf /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz-$VERSION.pex /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz-rc`
-
-10. Confirm it with: `ls -l /google/data/rw/teams/clusterfuzz-tools/releases/clusterfuzz*`.
-11. Test by running: `/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz reproduce -h`.
-12. Tag the current version with `git tag -a $VERSION -m "Version $VERSION"`.
-13. Push the tag `git push --tags`.
+3. Run `./pants run butler --release`.
 
 
 Analytics

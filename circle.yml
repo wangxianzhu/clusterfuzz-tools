@@ -17,3 +17,5 @@ test:
     - ./pants run cmd-editor:pylint
     - ./pants test.pytest --coverage=1 cmd-editor:test
     - ./pants run shared:coveralls -- --merge=coverage_tool.json
+
+    - ./pants run butler:pylint

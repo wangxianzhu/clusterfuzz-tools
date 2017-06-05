@@ -352,7 +352,7 @@ class GetBinaryNameTest(helpers.ExtendedTestCase):
 
   def test_no_command(self):
     """Raise an exception when there's no command."""
-    with self.assertRaises(Exception):
+    with self.assertRaises(common.MinimizationNotFinishedError):
       common.get_binary_name([
           {'content': 'aaa'}
       ])

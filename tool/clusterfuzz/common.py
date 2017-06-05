@@ -96,8 +96,7 @@ def get_binary_name(stacktrace):
       binary_name = os.path.basename(l[0])
       return binary_name
 
-  raise Exception("The stacktrace doesn't contain a line starting with '%s'" %
-                  prefix)
+  raise MinimizationNotFinishedError()
 
 
 def get_version():
@@ -111,6 +110,22 @@ class ExpectedException(Exception):
 
   def __init__(self, message):
     super(ExpectedException, self).__init__(message)
+
+
+class MinimizationNotFinishedError(ExpectedException):
+  """Raise when the minimize_task failed or hasn't finished yet. When the
+    minimization is not finished, we won't find 'Running command: ' in the
+    stacktrace."""
+
+  MESSAGE = (
+      "The testcase hasn't been minimized yet or cannot be minimized.\n"
+      'If the testcase is new, please wait for a few more hours.\n'
+      "If we can't minimize the testcase, it means the testcase is "
+      'unreproducible and, thus, not supported by this tool.')
+
+  def __init__(self):
+    super(MinimizationNotFinishedError, self).__init__(
+        MinimizationNotFinishedError.MESSAGE)
 
 
 class SanitizerNotProvidedError(ExpectedException):

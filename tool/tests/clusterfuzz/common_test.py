@@ -153,7 +153,9 @@ class ExecuteTest(helpers.ExtendedTestCase):
         self.run_execute(print_cmd, print_out, exit_on_err)
 
       self.assertEqual(
-          '`cmd` failed with the return code 1.', cm.exception.message)
+          common.CommandFailedError.MESSAGE.format(
+              cmd='cmd', returncode='1', stderr=self.stderr),
+          cm.exception.message)
     else:
       return_code, returned_lines = self.run_execute(
           print_cmd, print_out, exit_on_err)

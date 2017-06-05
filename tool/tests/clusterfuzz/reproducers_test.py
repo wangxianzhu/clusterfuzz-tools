@@ -594,7 +594,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize',
         'clusterfuzz.common.post',
         'time.sleep'])
-    self.mock.reproduce_crash.return_value = (0, ['stuff'])
+    self.mock.reproduce_crash.return_value = (0, 'stuff')
     self.mock.post_run_symbolize.return_value = 'stuff'
     self.reproducer.crash_type = 'original_type'
     self.reproducer.crash_state = ['original', 'state']
@@ -635,10 +635,13 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
   """Tests the post_run_symbolize method."""
 
   def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.start_execute',
+        'clusterfuzz.common.get_resource',
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.get_stacktrace_info'
+    ])
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     self.reproducer.source_directory = '/path/to/chromium'
-    helpers.patch(self, ['clusterfuzz.common.start_execute',
-                         'clusterfuzz.common.get_resource'])
     self.mock.get_resource.return_value = 'asan_sym_proxy.py'
     (self.mock.start_execute.return_value.
      communicate.return_value) = ('symbolized', 0)
@@ -769,20 +772,33 @@ class IsSimilarTest(helpers.ExtendedTestCase):
 
   def test_not_similar(self):
     """Test not similar."""
-    self.assertFalse(reproducers.is_similar('t', ['a'], 'z', ['b']))
     self.assertFalse(reproducers.is_similar(
-        't', ['a', 'b'], 't', ['a', 'c', 'd']))
-    self.assertFalse(reproducers.is_similar('t', ['a'], 't', ['a', 'c', 'b']))
+        common.CrashSignature('t', ['a']),
+        common.CrashSignature('z', ['b'])))
+    self.assertFalse(reproducers.is_similar(
+        common.CrashSignature('t', ['a', 'b']),
+        common.CrashSignature('t', ['a', 'c', 'd'])))
+    self.assertFalse(reproducers.is_similar(
+        common.CrashSignature('t', ['a']),
+        common.CrashSignature('t', ['a', 'c', 'b'])))
 
   def test_similar(self):
     """Test similar."""
-    self.assertTrue(reproducers.is_similar('t', ['a'], 'z', ['a']))
-    self.assertTrue(reproducers.is_similar('t', ['a', 'b'], 't', ['a', 'c']))
-    self.assertTrue(reproducers.is_similar('t', ['a'], 't', ['a', 'c']))
     self.assertTrue(reproducers.is_similar(
-        't', ['a', 'b', 'd'], 't', ['a', 'b', 'c']))
+        common.CrashSignature('t', ['a']),
+        common.CrashSignature('z', ['a'])))
     self.assertTrue(reproducers.is_similar(
-        't', ['a', 'b'], 't', ['a', 'b', 'c']))
+        common.CrashSignature('t', ['a', 'b']),
+        common.CrashSignature('t', ['a', 'c'])))
+    self.assertTrue(reproducers.is_similar(
+        common.CrashSignature('t', ['a']),
+        common.CrashSignature('t', ['a', 'c'])))
+    self.assertTrue(reproducers.is_similar(
+        common.CrashSignature('t', ['a', 'b', 'd']),
+        common.CrashSignature('t', ['a', 'b', 'c'])))
+    self.assertTrue(reproducers.is_similar(
+        common.CrashSignature('t', ['a', 'b']),
+        common.CrashSignature('t', ['a', 'b', 'c'])))
 
 
 class EnsureUserDataDirIfNeededTest(helpers.ExtendedTestCase):

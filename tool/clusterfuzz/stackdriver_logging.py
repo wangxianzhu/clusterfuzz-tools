@@ -95,10 +95,14 @@ def send_success(params):
   send_log(params)
 
 
-def send_failure(exception_name, stacktrace, params):
+def send_failure(exception, stacktrace, params):
   """Sends a log with success set to False."""
   params = params.copy()
-  params['exception'] = exception_name
+  params['exception'] = exception.__class__.__name__
+
+  if isinstance(exception, common.ExpectedException) and exception.extras:
+    params['extras'] = exception.extras
+
   params['success'] = False
   send_log(params, stacktrace)
 
@@ -120,7 +124,7 @@ def log(func):
         func(**params)
         send_success(log_params)
       except BaseException as e:
-        send_failure(e.__class__.__name__, traceback.format_exc(), log_params)
+        send_failure(e, traceback.format_exc(), log_params)
         raise
     except (KeyboardInterrupt, common.ExpectedException) as e:
       print

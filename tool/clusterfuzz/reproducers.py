@@ -92,17 +92,17 @@ def serialize_libfuzzer_args(args):
   return ' '.join(sorted(args_list))
 
 
-def is_similar(new_type, new_state_lines, original_type, original_state_lines):
+def is_similar(new_signature, original_signature):
   """Check if the new state is similar enough to the original state."""
   count = 0
-  if new_type == original_type:
+  if new_signature.crash_type == original_signature.crash_type:
     count += 1
 
-  for line in new_state_lines:
-    if line in original_state_lines:
+  for line in new_signature.crash_state_lines:
+    if line in original_signature.crash_state_lines:
       count += 1
 
-  return count >= len(original_state_lines)
+  return count >= len(original_signature.crash_state_lines)
 
 
 def deserialize_sanitizer_options(options):
@@ -182,8 +182,7 @@ class BaseReproducer(object):
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
     stacktrace_lines = get_only_first_stacktrace(stacktrace_lines)
-    self.crash_state, self.crash_type = self.get_stacktrace_info(
-        '\n'.join(stacktrace_lines))
+    self.crash_signature = self.get_stacktrace_info('\n'.join(stacktrace_lines))
 
     self.gesture_start_time = (self.get_gesture_start_time() if self.gestures
                                else None)
@@ -236,9 +235,10 @@ class BaseReproducer(object):
         url=('https://clusterfuzz.com/v2/parse_stacktrace'),
         data=json.dumps({'job': self.job_type, 'stacktrace': trace}))
     response = json.loads(response.text)
-    crash_state = [x for x in response['crash_state'].split('\n') if x]
+    crash_state_lines = tuple(
+        [x for x in response['crash_state'].split('\n') if x])
     crash_type = response['crash_type'].replace('\n', ' ')
-    return crash_state, crash_type
+    return common.CrashSignature(crash_type, crash_state_lines)
 
   def setup_args(self):
     """Setup args."""
@@ -276,22 +276,26 @@ class BaseReproducer(object):
     self.pre_build_steps()
 
     iterations = 1
+    signatures = set()
     while iterations <= iteration_max:
       _, output = self.reproduce_crash()
 
-      new_crash_state, new_crash_type = self.get_stacktrace_info(output)
+      new_signature = self.get_stacktrace_info(output)
+      new_signature.output = output
+      signatures.add(new_signature)
 
       logger.info(
           'New crash type: %s\n'
           'New crash state:\n  %s\n\n'
           'Original crash type: %s\n'
           'Original crash state:\n  %s\n',
-          new_crash_type, '\n  '.join(new_crash_state), self.crash_type,
-          '\n  '.join(self.crash_state))
+          new_signature.crash_type,
+          '\n  '.join(new_signature.crash_state_lines),
+          self.crash_signature.crash_type,
+          '\n  '.join(self.crash_signature.crash_state_lines))
 
       # The crash signature validation is intentionally forgiving.
-      if is_similar(
-          new_crash_type, new_crash_state, self.crash_type, self.crash_state):
+      if is_similar(new_signature, self.crash_signature):
         logger.info('The stacktrace seems similar to the original stacktrace.')
         return True
       else:
@@ -301,7 +305,7 @@ class BaseReproducer(object):
       iterations += 1
       time.sleep(3)
 
-    raise common.UnreproducibleError(iteration_max)
+    raise common.UnreproducibleError(iteration_max, signatures)
 
 
 class LibfuzzerJobReproducer(BaseReproducer):

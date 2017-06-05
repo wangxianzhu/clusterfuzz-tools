@@ -74,6 +74,25 @@ def post(*args, **kwargs):  # pragma: no cover
   return http.post(*args, **kwargs)
 
 
+class CrashSignature(object):
+  """Represents a crash signature (including output)."""
+
+  def __init__(self, crash_type, crash_state_lines, output=''):
+    self.crash_type = crash_type
+    self.crash_state_lines = tuple(crash_state_lines)
+    self.output = output
+
+  def __hash__(self):
+    print [self.crash_type, self.crash_state_lines, self.output]
+    return (self.crash_type, self.crash_state_lines, self.output).__hash__()
+
+  def __eq__(self, other):
+    return (isinstance(other, CrashSignature) and
+            self.crash_type == other.crash_type and
+            self.crash_state_lines == other.crash_state_lines and
+            self.output == other.output)
+
+
 def get_os_name():
   """We need this method because we cannot mock os.name."""
   return os.name
@@ -108,8 +127,9 @@ def get_version():
 class ExpectedException(Exception):
   """A general Exception to extend from."""
 
-  def __init__(self, message):
+  def __init__(self, message, extras=None):
     super(ExpectedException, self).__init__(message)
+    self.extras = extras
 
 
 class MinimizationNotFinishedError(ExpectedException):
@@ -241,9 +261,17 @@ class BadJobTypeDefinitionError(ExpectedException):
 class UnreproducibleError(ExpectedException):
   """An exception raised when the testcase cannot be reproduced."""
 
-  def __init__(self, count):
+  MESSAGE = 'The testcase cannot be reproduced after trying {count} times.'
+
+  def __init__(self, count, crash_signatures):
+    crash_signatures = [
+        {'type': s.crash_type, 'state': s.crash_state_lines,
+         'output': s.output[:100000]}
+        for s in list(crash_signatures)[:10]
+    ]
     super(UnreproducibleError, self).__init__(
-        'The testcase cannot be reproduced after trying %d times.' % count)
+        message=UnreproducibleError.MESSAGE.format(count=count),
+        extras={'signatures': crash_signatures})
 
 
 class DirtyRepoError(ExpectedException):
@@ -261,9 +289,12 @@ class DirtyRepoError(ExpectedException):
 class CommandFailedError(ExpectedException):
   """An exception raised when the command doesn't return 0."""
 
-  def __init__(self, command, returncode):
+  MESSAGE = '`{cmd}` failed with the return code {returncode}.'
+
+  def __init__(self, command, returncode, stderr):
     super(CommandFailedError, self).__init__(
-        '`%s` failed with the return code %s.' % (command, returncode))
+        CommandFailedError.MESSAGE.format(cmd=command, returncode=returncode),
+        extras={'stderr': stderr[:100000]})
 
 
 class KillProcessFailedError(ExpectedException):
@@ -457,7 +488,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
     logger.debug('| Return code is non-zero (%d).', proc.returncode)
     if exit_on_error:
       logger.debug('| Exit.')
-      raise CommandFailedError(proc.args, proc.returncode)
+      raise CommandFailedError(proc.args, proc.returncode, stderr_data)
   return proc.returncode, ''.join(output_chunks)
 
 

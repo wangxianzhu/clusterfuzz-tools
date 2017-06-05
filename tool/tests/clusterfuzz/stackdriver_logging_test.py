@@ -19,6 +19,7 @@ import time
 import mock
 
 import helpers
+from clusterfuzz import common
 from clusterfuzz import stackdriver_logging
 
 class TestSendLog(helpers.ExtendedTestCase):
@@ -130,18 +131,6 @@ class TestSendLog(helpers.ExtendedTestCase):
 
 
 @stackdriver_logging.log
-def raise_func(param):  # pylint: disable=unused-argument
-  """Raise a normal exception."""
-  raise Exception('Oops')
-
-
-@stackdriver_logging.log
-def raise_keyboard_interrupt(param):  # pylint: disable=unused-argument
-  """Raise KeyboardInterrupt."""
-  raise KeyboardInterrupt()
-
-
-@stackdriver_logging.log
 def not_raise(param):  # pylint: disable=unused-argument
   """Dummy function."""
   pass
@@ -157,18 +146,30 @@ class LogTest(helpers.ExtendedTestCase):
 
   def test_raise_exception(self):
     """Test raising a non clusterfuzz exception."""
+    self.exception = Exception('Oops')
+
+    @stackdriver_logging.log
+    def raise_func(param):  # pylint: disable=unused-argument
+      raise self.exception
+
     with self.assertRaises(Exception) as cm:
       raise_func(param='yes')
 
-    self.assertEqual('Oops', cm.exception.message)
+    self.assertEqual(self.exception, cm.exception)
     self.mock.send_start.assert_called_once_with(
         {'command': 'stackdriver_logging_test', 'param': 'yes'})
     self.mock.send_failure.assert_called_once_with(
-        'Exception', mock.ANY,
+        self.exception, mock.ANY,
         {'command': 'stackdriver_logging_test', 'param': 'yes'})
 
   def test_keyboard_interrupt(self):
     """Test raising a KeyboardInterrupt exception."""
+    self.exception = KeyboardInterrupt()
+
+    @stackdriver_logging.log
+    def raise_keyboard_interrupt(param):  # pylint: disable=unused-argument
+      raise self.exception
+
     with self.assertRaises(SystemExit) as cm:
       raise_keyboard_interrupt(param='yes')
 
@@ -176,7 +177,7 @@ class LogTest(helpers.ExtendedTestCase):
     self.mock.send_start.assert_called_once_with(
         {'command': 'stackdriver_logging_test', 'param': 'yes'})
     self.mock.send_failure.assert_called_once_with(
-        'KeyboardInterrupt', mock.ANY,
+        self.exception, mock.ANY,
         {'command': 'stackdriver_logging_test', 'param': 'yes'})
 
   def test_success(self):
@@ -217,9 +218,12 @@ class SendSuccessFailureTest(helpers.ExtendedTestCase):
 
   def test_send_failure(self):
     """Test send failure."""
-    stackdriver_logging.send_failure('Ex', 'trace', {'test': 'yes'})
+    exception = common.ExpectedException('message', extras={'a': 'b'})
+    stackdriver_logging.send_failure(exception, 'trace', {'test': 'yes'})
     self.mock.send_log.assert_called_once_with(
-        {'test': 'yes', 'exception': 'Ex', 'success': False}, 'trace')
+        {'test': 'yes', 'exception': 'ExpectedException', 'success': False,
+         'extras': {'a': 'b'}},
+        'trace')
 
   def test_send_success(self):
     """Test send success."""

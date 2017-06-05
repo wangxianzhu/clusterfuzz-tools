@@ -241,9 +241,9 @@ class CommandFailedError(ExpectedException):
 class KillProcessFailedError(ExpectedException):
   """An exception raised when the process cannot be killed."""
 
-  def __init__(self, command, pid, pgid):
+  def __init__(self, command, pid):
     super(KillProcessFailedError, self).__init__(
-        '`%s` (pid=%s, pgid=%s) cannot be killed.' % (command, pid, pgid))
+        '`%s` (pid=%s) cannot be killed.' % (command, pid))
 
 
 def store_auth_header(auth_header):
@@ -298,14 +298,14 @@ def kill(proc):
   try:
     for sig in [signal.SIGTERM, signal.SIGTERM,
                 signal.SIGKILL, signal.SIGKILL]:
-      pgid = os.getpgid(proc.pid)
-      logger.debug('Killing pgid=%s (pid=%s) with %s', pgid, proc.pid, sig)
-      os.killpg(pgid, sig)
+      logger.debug('Killing pid=%s with %s', proc.pid, sig)
+      # Process leader id is the group id.
+      os.killpg(proc.pid, sig)
 
       # Wait for any shutdown stacktrace to be dumped.
       time.sleep(3)
 
-    raise KillProcessFailedError(proc.args, proc.pid, pgid)
+    raise KillProcessFailedError(proc.args, proc.pid)
   except OSError as e:
     if e.errno != NO_SUCH_PROCESS_ERRNO:
       raise

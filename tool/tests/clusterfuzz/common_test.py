@@ -407,11 +407,10 @@ class KillTest(helpers.ExtendedTestCase):
   """Test kill method."""
 
   def setUp(self):
-    helpers.patch(self, ['time.sleep', 'os.killpg', 'os.getpgid'])
+    helpers.patch(self, ['time.sleep', 'os.killpg'])
     self.proc = mock.Mock()
     self.proc.args = 'cmd'
     self.proc.pid = 1234
-    self.mock.getpgid.return_value = 999
 
     self.no_process_error = OSError()
     self.no_process_error.errno = common.NO_SUCH_PROCESS_ERRNO
@@ -422,8 +421,8 @@ class KillTest(helpers.ExtendedTestCase):
     common.kill(self.proc)
 
     self.assert_exact_calls(self.mock.killpg, [
-        mock.call(999, signal.SIGTERM), mock.call(999, signal.SIGTERM),
-        mock.call(999, signal.SIGKILL), mock.call(999, signal.SIGKILL)
+        mock.call(1234, signal.SIGTERM), mock.call(1234, signal.SIGTERM),
+        mock.call(1234, signal.SIGKILL), mock.call(1234, signal.SIGKILL)
     ])
     self.assert_exact_calls(self.mock.sleep, [mock.call(3)] * 3)
 
@@ -435,12 +434,12 @@ class KillTest(helpers.ExtendedTestCase):
       common.kill(self.proc)
 
     self.assertEqual(
-        '`cmd` (pid=1234, pgid=999) cannot be killed.',
+        '`cmd` (pid=1234) cannot be killed.',
         cm.exception.message)
 
     self.assert_exact_calls(self.mock.killpg, [
-        mock.call(999, signal.SIGTERM), mock.call(999, signal.SIGTERM),
-        mock.call(999, signal.SIGKILL), mock.call(999, signal.SIGKILL)
+        mock.call(1234, signal.SIGTERM), mock.call(1234, signal.SIGTERM),
+        mock.call(1234, signal.SIGKILL), mock.call(1234, signal.SIGKILL)
     ])
     self.assert_exact_calls(self.mock.sleep, [mock.call(3)] * 4)
 

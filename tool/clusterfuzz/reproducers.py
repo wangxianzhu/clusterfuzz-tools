@@ -25,6 +25,7 @@ import psutil
 
 from cmd_editor import editor
 from clusterfuzz import common
+from clusterfuzz import output_transformer
 
 DISABLE_GL_DRAW_ARG = '--disable-gl-drawing-for-tests'
 DEFAULT_GESTURE_TIME = 5
@@ -225,7 +226,8 @@ class BaseReproducer(object):
     return common.execute(
         self.binary_path, self.args,
         os.path.dirname(self.binary_path), env=self.environment,
-        exit_on_error=False, timeout=TEST_TIMEOUT)
+        exit_on_error=False, timeout=TEST_TIMEOUT,
+        stdout_transformer=output_transformer.Identity())
 
   def get_stacktrace_info(self, trace):
     """Post a stacktrace, return (crash_state, crash_type)."""
@@ -469,5 +471,6 @@ class LinuxChromeJobReproducer(BaseReproducer):
         self.run_gestures(process, display_name)
 
       err, out = common.wait_execute(
-          process, exit_on_error=False, timeout=TEST_TIMEOUT)
+          process, exit_on_error=False, timeout=TEST_TIMEOUT,
+          stdout_transformer=output_transformer.Identity())
       return err, self.post_run_symbolize(out)

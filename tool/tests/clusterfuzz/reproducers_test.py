@@ -183,7 +183,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             '/chrome/source/folder',
             env={'ASAN_OPTIONS': 'test-asan'},
             exit_on_error=False,
-            timeout=30)
+            timeout=30,
+            stdout_transformer=mock.ANY)
     ])
 
   def test_base_with_env_args(self):
@@ -213,7 +214,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             '/chrome/source/folder',
             env={'ASAN_OPTIONS': 'test-asan'},
             exit_on_error=False,
-            timeout=30)
+            timeout=30,
+            stdout_transformer=mock.ANY)
     ])
 
   def test_chromium(self):
@@ -253,7 +255,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.wait_execute, [
         mock.call(
             self.mock.start_execute.return_value, exit_on_error=False,
-            timeout=30)
+            timeout=30,
+            stdout_transformer=mock.ANY)
     ])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])

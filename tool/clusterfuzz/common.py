@@ -83,7 +83,6 @@ class CrashSignature(object):
     self.output = output
 
   def __hash__(self):
-    print [self.crash_type, self.crash_state_lines, self.output]
     return (self.crash_type, self.crash_state_lines, self.output).__hash__()
 
   def __eq__(self, other):

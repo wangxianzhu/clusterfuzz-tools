@@ -454,6 +454,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
              'CHROMIUM_SRC': self.source_directory})
     output += '\0'
     out, _ = proc.communicate(input=output)
+    logger.info(out)
     return out
 
 

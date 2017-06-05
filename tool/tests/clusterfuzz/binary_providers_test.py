@@ -157,7 +157,7 @@ class V8BuilderGetBuildDirectoryTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.V8Builder.checkout_source_by_sha',
         'clusterfuzz.binary_providers.V8Builder.build_target',
         'clusterfuzz.common.ask',
-        'clusterfuzz.binary_providers.V8Builder.get_current_sha',
+        'clusterfuzz.binary_providers.get_current_sha',
         'clusterfuzz.common.execute',
         'clusterfuzz.common.get_source_directory'])
 
@@ -368,69 +368,82 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.common.check_confirm',
-        'clusterfuzz.binary_providers.sha_exists',
+        'clusterfuzz.binary_providers.ensure_sha',
+        'clusterfuzz.binary_providers.get_current_sha',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.is_repo_dirty',
     ])
-    self.mock.sha_exists.return_value = False
     self.chrome_source = '/usr/local/google/home/user/repos/chromium/src'
-    self.command = 'git checkout 1a2s3d4f in %s' % self.chrome_source
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
+    self.testcase = mock.Mock(id=12345, build_url='', revision=4567)
     self.mock_os_environment({'V8_SRC': self.chrome_source})
     definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
     self.builder = binary_providers.ChromiumBuilder(
-        testcase, definition, libs.make_options())
+        self.testcase, definition, libs.make_options())
     self.builder.git_sha = '1a2s3d4f'
 
   def test_dirty_dir(self):
     """Tests when the correct git sha is not already checked out."""
-
+    self.mock.get_current_sha.return_value = 'aaa'
     self.mock.is_repo_dirty.return_value = True
-    self.mock.execute.return_value = [0, 'not_the_same']
     with self.assertRaises(common.DirtyRepoError):
       self.builder.checkout_source_by_sha()
 
-    self.assert_exact_calls(self.mock.execute, [
-        mock.call('git', 'rev-parse HEAD', self.chrome_source,
-                  print_command=False, print_output=False),
-        mock.call('git', 'fetch origin 1a2s3d4f', self.chrome_source)
-    ])
-    self.assert_exact_calls(self.mock.check_confirm, [
-        mock.call('Proceed with the following command:\n%s?' % self.command)
-    ])
+    self.mock.get_current_sha.assert_called_once_with(self.chrome_source)
+    self.mock.check_confirm.assert_called_once_with(
+        binary_providers.CHECKOUT_MESSAGE.format(
+            revision=4567,
+            cmd='git checkout %s' % self.builder.git_sha,
+            source_dir=self.chrome_source))
 
-  def test_not_already_checked_out(self):
-    """Tests when the correct git sha is not already checked out."""
-
+  def test_confirm_checkout(self):
+    """Tests when user wants confirm the checkout."""
+    self.mock.get_current_sha.return_value = 'aaa'
     self.mock.is_repo_dirty.return_value = False
-    self.mock.execute.return_value = [0, 'not_the_same']
     self.builder.checkout_source_by_sha()
 
-    self.assert_exact_calls(
-        self.mock.execute,
-        [
-            mock.call('git', 'rev-parse HEAD', self.chrome_source,
-                      print_command=False, print_output=False),
-            mock.call('git', 'fetch origin 1a2s3d4f', self.chrome_source),
-            mock.call('git', 'checkout 1a2s3d4f', self.chrome_source)
-        ]
-    )
-    self.assert_exact_calls(self.mock.check_confirm, [
-        mock.call('Proceed with the following command:\n%s?' % self.command)
-    ])
+    self.mock.get_current_sha.assert_called_once_with(self.chrome_source)
+    self.mock.execute.assert_called_once_with(
+        'git', 'checkout 1a2s3d4f', self.chrome_source)
+    self.mock.check_confirm.assert_called_once_with(
+        binary_providers.CHECKOUT_MESSAGE.format(
+            revision=4567,
+            cmd='git checkout %s' % self.builder.git_sha,
+            source_dir=self.chrome_source))
 
   def test_already_checked_out(self):
     """Tests when the correct git sha is already checked out."""
-
-    self.mock.execute.return_value = [0, '1a2s3d4f']
+    self.mock.get_current_sha.return_value = '1a2s3d4f'
     self.builder.checkout_source_by_sha()
 
-    self.assert_exact_calls(
-        self.mock.execute,
-        [mock.call('git', 'rev-parse HEAD', self.chrome_source,
-                   print_command=False, print_output=False)]
-    )
-    self.assert_n_calls(0, [self.mock.check_confirm])
+    self.mock.get_current_sha.assert_called_once_with(self.chrome_source)
+    self.assert_n_calls(0, [self.mock.check_confirm, self.mock.execute])
+
+
+class EnsureShaTest(helpers.ExtendedTestCase):
+  """Tests ensure_sha."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_exists',
+    ])
+
+  def test_already_exists(self):
+    """Test when sha already exists."""
+    self.mock.sha_exists.return_value = True
+    binary_providers.ensure_sha('sha', 'source')
+
+    self.mock.sha_exists.assert_called_once_with('sha', 'source')
+    self.assertEqual(0, self.mock.execute.call_count)
+
+  def test_not_exists(self):
+    """Test when sha doesn't exists."""
+    self.mock.sha_exists.return_value = False
+    binary_providers.ensure_sha('sha', 'source')
+
+    self.mock.sha_exists.assert_called_once_with('sha', 'source')
+    self.mock.execute.assert_called_once_with(
+        'git', 'fetch origin sha', 'source')
 
 
 class V8BuilderOutDirNameTest(helpers.ExtendedTestCase):
@@ -756,21 +769,18 @@ class GetCurrentShaTest(helpers.ExtendedTestCase):
   """Tests functionality when the rev-parse command fails."""
 
   def setUp(self):
-    helpers.patch(self, ['clusterfuzz.common.execute',
-                         'logging.RootLogger.info',
-                         'clusterfuzz.binary_providers.sha_from_revision'])
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.binary_providers.sha_from_revision'
+    ])
+    self.mock.execute.return_value = (0, 'test\n')
 
-    self.mock.execute.side_effect = SystemExit
-
-  def test_log_when_exception(self):
+  def test_get(self):
     """Tests to ensure the method prints before it exits."""
-
-    testcase = mock.Mock(id=12345, build_url='', revision=4567)
-    definition = mock.Mock(source_var='V8_SRC', binary_name='binary')
-    builder = binary_providers.ChromiumBuilder(
-        testcase, definition, libs.make_options())
-    with self.assertRaises(SystemExit):
-      builder.get_current_sha()
+    self.assertEqual('test', binary_providers.get_current_sha('source'))
+    self.mock.execute.assert_called_once_with(
+        'git', 'rev-parse HEAD', 'source', print_command=False,
+        print_output=False)
 
 
 class GetGomaCoresTest(helpers.ExtendedTestCase):

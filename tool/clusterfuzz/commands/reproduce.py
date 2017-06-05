@@ -240,8 +240,10 @@ def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
   current_testcase = testcase.Testcase(response)
 
   if 'gestures' in response['testcase']:
-    logger.info(('Warning: testcases using gestures are still in development '
-                 'and are not guaranteed to reproduce correctly.'))
+    logger.info(common.colorize(
+        'Warning: the testcase is using gestures and inherently flaky. '
+        "Therefore, we cannot guaranteed that it'll reproduce correctly.",
+        common.BASH_YELLOW_MARKER))
 
   definition = get_definition(current_testcase.job_type, build)
 

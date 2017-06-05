@@ -35,6 +35,7 @@ from clusterfuzz import output_transformer
 
 BASH_BLUE_MARKER = '\033[1;36m'
 BASH_YELLOW_MARKER = '\033[1;33m'
+BASH_MAGENTA_MARKER = '\033[1;35m'
 BASH_RESET_MARKER = '\033[0m'
 NO_SUCH_PROCESS_ERRNO = 3
 
@@ -173,8 +174,10 @@ class GomaNotInstalledError(ExpectedException):
 
   def __init__(self):
     message = ('Either goma is not installed, or $GOMA_DIR is not set.'
-               ' Please set up goma before continuing.'
-               '\nSee go/ma to learn more.')
+               ' Please set up goma before continuing. '
+               'See go/ma to learn more.\n\n'
+               "If you wouldn't like to use goma, "
+               'please re-run with --disable-goma.')
     super(GomaNotInstalledError, self).__init__(message)
 
 
@@ -187,12 +190,16 @@ class JobTypeNotSupportedError(ExpectedException):
 
 
 class NotInstalledError(ExpectedException):
-  """An exception raised to tell the user to install Blackbox."""
+  """An exception raised to tell the user to install the required binary."""
+
+  MESSAGE = (
+      '{binary} is not found. Please install it or ensure the path is '
+      'correct.\n'
+      'Most of the time you can install it with `apt-get install {binary}`.')
 
   def __init__(self, binary):
-    message = ('%s is not found. Please install it or ensure the path is '
-               'correct.' % binary)
-    super(NotInstalledError, self).__init__(message)
+    super(NotInstalledError, self).__init__(
+        NotInstalledError.MESSAGE.format(binary=binary))
 
 
 class BadJobTypeDefinitionError(ExpectedException):
@@ -212,22 +219,16 @@ class UnreproducibleError(ExpectedException):
         'The testcase cannot be reproduced after trying %d times.' % count)
 
 
-class UserRespondingNoError(ExpectedException):
-  """An exception raised when the user decides not to proceed."""
-
-  def __init__(self, question):
-    super(UserRespondingNoError, self).__init__(
-        'User responding "no" to "%s".' % question)
-
-
 class DirtyRepoError(ExpectedException):
   """An exception raised when the repo is dirty. Therefore, we cannot checkout
     to a wanted sha."""
 
-  def __init__(self):
+  def __init__(self, source_dir):
     super(DirtyRepoError, self).__init__(
-        'Your source directory has uncommitted changes: please '
-        'commit or stash these changes and re-run this tool.')
+        "We can't run the checkout command because %s has "
+        'uncommitted changes.\n '
+        'please commit or stash these changes and re-run this tool.' %
+        source_dir)
 
 
 class CommandFailedError(ExpectedException):
@@ -244,6 +245,14 @@ class KillProcessFailedError(ExpectedException):
   def __init__(self, command, pid):
     super(KillProcessFailedError, self).__init__(
         '`%s` (pid=%s) cannot be killed.' % (command, pid))
+
+
+class UserRespondingNoError(ExpectedException):
+  """An exception raised when the user decides not to proceed."""
+
+  def __init__(self, question):
+    super(UserRespondingNoError, self).__init__(
+        'User responding "no" to "%s".' % question)
 
 
 def store_auth_header(auth_header):
@@ -446,6 +455,12 @@ def execute_with_shell(binary, args, cwd):
   os.system(command)
 
 
+def check_confirm(question):
+  """Exits the program if the answer is negative, does nothing otherwise."""
+  if not confirm(question):
+    raise UserRespondingNoError(question)
+
+
 def confirm(question, default='y'):
   """Asks the user a question and returns their answer.
   default can either be 'y', 'n', or None. Answer
@@ -460,19 +475,15 @@ def confirm(question, default='y'):
     accepts += ['']
     defaults = defaults.replace(default, default.upper())
 
-  answer = raw_input('%s %s: ' % (question, defaults)).lower().strip()
+  answer = raw_input(colorize(
+      '%s %s: ' % (question, defaults), BASH_MAGENTA_MARKER)).lower().strip()
   while not answer in accepts:
-    answer = raw_input('Please type either "y" or "n": ').lower().strip()
+    answer = raw_input(colorize(
+        'Please type either "y" or "n": ', BASH_MAGENTA_MARKER)).lower().strip()
 
   if answer == 'y' or (answer == '' and default == 'y'):
     return True
   return False
-
-def check_confirm(question):
-  """Exits the program if the answer is negative, does nothing otherwise."""
-
-  if not confirm(question):
-    raise UserRespondingNoError(question)
 
 
 def ask(question, error_message, validate_fn):

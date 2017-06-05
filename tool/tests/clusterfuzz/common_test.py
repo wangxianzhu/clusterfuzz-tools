@@ -54,7 +54,8 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertFalse(common.confirm('A question'))
     self.assertTrue(common.confirm('A question'))
 
-    self.mock.raw_input.assert_has_calls([mock.call('A question [Y/n]: ')])
+    msg = common.colorize('A question [Y/n]: ', common.BASH_MAGENTA_MARKER)
+    self.mock.raw_input.assert_has_calls([mock.call(msg)] * 3)
     self.assert_n_calls(3, [self.mock.raw_input])
 
   def test_no_default(self):
@@ -66,7 +67,8 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertFalse(common.confirm('A question', default='n'))
     self.assertFalse(common.confirm('A question', default='n'))
 
-    self.mock.raw_input.assert_has_calls([mock.call('A question [y/N]: ')])
+    msg = common.colorize('A question [y/N]: ', common.BASH_MAGENTA_MARKER)
+    self.mock.raw_input.assert_has_calls([mock.call(msg)] * 3)
     self.assert_n_calls(3, [self.mock.raw_input])
 
   def test_empty_default(self):
@@ -78,9 +80,11 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertFalse(common.confirm('A question', default=None))
     self.assertFalse(common.confirm('A question', default=None))
 
-    self.mock.raw_input.assert_has_calls([
-        mock.call('A question [y/n]: '),
-        mock.call('Please type either "y" or "n": ')])
+    msg = common.colorize('A question [y/n]: ', common.BASH_MAGENTA_MARKER)
+    another_msg = common.colorize(
+        'Please type either "y" or "n": ', common.BASH_MAGENTA_MARKER)
+    self.mock.raw_input.assert_has_calls(
+        [mock.call(msg)] * 3 + [mock.call(another_msg)])
     self.assert_n_calls(4, [self.mock.raw_input])
 
   def test_quiet_mode(self):
@@ -91,6 +95,7 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertTrue(common.confirm('Anything', default='n'))
 
     self.assert_n_calls(0, [self.mock.raw_input])
+
 
 class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the execute method."""
@@ -201,7 +206,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(
         self.mock.check_binary, [mock.call('cmd', '~/working/directory')])
     self.assertEqual(
-        'cmd is not found. Please install it or ensure the path is correct.',
+        common.NotInstalledError.MESSAGE.format(binary='cmd'),
         cm.exception.message)
 
 
@@ -224,7 +229,7 @@ class CheckBinaryTest(helpers.ExtendedTestCase):
 
     self.mock.check_output.assert_called_once_with(['which', 'test'], cwd='cwd')
     self.assertEqual(
-        'test is not found. Please install it or ensure the path is correct.',
+        common.NotInstalledError.MESSAGE.format(binary='test'),
         cm.exception.message)
 
 

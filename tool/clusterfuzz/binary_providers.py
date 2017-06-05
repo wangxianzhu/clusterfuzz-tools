@@ -28,6 +28,14 @@ from clusterfuzz import common
 from clusterfuzz import output_transformer
 
 
+CHECKOUT_MESSAGE = (
+    'We want to checkout to the revision {revision}.\n'
+    "If you wouldn't like to perform the checkout, "
+    'please re-run with --current.\n'
+    'Shall we proceed with the following command:\n'
+    '{cmd} in {source_dir}?')
+
+
 logger = logging.getLogger('clusterfuzz')
 
 
@@ -67,12 +75,27 @@ def sha_exists(sha, source_dir):
   return returncode == 0
 
 
+def ensure_sha(sha, source_dir):
+  """Ensure the sha exists."""
+  if sha_exists(sha, source_dir):
+    return
+
+  common.execute('git', 'fetch origin %s' % sha, source_dir)
+
+
 def is_repo_dirty(path):
   """Returns true if the source dir has uncommitted changes."""
   # `git diff` always return 0 (even when there's change).
   _, diff_result = common.execute(
       'git', 'diff', path, print_command=False, print_output=False)
   return bool(diff_result)
+
+
+def get_current_sha(source_dir):
+  _, current_sha = common.execute(
+      'git', 'rev-parse HEAD', source_dir, print_command=False,
+      print_output=False)
+  return current_sha.strip()
 
 
 class BinaryProvider(object):
@@ -163,17 +186,6 @@ class GenericBuilder(BinaryProvider):
     self.gn_args_options = None
     self.gn_flags = '--check'
 
-  def get_current_sha(self):
-    try:
-      _, current_sha = common.execute(
-          'git', 'rev-parse HEAD', self.source_directory, print_command=False,
-          print_output=False)
-    except SystemExit:
-      logger.info(
-          'Error: The selected directory is not a valid git repository.')
-      raise
-    return current_sha.strip()
-
   def out_dir_name(self):
     """Returns the correct out dir in which to build the revision.
       Directory name is of the format clusterfuzz_<testcase_id>_<git_sha>."""
@@ -185,21 +197,24 @@ class GenericBuilder(BinaryProvider):
 
   def checkout_source_by_sha(self):
     """Checks out the correct revision."""
-
-    if self.get_current_sha() == self.git_sha:
+    if get_current_sha(self.source_directory) == self.git_sha:
+      logger.info(
+          'The current state of %s is already on the revision %s (commit=%s). '
+          'No action needed.', self.source_directory, self.testcase.revision,
+          self.git_sha)
       return
-
-    if not sha_exists(self.git_sha, self.source_directory):
-      common.execute(
-          'git', 'fetch origin %s' % self.git_sha, self.source_directory)
 
     binary = 'git'
     args = 'checkout %s' % self.git_sha
-    common.check_confirm(
-        'Proceed with the following command:\n'
-        '%s %s in %s?' % (binary, args, self.source_directory))
+    common.check_confirm(CHECKOUT_MESSAGE.format(
+        revision=self.testcase.revision,
+        cmd='%s %s' % (binary, args),
+        source_dir=self.source_directory))
+
     if is_repo_dirty(self.source_directory):
-      raise common.DirtyRepoError()
+      raise common.DirtyRepoError(self.source_directory)
+
+    ensure_sha(self.git_sha, self.source_directory)
     common.execute(binary, args, self.source_directory)
 
   def deserialize_gn_args(self, args):

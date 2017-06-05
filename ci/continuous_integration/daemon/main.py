@@ -2,8 +2,8 @@
 
 import collections
 import os
-import subprocess
 import shutil
+import subprocess
 import sys
 import time
 import yaml
@@ -15,6 +15,7 @@ from oauth2client.client import GoogleCredentials
 from lru import LRUCacheDict
 
 import stackdriver_logging #pylint: disable=relative-import
+import process #pylint: disable=relative-import
 
 
 HOME = os.path.expanduser('~')
@@ -26,13 +27,12 @@ CHROMIUM_OUT = os.path.join(CHROMIUM_SRC, 'out')
 RELEASE_ENV = os.path.join(HOME, 'RELEASE_ENV')
 DEPOT_TOOLS = os.path.join(HOME, 'depot_tools')
 SANITY_CHECKS = '/python-daemon/daemon/sanity_checks.yml'
-BINARY_LOCATION = '/python-daemon/clusterfuzz'
+BINARY_LOCATION = '/python-daemon-data/clusterfuzz'
 TOOL_SOURCE = os.path.join(HOME, 'clusterfuzz-tools')
 TESTCASE_CACHE = LRUCacheDict(max_size=1000, expiration=172800)
 
 # The number of seconds to sleep after each test run to avoid DDOS.
 SLEEP_TIME = 30
-
 
 Testcase = collections.namedtuple('Testcase', ['id', 'job_type'])
 
@@ -65,24 +65,10 @@ def build_command(args):
   return '%s %s' % (BINARY_LOCATION, args)
 
 
-def call(cmd, cwd='.', env=None, capture=False):
-  """Call invoke command with additional envs and return output."""
-  env = env or {}
-  env_str = ' '.join(
-      ['%s="%s"' % (k, v) for k, v in env.iteritems()])
-  print ('Running:\n  cmd: %s %s\n  cwd: %s' % (env_str, cmd, cwd)).strip()
-
-  final_env = os.environ.copy()
-  final_env.update(env)
-
-  fn = subprocess.check_output if capture else subprocess.check_call
-  return fn(cmd, shell=True, cwd=cwd, env=final_env)
-
-
 def run_testcase(testcase_id):
   """Attempts to reproduce a testcase."""
   try:
-    call(
+    process.call(
         '/python-daemon/clusterfuzz reproduce %s' % testcase_id,
         cwd=HOME,
         env={
@@ -116,13 +102,13 @@ def update_auth_header():
 
 def get_binary_version():
   """Returns the version of the binary."""
-  out = call(build_command('supported_job_types'), capture=True)
+  out = process.call(build_command('supported_job_types'), capture=True)
   return yaml.load(out)['Version']
 
 
 def get_supported_jobtypes():
   """Returns a hash of supported job types."""
-  out = call(build_command('supported_job_types'), capture=True)
+  out = process.call(build_command('supported_job_types'), capture=True)
   result = yaml.load(out)
   result.pop('Version', None)
   return result
@@ -177,11 +163,12 @@ def delete_if_exists(path):
 def build_master_and_get_version():
   """Checks out the latest master build and creates a new binary."""
   if not os.path.exists(TOOL_SOURCE):
-    call('git clone https://github.com/google/clusterfuzz-tools.git', cwd=HOME)
-  call('git fetch', cwd=TOOL_SOURCE)
-  call('git checkout origin/master -f', cwd=TOOL_SOURCE)
-  call('./pants binary tool:clusterfuzz-ci', cwd=TOOL_SOURCE,
-       env={'HOME': HOME})
+    process.call(
+        'git clone https://github.com/google/clusterfuzz-tools.git', cwd=HOME)
+  process.call('git fetch', cwd=TOOL_SOURCE)
+  process.call('git checkout origin/master -f', cwd=TOOL_SOURCE)
+  process.call('./pants binary tool:clusterfuzz-ci', cwd=TOOL_SOURCE,
+               env={'HOME': HOME})
 
   delete_if_exists(BINARY_LOCATION)
   shutil.copy(os.path.join(TOOL_SOURCE, 'dist', 'clusterfuzz-ci.pex'),
@@ -189,7 +176,8 @@ def build_master_and_get_version():
 
   # The full SHA is too long and unpleasant to show in logs. So, we use the
   # first 7 characters of the SHA instead.
-  return call('git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE).strip()[:7]
+  return process.call(
+      'git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE).strip()[:7]
 
 
 def prepare_binary_and_get_version(release):
@@ -205,11 +193,11 @@ def reset_and_run_testcase(testcase_id, category, release):
 
   delete_if_exists(CHROMIUM_OUT)
   delete_if_exists(CLUSTERFUZZ_CACHE_DIR)
-  call('git checkout -f HEAD', cwd=CHROMIUM_SRC)
+  process.call('git checkout -f HEAD', cwd=CHROMIUM_SRC)
 
   # Clean untracked files. Because untracked files in submodules are not removed
   # with `git checkout -f HEAD`.
-  call('git clean -d -f -f', cwd=CHROMIUM_SRC)
+  process.call('git clean -d -f -f', cwd=CHROMIUM_SRC)
 
   version = prepare_binary_and_get_version(release)
   update_auth_header()

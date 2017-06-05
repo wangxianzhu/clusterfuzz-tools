@@ -59,6 +59,7 @@
             mode='u=rwx,g=rx,o=rx'
       with_items:
         - '/python-daemon'
+        - '/python-daemon-data'
     - file: path="{{item}}"
             state=directory
             owner=root
@@ -83,7 +84,7 @@
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
     - copy:
         src: '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz-rc'
-        dest: '/python-daemon/clusterfuzz'
+        dest: '/python-daemon-data/clusterfuzz'
         force: true
         owner: root
         group: root
@@ -91,7 +92,7 @@
       when: release == "release-candidate"
     - copy:
         src: '/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz'
-        dest: '/python-daemon/clusterfuzz'
+        dest: '/python-daemon-data/clusterfuzz'
         force: true
         owner: root
         group: root

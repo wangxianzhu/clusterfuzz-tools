@@ -65,7 +65,7 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
   """Test the run_testcase method."""
 
   def setUp(self):
-    helpers.patch(self, ['daemon.main.call'])
+    helpers.patch(self, ['daemon.process.call'])
     self.mock_os_environment({'PATH': 'test'})
 
   def test_succeed(self):
@@ -143,7 +143,7 @@ class GetBinaryVersionTest(helpers.ExtendedTestCase):
   """Tests the get_binary_version method."""
 
   def setUp(self):
-    helpers.patch(self, ['daemon.main.call'])
+    helpers.patch(self, ['daemon.process.call'])
     self.result = yaml.dump({
         'chromium': ['chrome_job', 'libfuzzer_job'],
         'standalone': ['pdf_job', 'v8_job'],
@@ -159,7 +159,7 @@ class GetSupportedJobtypesTest(helpers.ExtendedTestCase):
   """Tests the get_supported_jobtypes method."""
 
   def setUp(self):
-    helpers.patch(self, ['daemon.main.call'])
+    helpers.patch(self, ['daemon.process.call'])
     self.result = yaml.dump({
         'chromium': ['chrome_job', 'libfuzzer_job'],
         'standalone': ['pdf_job', 'v8_job'],
@@ -231,7 +231,7 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     os.makedirs(main.CHROMIUM_OUT)
     os.makedirs(main.CLUSTERFUZZ_CACHE_DIR)
 
-    helpers.patch(self, ['daemon.main.call',
+    helpers.patch(self, ['daemon.process.call',
                          'daemon.stackdriver_logging.send_run',
                          'daemon.main.update_auth_header',
                          'daemon.main.run_testcase',
@@ -263,7 +263,7 @@ class BuildMasterAndGetVersionTest(helpers.ExtendedTestCase):
   """Tests the build_master_and_get_version method."""
 
   def setUp(self):
-    helpers.patch(self, ['daemon.main.call',
+    helpers.patch(self, ['daemon.process.call',
                          'daemon.main.delete_if_exists',
                          'shutil.copy',
                          'os.path.exists'])
@@ -319,31 +319,6 @@ class DeleteIfExistsTest(helpers.ExtendedTestCase):
 
     main.delete_if_exists('/path/test/textfile')
     self.assertFalse(os.path.exists('/path/test/textfile'))
-
-
-class CallTest(helpers.ExtendedTestCase):
-  """Tests call."""
-
-  def setUp(self):
-    self.mock_os_environment({'TEST': '1'})
-    helpers.patch(self, ['subprocess.check_output', 'subprocess.check_call'])
-
-  def test_capture(self):
-    """Test capturing output."""
-    self.mock.check_output.return_value = 'output'
-    main.call('test', cwd='path', env={'NEW': '2'}, capture=True)
-
-    self.mock.check_output.assert_called_once_with(
-        'test', shell=True, cwd='path', env={'TEST': '1', 'NEW': '2'})
-    self.assertEqual(0, self.mock.check_call.call_count)
-
-  def test_not_capture(self):
-    """Test not capture."""
-    main.call('test', cwd='path', env={'NEW': '2'}, capture=False)
-
-    self.mock.check_call.assert_called_once_with(
-        'test', shell=True, cwd='path', env={'TEST': '1', 'NEW': '2'})
-    self.assertEqual(0, self.mock.check_output.call_count)
 
 
 class PrepareBinaryAndGetVersionTest(helpers.ExtendedTestCase):

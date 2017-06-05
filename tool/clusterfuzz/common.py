@@ -202,6 +202,18 @@ class NotInstalledError(ExpectedException):
         NotInstalledError.MESSAGE.format(binary=binary))
 
 
+class GsutilNotInstalledError(ExpectedException):
+  """An exception raised to tell the user to install the required binary."""
+
+  MESSAGE = (
+      'gsutil is not installed. Please install it. See:'
+      'https://cloud.google.com/storage/docs/gsutil_install')
+
+  def __init__(self):
+    super(GsutilNotInstalledError, self).__init__(
+        GsutilNotInstalledError.MESSAGE)
+
+
 class BadJobTypeDefinitionError(ExpectedException):
   """An exception raised when a job type description is malformed."""
 
@@ -539,3 +551,11 @@ def get_source_directory(source_name):
       ask(message, 'Please enter a valid directory', get_valid_abs_dir))
 
   return source_directory
+
+
+def gsutil(*args, **kwargs):
+  """Run gsutil and raise an elaborated exception if gsutil doesn't exist."""
+  try:
+    return execute('gsutil', *args, **kwargs)
+  except NotInstalledError:
+    raise GsutilNotInstalledError()

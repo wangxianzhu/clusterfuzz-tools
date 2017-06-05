@@ -125,8 +125,7 @@ class BinaryProvider(object):
 
     gsutil_path = self.build_url.replace(
         'https://storage.cloud.google.com/', 'gs://')
-    common.execute(
-        'gsutil', 'cp %s .' % gsutil_path, common.CLUSTERFUZZ_CACHE_DIR)
+    common.gsutil('cp %s .' % gsutil_path, common.CLUSTERFUZZ_CACHE_DIR)
 
     filename = os.path.split(gsutil_path)[1]
     saved_file = os.path.join(common.CLUSTERFUZZ_CACHE_DIR, filename)

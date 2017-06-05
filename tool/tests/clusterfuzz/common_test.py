@@ -593,3 +593,34 @@ class ColorizeTest(helpers.ExtendedTestCase):
     """Test not posix."""
     self.mock.get_os_name.return_value = 'windows'
     self.assertEqual('test', common.colorize('test', common.BASH_BLUE_MARKER))
+
+
+class GsutilTest(helpers.ExtendedTestCase):
+  """Tests gsutil."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute'])
+
+  def test_succeed(self):
+    """Test suceeding."""
+    self.mock.execute.return_value = (0, None)
+    self.assertEqual((0, None), common.gsutil('test', cwd='source'))
+
+    self.mock.execute.assert_called_once_with('gsutil', 'test', cwd='source')
+
+  def test_fail(self):
+    """Test failing with NotInstalledError."""
+    self.mock.execute.side_effect = common.NotInstalledError('gsutil')
+    with self.assertRaises(common.GsutilNotInstalledError):
+      common.gsutil('test', cwd='source')
+
+    self.mock.execute.assert_called_once_with('gsutil', 'test', cwd='source')
+
+  def test_fail_other(self):
+    """Test failing with other exception."""
+    self.mock.execute.side_effect = subprocess.CalledProcessError(1, 'cmd', 'o')
+    with self.assertRaises(subprocess.CalledProcessError) as cm:
+      common.gsutil('test', cwd='source')
+
+    self.assertEqual(self.mock.execute.side_effect, cm.exception)
+    self.mock.execute.assert_called_once_with('gsutil', 'test', cwd='source')

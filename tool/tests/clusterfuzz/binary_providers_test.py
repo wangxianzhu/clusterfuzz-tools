@@ -721,7 +721,7 @@ class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.common.execute_with_shell',
+        'clusterfuzz.binary_providers.install_build_deps_32bit',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.ChromiumBuilder.pre_build_steps'])
 
@@ -735,13 +735,8 @@ class ChromiumBuilder32BitTest(helpers.ExtendedTestCase):
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
     self.builder.pre_build_steps()
-    self.assert_exact_calls(self.mock.execute_with_shell, [
-        mock.call(
-            'build/install-build-deps.sh',
-            '--lib32 --syms --no-prompt',
-            '/chrome/src')])
-    self.assert_exact_calls(self.mock.pre_build_steps,
-                            [mock.call(self.builder)])
+    self.mock.install_build_deps_32bit.assert_called_once_with('/chrome/src')
+    self.mock.pre_build_steps.assert_called_once_with(self.builder)
 
 
 class V8Builder32BitTest(helpers.ExtendedTestCase):
@@ -749,7 +744,7 @@ class V8Builder32BitTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'clusterfuzz.common.execute_with_shell',
+        'clusterfuzz.binary_providers.install_build_deps_32bit',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.V8Builder.pre_build_steps'])
 
@@ -762,13 +757,8 @@ class V8Builder32BitTest(helpers.ExtendedTestCase):
   def test_pre_build_steps(self):
     """Test the pre_build_steps method."""
     self.builder.pre_build_steps()
-    self.assert_exact_calls(self.mock.execute_with_shell, [
-        mock.call(
-            'build/install-build-deps.sh',
-            '--lib32 --syms --no-prompt',
-            '/chrome/src')])
-    self.assert_exact_calls(self.mock.pre_build_steps,
-                            [mock.call(self.builder)])
+    self.mock.install_build_deps_32bit.assert_called_once_with('/chrome/src')
+    self.mock.pre_build_steps.assert_called_once_with(self.builder)
 
 
 class GetCurrentShaTest(helpers.ExtendedTestCase):
@@ -900,3 +890,21 @@ class SetupDebugSymbolIfNeededTest(helpers.ExtendedTestCase):
         {'is_debug': 'true', 'sanitizer_keep_symbols': 'true'},
         binary_providers.setup_debug_symbol_if_needed(
             {'is_debug': 'false'}, True))
+
+
+class InstallBuildDeps32bitTest(helpers.ExtendedTestCase):
+  """Tests install_build_deps_32bit."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.execute'])
+
+  def test_build(self):
+    """Test run."""
+    binary_providers.install_build_deps_32bit('/source')
+    self.mock.execute.assert_called_once_with(
+        'build/install-build-deps.sh', '--lib32 --syms --no-prompt',
+        '/source', stdout_transformer=mock.ANY, preexec_fn=None,
+        redirect_stderr_to_stdout=True)
+    self.assertIsInstance(
+        self.mock.execute.call_args[1]['stdout_transformer'],
+        output_transformer.Identity)

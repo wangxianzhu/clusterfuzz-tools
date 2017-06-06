@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
+import json
+import logging
+import multiprocessing
 import os
 import stat
-import multiprocessing
-import urllib
-import json
-import base64
 import string
-import logging
+import urllib
+
 import urlfetch
 
 from cmd_editor import editor
@@ -92,6 +93,7 @@ def is_repo_dirty(path):
 
 
 def get_current_sha(source_dir):
+  """Return the current sha."""
   _, current_sha = common.execute(
       'git', 'rev-parse HEAD', source_dir, print_command=False,
       print_output=False)
@@ -116,6 +118,16 @@ def edit_if_needed(content, should_edit):
   return editor.edit(
       content, prefix='edit-args-gn-',
       comment='Edit args.gn before building.')
+
+
+def install_build_deps_32bit(source_dir):
+  """Run install-build-deps.sh."""
+  # preexec_fn is required to be None. Otherwise, it'd fail with:
+  # 'sudo: no tty present and no askpass program specified'.
+  common.execute(
+      'build/install-build-deps.sh', '--lib32 --syms --no-prompt',
+      source_dir, stdout_transformer=output_transformer.Identity(),
+      preexec_fn=None, redirect_stderr_to_stdout=True)
 
 
 class BinaryProvider(object):
@@ -300,7 +312,9 @@ class GenericBuilder(BinaryProvider):
       f.write(content)
     self.gn_args = content
 
-    logger.info('Generating %s:\n%s', args_gn_path, self.gn_args)
+    logger.info(
+        common.colorize('\nGenerating %s:\n%s\n', common.BASH_GREEN_MARKER),
+        args_gn_path, self.gn_args)
 
     common.execute('gn', 'gen %s %s' % (self.gn_flags, self.build_directory),
                    self.source_directory)
@@ -477,9 +491,8 @@ class ChromiumBuilder32Bit(ChromiumBuilder):
   def pre_build_steps(self):
     """Run the pre-build steps and then install 32-bit libraries."""
     super(ChromiumBuilder32Bit, self).pre_build_steps()
-    common.execute_with_shell('build/install-build-deps.sh',
-                              '--lib32 --syms --no-prompt',
-                              self.source_directory)
+    install_build_deps_32bit(self.source_directory)
+
 
 class V8Builder32Bit(V8Builder):
   """Build a 32-bit V8 build."""
@@ -487,6 +500,4 @@ class V8Builder32Bit(V8Builder):
   def pre_build_steps(self):
     """Run the pre-build steps and then install 32-bit libraries."""
     super(V8Builder32Bit, self).pre_build_steps()
-    common.execute_with_shell('build/install-build-deps.sh',
-                              '--lib32 --syms --no-prompt',
-                              self.source_directory)
+    install_build_deps_32bit(self.source_directory)

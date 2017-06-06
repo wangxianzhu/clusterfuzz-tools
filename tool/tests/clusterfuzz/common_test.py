@@ -105,6 +105,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.check_binary',
         'clusterfuzz.common.kill',
         'clusterfuzz.common.wait_timeout',
+        'clusterfuzz.common.get_stdin_handler',
         'logging.config.dictConfig',
         'logging.getLogger',
         'os.environ.copy',
@@ -113,6 +114,7 @@ class ExecuteTest(helpers.ExtendedTestCase):
     ])
     self.mock.copy.return_value = {'OS': 'ENVIRON'}
     self.mock.dictConfig.return_value = {}
+    self.mock.get_stdin_handler.return_value = ('input_str', '')
 
     from clusterfuzz import local_logging
     local_logging.start_loggers()
@@ -134,12 +136,13 @@ class ExecuteTest(helpers.ExtendedTestCase):
         print_command=print_cmd,
         print_output=print_out,
         exit_on_error=exit_on_err,
+        input_str='input',
         env={'TEST': 'VALUE'})
 
   def run_popen_assertions(
       self, code, print_cmd=True, print_out=True, exit_on_err=True):
     """Runs the popen command and tests the output."""
-
+    self.mock.get_stdin_handler.reset_mock()
     self.mock.kill.reset_mock()
     self.mock.Popen.reset_mock()
     self.mock.Popen.return_value = self.build_popen_mock(code)
@@ -164,19 +167,17 @@ class ExecuteTest(helpers.ExtendedTestCase):
           returned_lines, self.stdout + self.residue_stdout + self.stderr)
 
     self.mock.kill.assert_called_once_with(self.mock.Popen.return_value)
-    self.assert_exact_calls(
-        self.mock.Popen.return_value.communicate, [mock.call()])
-    self.assert_exact_calls(self.mock.Popen, [
-        mock.call(
-            'cmd',
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdin=subprocess.PIPE,
-            cwd='~/working/directory',
-            env={'OS': 'ENVIRON', 'TEST': 'VALUE'},
-            preexec_fn=os.setsid),
-    ])
+    self.mock.Popen.return_value.communicate.assert_called_once_with()
+    self.mock.get_stdin_handler.assert_called_once_with('input')
+    self.mock.Popen.assert_called_once_with(
+        'cmd',
+        shell=True,
+        stdin='input_str',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd='~/working/directory',
+        env={'OS': 'ENVIRON', 'TEST': 'VALUE'},
+        preexec_fn=os.setsid)
 
   def test_process_runs_successfully(self):
     """Test execute when the process successfully runs."""
@@ -539,45 +540,6 @@ class GetValidAbsDirTest(helpers.ExtendedTestCase):
     self.assertIsNone(common.get_valid_abs_dir(''))
 
 
-class ExecuteWithShellTest(helpers.ExtendedTestCase):
-  """Tests for execute_with_shell."""
-
-  def setUp(self):
-    helpers.patch(self, [
-        'os.system', 'clusterfuzz.common.check_binary'
-    ])
-
-  def test_execute(self):
-    """Test execute."""
-    common.execute_with_shell('test', 'args', '/dir')
-
-    self.mock.check_binary.assert_called_once_with('test', '/dir')
-    self.mock.system.assert_called_once_with('cd /dir && test args')
-
-
-class GetStdinAndFilterArgsTest(helpers.ExtendedTestCase):
-  """Tests for get_stdin_and_filter_args."""
-
-  def setUp(self):
-    self.setup_fake_filesystem()
-    with open('/testcase', 'wb') as file_handle:
-      file_handle.write('PASS')
-
-  def test_without_piped_input(self):
-    """Test without piped input."""
-    stdin_handle, args = common.get_stdin_and_filter_args(
-        '--arg1 /testcase')
-    self.assertEqual(args, '--arg1 /testcase')
-    self.assertEqual(stdin_handle, subprocess.PIPE)
-
-  def test_with_piped_input(self):
-    """Test with piped input."""
-    stdin_handle, args = common.get_stdin_and_filter_args(
-        '--arg1 < /testcase')
-    self.assertEqual(args, '--arg1')
-    self.assertEqual(stdin_handle.read(), 'PASS')
-
-
 class ColorizeTest(helpers.ExtendedTestCase):
   """Test colorize."""
 
@@ -626,3 +588,23 @@ class GsutilTest(helpers.ExtendedTestCase):
 
     self.assertEqual(self.mock.execute.side_effect, cm.exception)
     self.mock.execute.assert_called_once_with('gsutil', 'test', cwd='source')
+
+
+class GetStdinHandlerTest(helpers.ExtendedTestCase):
+  """Tests get_stdin_handler."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_none(self):
+    """Test input=None."""
+    self.assertEqual((None, ''), common.get_stdin_handler(None))
+
+  def test_stdin(self):
+    """Test input is a string."""
+    stdin, stdin_log = common.get_stdin_handler('some input')
+
+    with open(stdin.name) as f:
+      self.assertEqual('some input', f.read())
+    self.assertEqual('some input', stdin.read())
+    self.assertEqual(' < %s' % stdin.name, stdin_log)

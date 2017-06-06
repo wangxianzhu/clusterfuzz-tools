@@ -13,15 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import HTMLParser
+import json
+import logging
 import os
 import re
-import time
 import subprocess
-import logging
-import json
-import HTMLParser
-import xvfbwrapper
+import time
+
 import psutil
+import xvfbwrapper
 
 from cmd_editor import editor
 from clusterfuzz import common
@@ -226,7 +227,8 @@ class BaseReproducer(object):
         self.binary_path, self.args,
         os.path.dirname(self.binary_path), env=self.environment,
         exit_on_error=False, timeout=TEST_TIMEOUT,
-        stdout_transformer=output_transformer.Identity())
+        stdout_transformer=output_transformer.Identity(),
+        redirect_stderr_to_stdout=True)
 
   def get_stacktrace_info(self, trace):
     """Post a stacktrace, return (crash_state, crash_type)."""
@@ -296,7 +298,9 @@ class BaseReproducer(object):
 
       # The crash signature validation is intentionally forgiving.
       if is_similar(new_signature, self.crash_signature):
-        logger.info('The stacktrace seems similar to the original stacktrace.')
+        logger.info(common.colorize(
+            'The stacktrace seems similar to the original stacktrace.',
+            common.BASH_GREEN_MARKER))
         return True
       else:
         logger.info("The stacktrace doesn't match the original stacktrace.")
@@ -452,14 +456,17 @@ class LinuxChromeJobReproducer(BaseReproducer):
                                             'asan_symbolize.py'))
     symbolizer_proxy_location = common.get_resource(
         0755, 'asan_symbolize_proxy.py')
-    proc = common.start_execute(
+
+    _, symbolized_out = common.execute(
         asan_symbolizer_location, '', os.path.expanduser('~'),
         env={'LLVM_SYMBOLIZER_PATH': symbolizer_proxy_location,
-             'CHROMIUM_SRC': self.source_directory})
-    output += '\0'
-    out, _ = proc.communicate(input=output)
-    logger.info(out)
-    return out
+             'CHROMIUM_SRC': self.source_directory},
+        capture_output=True, exit_on_error=True,
+        stdout_transformer=output_transformer.Identity(),
+        input_str=output + '\0',
+        redirect_stderr_to_stdout=True)
+    logger.info(symbolized_out)
+    return symbolized_out
 
 
   def reproduce_crash(self):
@@ -470,7 +477,8 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
       process = common.start_execute(
           self.binary_path, self.args,
-          os.path.dirname(self.binary_path), env=self.environment)
+          os.path.dirname(self.binary_path), env=self.environment,
+          redirect_stderr_to_stdout=True)
 
       if self.gestures:
         self.run_gestures(process, display_name)

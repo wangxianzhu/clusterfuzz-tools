@@ -18,8 +18,9 @@ import json
 import mock
 
 import helpers
-from clusterfuzz import reproducers
 from clusterfuzz import common
+from clusterfuzz import output_transformer
+from clusterfuzz import reproducers
 from tests import libs
 
 def patch_stacktrace_info(obj):
@@ -184,7 +185,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             env={'ASAN_OPTIONS': 'test-asan'},
             exit_on_error=False,
             timeout=30,
-            stdout_transformer=mock.ANY)
+            stdout_transformer=mock.ANY,
+            redirect_stderr_to_stdout=True)
     ])
 
   def test_base_with_env_args(self):
@@ -215,7 +217,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             env={'ASAN_OPTIONS': 'test-asan'},
             exit_on_error=False,
             timeout=30,
-            stdout_transformer=mock.ANY)
+            stdout_transformer=mock.ANY,
+            redirect_stderr_to_stdout=True)
     ])
 
   def test_chromium(self):
@@ -250,7 +253,8 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             env={
                 'DISPLAY': ':display',
                 'ASAN_OPTIONS': 'test-asan',
-            })
+            },
+            redirect_stderr_to_stdout=True)
     ])
     self.assert_exact_calls(self.mock.wait_execute, [
         mock.call(
@@ -635,40 +639,43 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
   """Tests the post_run_symbolize method."""
 
   def setUp(self):
+    self.setup_fake_filesystem()
     helpers.patch(self, [
-        'clusterfuzz.common.start_execute',
+        'clusterfuzz.common.execute',
         'clusterfuzz.common.get_resource',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.get_stacktrace_info'
     ])
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     self.reproducer.source_directory = '/path/to/chromium'
     self.mock.get_resource.return_value = 'asan_sym_proxy.py'
-    (self.mock.start_execute.return_value.
-     communicate.return_value) = ('symbolized', 0)
+    self.mock.execute.return_value = (0, 'symbolized')
 
   def test_symbolize_no_output(self):
     """Test to ensure no symbolization is done with no output."""
     output = ' '
     result = self.reproducer.post_run_symbolize(output)
 
-    self.assert_exact_calls(self.mock.start_execute, [])
+    self.assert_exact_calls(self.mock.execute, [])
     self.assertEqual(result, '')
 
   def test_symbolize_output(self):
     """Test to ensure the correct symbolization call are made."""
-    output = 'output_lines'
+    result = self.reproducer.post_run_symbolize('output_lines')
 
-    result = self.reproducer.post_run_symbolize(output)
-
-    self.assert_exact_calls(self.mock.start_execute, [
-        mock.call(
-            '/path/to/chromium/tools/valgrind/asan/asan_symbolize.py', '',
-            os.path.expanduser('~'),
-            env={'LLVM_SYMBOLIZER_PATH': 'asan_sym_proxy.py',
-                 'CHROMIUM_SRC': '/path/to/chromium'})
-    ])
-    self.assert_exact_calls(self.mock.start_execute.return_value.communicate,
-                            [mock.call(input='output_lines\x00')])
+    self.mock.execute.assert_called_once_with(
+        '/path/to/chromium/tools/valgrind/asan/asan_symbolize.py',
+        '',
+        os.path.expanduser('~'),
+        env={'LLVM_SYMBOLIZER_PATH': 'asan_sym_proxy.py',
+             'CHROMIUM_SRC': '/path/to/chromium'},
+        stdout_transformer=mock.ANY,
+        capture_output=True,
+        exit_on_error=True,
+        input_str='output_lines\0',
+        redirect_stderr_to_stdout=True)
+    self.assertIsInstance(
+        self.mock.execute.call_args[1]['stdout_transformer'],
+        output_transformer.Identity)
     self.assertEqual(result, 'symbolized')
 
 

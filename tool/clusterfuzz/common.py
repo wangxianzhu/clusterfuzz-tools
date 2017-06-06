@@ -19,9 +19,9 @@ import stat
 import subprocess
 import logging
 import time
-import re
 import signal
 import shutil
+import tempfile
 
 import namedlist
 import requests
@@ -34,6 +34,7 @@ from clusterfuzz import output_transformer
 
 
 BASH_BLUE_MARKER = '\033[1;36m'
+BASH_GREEN_MARKER = '\033[1;32m'
 BASH_YELLOW_MARKER = '\033[1;33m'
 BASH_MAGENTA_MARKER = '\033[1;35m'
 BASH_RESET_MARKER = '\033[0m'
@@ -385,23 +386,28 @@ def check_binary(binary, cwd):
     raise NotInstalledError(binary)
 
 
-def get_stdin_and_filter_args(args):
-  """Filter arguments to remove piped input, and return as stdin."""
-  match = re.match('(.*)<(.*)', args)
-  if not match:
-    return subprocess.PIPE, args
+def get_stdin_handler(input_str):
+  """Get the file handler for stdin."""
+  if input_str is not None:
+    stdin = tempfile.NamedTemporaryFile(delete=False)
+    stdin.write(input_str)
+    stdin.flush()
+    stdin.seek(0)
+    stdin_log = ' < %s' % stdin.name
+  else:
+    stdin = None
+    stdin_log = ''
 
-  args = match.group(1).strip()
-  stdin_handle = open(match.group(2).strip(), 'rb')
-  return stdin_handle, args
+  return stdin, stdin_log
 
 
-def start_execute(binary, args, cwd, env=None, print_command=True):
+def start_execute(
+    binary, args, cwd, env=None, print_command=True, input_str=None,
+    preexec_fn=os.setsid, redirect_stderr_to_stdout=False):
   """Runs a command, and returns the subprocess.Popen object."""
-
   check_binary(binary, cwd)
-  stdin_handle, args = get_stdin_and_filter_args(args)
 
+  stdin, stdin_log = get_stdin_handler(input_str)
   command = (binary + ' ' + args).strip()
   env = env or {}
 
@@ -414,8 +420,8 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
   env_str = ' '.join(
       ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
 
-  log = (colorize('Running: %s', BASH_BLUE_MARKER),
-         ' '.join([env_str, command]).strip())
+  log = (colorize('Running: %s%s', BASH_BLUE_MARKER),
+         ' '.join([env_str, command]).strip(), stdin_log)
   if print_command:
     logger.info(*log)
   else:
@@ -427,12 +433,13 @@ def start_execute(binary, args, cwd, env=None, print_command=True):
   proc = subprocess.Popen(
       command,
       shell=True,
-      stdin=stdin_handle,
+      stdin=stdin,
       stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE,
+      stderr=(
+          subprocess.STDOUT if redirect_stderr_to_stdout else subprocess.PIPE),
       cwd=cwd,
       env=final_env,
-      preexec_fn=os.setsid)
+      preexec_fn=preexec_fn)
 
   setattr(proc, 'args', command)
   return proc
@@ -472,8 +479,8 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
   stdout_data, stderr_data = proc.communicate()
   kill(proc)
 
-  for (transformer, data) in [(stdout_transformer, stdout_data),
-                              (stderr_transformer, stderr_data)]:
+  for (transformer, data) in [(stdout_transformer, stdout_data or ''),
+                              (stderr_transformer, stderr_data or '')]:
     if capture_output:
       output_chunks.append(data)
 
@@ -493,23 +500,19 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
 
 def execute(binary, args, cwd, print_command=True, print_output=True,
             capture_output=True, exit_on_error=True, env=None,
-            stdout_transformer=None, stderr_transformer=None, timeout=None):
+            stdout_transformer=None, stderr_transformer=None, timeout=None,
+            input_str=None, preexec_fn=os.setsid,
+            redirect_stderr_to_stdout=False):
   """Execute a bash command."""
-  proc = start_execute(binary, args, cwd, env=env, print_command=print_command)
+  proc = start_execute(
+      binary, args, cwd, env=env, print_command=print_command,
+      input_str=input_str, preexec_fn=preexec_fn,
+      redirect_stderr_to_stdout=redirect_stderr_to_stdout)
   return wait_execute(
       proc=proc, exit_on_error=exit_on_error, capture_output=capture_output,
       print_output=print_output, timeout=timeout,
       stdout_transformer=stdout_transformer,
       stderr_transformer=stderr_transformer)
-
-
-def execute_with_shell(binary, args, cwd):
-  """Execute command with os.system because install_deps.sh needs it."""
-  check_binary(binary, cwd)
-
-  command = ('cd %s && %s %s' % (cwd, binary, args or '')).strip()
-  logger.info(colorize('Running: %s' % command, BASH_BLUE_MARKER))
-  os.system(command)
 
 
 def check_confirm(question):

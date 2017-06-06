@@ -66,6 +66,12 @@ def execute(argv=None):
   reproduce.add_argument(
       '--disable-gclient', action='store_true', default=False,
       help='Disable running gclient commands (e.g. sync, runhooks).')
+  reproduce.add_argument(
+      '--enable-debug', action='store_true', default=False,
+      help=(
+          'Build Chrome with full debug symbols by injecting '
+          '`sanitizer_keep_symbols = true` and `is_debug = true` to args.gn. '
+          'Ready to debug with GDB.'))
 
   args = parser.parse_args(argv)
   command = importlib.import_module('clusterfuzz.commands.%s' % args.command)

@@ -306,19 +306,18 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',
-        'cmd_editor.editor.edit'
+        'clusterfuzz.binary_providers.setup_debug_symbol_if_needed',
+        'clusterfuzz.binary_providers.edit_if_needed',
     ])
     self.testcase_dir = os.path.expanduser(os.path.join('~', 'test_dir'))
     testcase = mock.Mock(id=1234, build_url='', revision=54321, gn_args=None)
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
     definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.V8Builder(
-        testcase, definition,
-        libs.make_options(goma_dir='/goma/dir', edit_mode=True))
+        testcase, definition, libs.make_options(goma_dir='/goma/dir'))
 
-    def edit(content, prefix, comment):  # pylint: disable=unused-argument
-      return content + '\nedited'
-    self.mock.edit.side_effect = edit
+    self.mock.setup_debug_symbol_if_needed.side_effect = lambda v, _: v
+    self.mock.edit_if_needed.side_effect = lambda v, _: v
 
   def test_create_build_dir(self):
     """Tests setting up the args when the build dir does not exist."""
@@ -336,8 +335,11 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         mock.call('gn', 'gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(
-          f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true\nedited')
+      self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true')
+    self.mock.setup_debug_symbol_if_needed.assert_called_once_with(
+        {'goma_dir': '"/goma/dir"', 'use_goma': 'true'}, False)
+    self.mock.edit_if_needed.assert_called_once_with(
+        'goma_dir = "/goma/dir"\nuse_goma = true', False)
 
   def test_args_setup(self):
     """Tests to ensure that the args.gn is setup correctly."""
@@ -357,8 +359,12 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         mock.call('gn', 'gen --check %s' % self.testcase_dir,
                   '/chrome/source/dir')])
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
-      self.assertEqual(
-          f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true\nedited')
+      self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true')
+    self.mock.setup_debug_symbol_if_needed.assert_called_once_with(
+        {'goma_dir': '"/goma/dir"', 'use_goma': 'true'}, False)
+    self.mock.edit_if_needed.assert_called_once_with(
+        'goma_dir = "/goma/dir"\nuse_goma = true', False)
+
 
 
 class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
@@ -854,3 +860,43 @@ class IsRepoDirtyTest(helpers.ExtendedTestCase):
 
     self.mock.execute.assert_called_once_with(
         'git', 'diff', '/dir', print_command=False, print_output=False)
+
+
+class EditIfNeededTest(helpers.ExtendedTestCase):
+  """Tests edit_if_needed."""
+
+  def setUp(self):
+    helpers.patch(self, [
+        'cmd_editor.editor.edit'
+    ])
+
+  def test_not_edit(self):
+    """Test when we shouldn't edit it."""
+    self.assertEqual('test', binary_providers.edit_if_needed('test', False))
+    self.assertEqual(0, self.mock.edit.call_count)
+
+  def test_edit(self):
+    """Test editing."""
+    self.mock.edit.return_value = 'test2'
+    self.assertEqual('test2', binary_providers.edit_if_needed('test', True))
+
+    self.mock.edit.assert_called_once_with(
+        'test', prefix='edit-args-gn-', comment='Edit args.gn before building.')
+
+
+class SetupDebugSymbolIfNeededTest(helpers.ExtendedTestCase):
+  """Tests setup_debug_symbol_if_needed."""
+
+  def test_not_setup(self):
+    """Test when we shouldn't setup debug symbol."""
+    self.assertEqual(
+        {'is_debug': 'false'},
+        binary_providers.setup_debug_symbol_if_needed(
+            {'is_debug': 'false'}, False))
+
+  def test_edit(self):
+    """Test editing."""
+    self.assertEqual(
+        {'is_debug': 'true', 'sanitizer_keep_symbols': 'true'},
+        binary_providers.setup_debug_symbol_if_needed(
+            {'is_debug': 'false'}, True))

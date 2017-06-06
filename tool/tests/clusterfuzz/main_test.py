@@ -31,47 +31,20 @@ class MainTest(unittest.TestCase):
 
   def test_parse_reproduce(self):
     """Test parse reproduce command."""
-    main.execute(['reproduce', '1234', '--disable-xvfb'])
-    main.execute(['reproduce', '1234', '-j', '25', '--current'])
-    main.execute(['reproduce', '1234', '--disable-goma', '--build', 'download'])
-    main.execute(['reproduce', '1234', '--current', '--build', 'standalone'])
-    main.execute(['reproduce', '1234', '--build', 'chromium', '-i', '500'])
-    main.execute(['reproduce', '1234', '--target-args', '--test --test2'])
-    main.execute(['reproduce', '1234', '--edit-mode'])
-    main.execute(['reproduce', '1234', '--disable-gclient'])
+    main.execute(['reproduce', '1234'])
+    main.execute(
+        ['reproduce', '1234', '--disable-xvfb', '-j', '25', '--current',
+         '--disable-goma', '-i', '500', '--target-args', '--test --test2',
+         '--edit-mode', '--disable-gclient', '--enable-debug'])
 
     self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
         mock.call(build='chromium', current=False, disable_goma=False,
                   goma_threads=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=True, target_args='', edit_mode=False,
-                  disable_gclient=False),
-        mock.call(build='chromium', current=True, disable_goma=False,
-                  goma_threads=25, testcase_id='1234', iterations=10,
                   disable_xvfb=False, target_args='', edit_mode=False,
-                  disable_gclient=False),
-        mock.call(build='download', current=False, disable_goma=True,
-                  goma_threads=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=False,
-                  disable_gclient=False),
-        mock.call(build='standalone', current=True, disable_goma=False,
-                  goma_threads=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=False,
-                  disable_gclient=False),
-        mock.call(build='chromium', current=False, disable_goma=False,
-                  goma_threads=None, testcase_id='1234', iterations=500,
-                  disable_xvfb=False, target_args='', edit_mode=False,
-                  disable_gclient=False),
-        mock.call(build='chromium', current=False, disable_goma=False,
-                  goma_threads=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='--test --test2',
-                  edit_mode=False, disable_gclient=False),
-        mock.call(build='chromium', current=False, disable_goma=False,
-                  goma_threads=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=True,
-                  disable_gclient=False),
-        mock.call(build='chromium', current=False, disable_goma=False,
-                  goma_threads=None, testcase_id='1234', iterations=10,
-                  disable_xvfb=False, target_args='', edit_mode=False,
-                  disable_gclient=True),
+                  disable_gclient=False, enable_debug=False),
+        mock.call(build='chromium', current=True, disable_goma=True,
+                  goma_threads=25, testcase_id='1234', iterations=500,
+                  disable_xvfb=True, target_args='--test --test2',
+                  edit_mode=True, disable_gclient=True, enable_debug=True),
     ])

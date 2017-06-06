@@ -17,6 +17,7 @@ def make_options(
     target_args=None,
     edit_mode=False,
     disable_gclient=False,
+    enable_debug=False,
     goma_dir=None):
   return common.Options(
       testcase_id=testcase_id,
@@ -29,4 +30,5 @@ def make_options(
       target_args=target_args,
       edit_mode=edit_mode,
       disable_gclient=disable_gclient,
+      enable_debug=enable_debug,
       goma_dir=goma_dir)

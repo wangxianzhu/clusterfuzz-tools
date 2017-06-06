@@ -98,6 +98,26 @@ def get_current_sha(source_dir):
   return current_sha.strip()
 
 
+def setup_debug_symbol_if_needed(gn_args, enable_debug):
+  """Setup debug symbol if enable_debug is true. See: crbug.com/692620"""
+  if not enable_debug:
+    return gn_args
+
+  gn_args['sanitizer_keep_symbols'] = 'true'
+  gn_args['is_debug'] = 'true'
+  return gn_args
+
+
+def edit_if_needed(content, should_edit):
+  """Edit content in an editor if should_edit is true."""
+  if not should_edit:
+    return content
+
+  return editor.edit(
+      content, prefix='edit-args-gn-',
+      comment='Edit args.gn before building.')
+
+
 class BinaryProvider(object):
   """Downloads/builds and then provides the location of a binary."""
 
@@ -265,21 +285,22 @@ class GenericBuilder(BinaryProvider):
     # Add additional options to existing gn args.
     args_hash = self.deserialize_gn_args(gn_args)
     args_hash = self.setup_gn_goma_params(args_hash)
+    args_hash = setup_debug_symbol_if_needed(
+        args_hash, self.options.enable_debug)
     if self.gn_args_options:
       for k, v in self.gn_args_options.iteritems():
         args_hash[k] = v
 
     # Let users edit the current args.
     content = self.serialize_gn_args(args_hash)
-    if self.options.edit_mode:
-      content = editor.edit(
-          content, prefix='edit-args-gn-',
-          comment='Edit args.gn before building.')
+    content = edit_if_needed(content, self.options.edit_mode)
 
     # Write args to file and store.
     with open(args_gn_path, 'w') as f:
       f.write(content)
     self.gn_args = content
+
+    logger.info('Generating %s:\n%s', args_gn_path, self.gn_args)
 
     common.execute('gn', 'gen %s %s' % (self.gn_flags, self.build_directory),
                    self.source_directory)

@@ -155,10 +155,10 @@ class GetTestcasePathTest(helpers.ExtendedTestCase):
     self.assert_exact_calls(self.mock.get_stored_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.execute, [
         mock.call(
-            'curl',
-            ('--remote-name --remote-header-name --retry-max-time 30 --retry 5 '
-             '--silent --show-error --fail --location '
-             '-H "Authorization: %s" %s' % (
+            'wget',
+            ('--no-verbose --waitretry=%s --retry-connrefused '
+             '--content-disposition --header="Authorization: %s" "%s"' % (
+                 testcase.DOWNLOAD_TIMEOUT,
                  self.mock.get_stored_auth_header.return_value,
                  testcase.CLUSTERFUZZ_TESTCASE_URL % str(12345))),
             self.testcase_dir)

@@ -2,6 +2,8 @@ dependencies:
   override:
     - sudo apt-get install libpython2.7-dev
     - ./pants -V
+  cache_directories:
+    - "~/.cache/pants"
 test:
   override:
     - ./pants run tool:pylint

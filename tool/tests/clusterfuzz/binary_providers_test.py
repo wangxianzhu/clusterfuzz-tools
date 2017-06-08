@@ -307,17 +307,18 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.setup_debug_symbol_if_needed',
-        'clusterfuzz.binary_providers.edit_if_needed',
+        'clusterfuzz.common.edit_if_needed',
     ])
     self.testcase_dir = os.path.expanduser(os.path.join('~', 'test_dir'))
     testcase = mock.Mock(id=1234, build_url='', revision=54321, gn_args=None)
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
-    definition = mock.Mock(source_var='V8_SRC')
+    self.definition = mock.Mock(source_var='V8_SRC')
     self.builder = binary_providers.V8Builder(
-        testcase, definition, libs.make_options(goma_dir='/goma/dir'))
+        testcase, self.definition, libs.make_options(goma_dir='/goma/dir'))
 
-    self.mock.setup_debug_symbol_if_needed.side_effect = lambda v, _: v
-    self.mock.edit_if_needed.side_effect = lambda v, _: v
+    self.mock.setup_debug_symbol_if_needed.side_effect = lambda v, _1, _2: v
+    self.mock.edit_if_needed.side_effect = (
+        lambda content, prefix, comment, should_edit: content)
 
   def test_create_build_dir(self):
     """Tests setting up the args when the build dir does not exist."""
@@ -337,9 +338,11 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true')
     self.mock.setup_debug_symbol_if_needed.assert_called_once_with(
-        {'goma_dir': '"/goma/dir"', 'use_goma': 'true'}, False)
+        {'goma_dir': '"/goma/dir"', 'use_goma': 'true'},
+        self.definition.sanitizer, False)
     self.mock.edit_if_needed.assert_called_once_with(
-        'goma_dir = "/goma/dir"\nuse_goma = true', False)
+        'goma_dir = "/goma/dir"\nuse_goma = true', prefix=mock.ANY,
+        comment=mock.ANY, should_edit=False)
 
   def test_args_setup(self):
     """Tests to ensure that the args.gn is setup correctly."""
@@ -361,9 +364,11 @@ class SetupGnArgsTest(helpers.ExtendedTestCase):
     with open(os.path.join(self.testcase_dir, 'args.gn'), 'r') as f:
       self.assertEqual(f.read(), 'goma_dir = "/goma/dir"\nuse_goma = true')
     self.mock.setup_debug_symbol_if_needed.assert_called_once_with(
-        {'goma_dir': '"/goma/dir"', 'use_goma': 'true'}, False)
+        {'goma_dir': '"/goma/dir"', 'use_goma': 'true'},
+        self.definition.sanitizer, False)
     self.mock.edit_if_needed.assert_called_once_with(
-        'goma_dir = "/goma/dir"\nuse_goma = true', False)
+        'goma_dir = "/goma/dir"\nuse_goma = true', prefix=mock.ANY,
+        comment=mock.ANY, should_edit=False)
 
 
 
@@ -852,28 +857,6 @@ class IsRepoDirtyTest(helpers.ExtendedTestCase):
         'git', 'diff', '/dir', print_command=False, print_output=False)
 
 
-class EditIfNeededTest(helpers.ExtendedTestCase):
-  """Tests edit_if_needed."""
-
-  def setUp(self):
-    helpers.patch(self, [
-        'cmd_editor.editor.edit'
-    ])
-
-  def test_not_edit(self):
-    """Test when we shouldn't edit it."""
-    self.assertEqual('test', binary_providers.edit_if_needed('test', False))
-    self.assertEqual(0, self.mock.edit.call_count)
-
-  def test_edit(self):
-    """Test editing."""
-    self.mock.edit.return_value = 'test2'
-    self.assertEqual('test2', binary_providers.edit_if_needed('test', True))
-
-    self.mock.edit.assert_called_once_with(
-        'test', prefix='edit-args-gn-', comment='Edit args.gn before building.')
-
-
 class SetupDebugSymbolIfNeededTest(helpers.ExtendedTestCase):
   """Tests setup_debug_symbol_if_needed."""
 
@@ -882,14 +865,23 @@ class SetupDebugSymbolIfNeededTest(helpers.ExtendedTestCase):
     self.assertEqual(
         {'is_debug': 'false'},
         binary_providers.setup_debug_symbol_if_needed(
-            {'is_debug': 'false'}, False))
+            {'is_debug': 'false'}, 'ASAN', False))
 
-  def test_edit(self):
+  def test_asan(self):
     """Test editing."""
     self.assertEqual(
-        {'is_debug': 'true', 'sanitizer_keep_symbols': 'true'},
+        {'symbol_level': '2', 'is_debug': 'true',
+         'sanitizer_keep_symbols': 'true'},
         binary_providers.setup_debug_symbol_if_needed(
-            {'is_debug': 'false'}, True))
+            {'is_debug': 'false'}, 'ASAN', True))
+
+  def test_msan(self):
+    """Test editing."""
+    self.assertEqual(
+        {'symbol_level': '2', 'is_debug': 'false',
+         'sanitizer_keep_symbols': 'true'},
+        binary_providers.setup_debug_symbol_if_needed(
+            {'is_debug': 'false'}, 'MSAN', True))
 
 
 class InstallBuildDeps32bitTest(helpers.ExtendedTestCase):

@@ -29,16 +29,18 @@ from requests.packages.urllib3.util import retry
 from requests import adapters
 from backports.shutil_get_terminal_size import get_terminal_size
 
+from cmd_editor import editor
 from clusterfuzz import local_logging
 from clusterfuzz import output_transformer
 
 
-BASH_BLUE_MARKER = '\033[1;36m'
-BASH_GREEN_MARKER = '\033[1;32m'
-BASH_YELLOW_MARKER = '\033[1;33m'
-BASH_MAGENTA_MARKER = '\033[1;35m'
+BASH_BLUE_MARKER = '\033[36m'
+BASH_GREEN_MARKER = '\033[32m'
+BASH_YELLOW_MARKER = '\033[33m'
+BASH_MAGENTA_MARKER = '\033[35m'
 BASH_RESET_MARKER = '\033[0m'
 NO_SUCH_PROCESS_ERRNO = 3
+DEFAULT_READ_BUFFER_LENGTH = 10
 
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 CLUSTERFUZZ_CACHE_DIR = os.path.join(CLUSTERFUZZ_DIR, 'cache')
@@ -378,6 +380,14 @@ def kill(proc):
       raise
 
 
+def edit_if_needed(content, prefix, comment, should_edit):
+  """Edit content in an editor if should_edit is true."""
+  if not should_edit:
+    return content
+
+  return editor.edit(content, prefix=prefix, comment=comment)
+
+
 def check_binary(binary, cwd):
   """Check if the binary exists."""
   try:
@@ -386,30 +396,72 @@ def check_binary(binary, cwd):
     raise NotInstalledError(binary)
 
 
-def get_stdin_handler(input_str):
-  """Get the file handler for stdin."""
-  if input_str is not None:
-    stdin = tempfile.NamedTemporaryFile(delete=False)
-    stdin.write(input_str)
-    stdin.flush()
-    stdin.seek(0)
-    stdin_log = ' < %s' % stdin.name
-  else:
-    stdin = None
-    stdin_log = ''
+class Stdin(object):
+  """Represent different ways of setting Popen's stdin."""
 
-  return stdin, stdin_log
+  def get(self):
+    """Get the stdin handler for Popen."""
+    raise NotImplementedError
+
+  def update_cmd_log(self, cmd):
+    """Modify the command to represent the stdin in logs."""
+    raise NotImplementedError
+
+
+class BlockStdin(Stdin):
+  """Blocking input as opposed to accepting user's input."""
+
+  def get(self):
+    """Return subprocess.PIPE because it'll open a new buffer."""
+    return subprocess.PIPE
+
+  def update_cmd_log(self, cmd):
+    """Return cmd because blocking input doesn't alter
+      the command."""
+    return cmd
+
+
+class UserStdin(Stdin):
+  """Accept user's input as stdin."""
+
+  def get(self):
+    """Return None because that's how it works."""
+    return None
+
+  def update_cmd_log(self, cmd):
+    """Return cmd because accepting user's input doesn't alter
+      the command."""
+    return cmd
+
+
+class StringStdin(Stdin):
+  """Send a string as stdin."""
+
+  def __init__(self, input_str):
+    self.input_str = input_str
+    self.stdin = tempfile.NamedTemporaryFile(delete=False)
+    self.stdin.write(input_str)
+    self.stdin.flush()
+    self.stdin.seek(0)
+
+  def get(self):
+    """Get the file handler for the string."""
+    return self.stdin
+
+  def update_cmd_log(self, cmd):
+    """Add the input filename to the command."""
+    return '%s < %s' % (cmd, self.stdin.name)
 
 
 def start_execute(
-    binary, args, cwd, env=None, print_command=True, input_str=None,
+    binary, args, cwd, env=None, print_command=True, stdin=None,
     preexec_fn=os.setsid, redirect_stderr_to_stdout=False):
   """Runs a command, and returns the subprocess.Popen object."""
   check_binary(binary, cwd)
 
-  stdin, stdin_log = get_stdin_handler(input_str)
   command = (binary + ' ' + args).strip()
   env = env or {}
+  stdin = stdin or UserStdin()
 
   # See https://github.com/google/clusterfuzz-tools/issues/199 why we need this.
   sanitized_env = {}
@@ -420,12 +472,14 @@ def start_execute(
   env_str = ' '.join(
       ['%s="%s"' % (k, v) for k, v in sanitized_env.iteritems()])
 
-  log = (colorize('Running: %s%s', BASH_BLUE_MARKER),
-         ' '.join([env_str, command]).strip(), stdin_log)
+  log = colorize(
+      stdin.update_cmd_log(
+          'Running: %s' % ' '.join([env_str, command]).strip()),
+      BASH_BLUE_MARKER)
   if print_command:
-    logger.info(*log)
+    logger.info(log)
   else:
-    logger.debug(*log)
+    logger.debug(log)
 
   final_env = os.environ.copy()
   final_env.update(sanitized_env)
@@ -433,7 +487,7 @@ def start_execute(
   proc = subprocess.Popen(
       command,
       shell=True,
-      stdin=stdin,
+      stdin=stdin.get(),
       stdout=subprocess.PIPE,
       stderr=(
           subprocess.STDOUT if redirect_stderr_to_stdout else subprocess.PIPE),
@@ -447,7 +501,8 @@ def start_execute(
 
 def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
                  timeout=None, stdout_transformer=None,
-                 stderr_transformer=None):
+                 stderr_transformer=None,
+                 read_buffer_length=DEFAULT_READ_BUFFER_LENGTH):
   """Looks after a command as it runs, and prints/returns its output after."""
   if stdout_transformer is None:
     stdout_transformer = output_transformer.Hidden()
@@ -464,7 +519,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
 
   # Stdout is printed as the process runs because some commands (e.g. ninja)
   # might take a long time to run.
-  for chunk in iter(lambda: proc.stdout.read(10), b''):
+  for chunk in iter(lambda: proc.stdout.read(read_buffer_length), b''):
     if print_output:
       local_logging.send_output(chunk)
       stdout_transformer.process(chunk)
@@ -501,18 +556,20 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
 def execute(binary, args, cwd, print_command=True, print_output=True,
             capture_output=True, exit_on_error=True, env=None,
             stdout_transformer=None, stderr_transformer=None, timeout=None,
-            input_str=None, preexec_fn=os.setsid,
-            redirect_stderr_to_stdout=False):
+            stdin=None, preexec_fn=os.setsid,
+            redirect_stderr_to_stdout=False,
+            read_buffer_length=DEFAULT_READ_BUFFER_LENGTH):
   """Execute a bash command."""
   proc = start_execute(
       binary, args, cwd, env=env, print_command=print_command,
-      input_str=input_str, preexec_fn=preexec_fn,
+      stdin=stdin, preexec_fn=preexec_fn,
       redirect_stderr_to_stdout=redirect_stderr_to_stdout)
   return wait_execute(
       proc=proc, exit_on_error=exit_on_error, capture_output=capture_output,
       print_output=print_output, timeout=timeout,
       stdout_transformer=stdout_transformer,
-      stderr_transformer=stderr_transformer)
+      stderr_transformer=stderr_transformer,
+      read_buffer_length=read_buffer_length)
 
 
 def check_confirm(question):

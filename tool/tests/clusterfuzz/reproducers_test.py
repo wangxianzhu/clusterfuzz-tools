@@ -144,11 +144,13 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.start_execute',
         'clusterfuzz.common.wait_execute',
         'clusterfuzz.common.execute',
+        'clusterfuzz.common.UserStdin',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.run_gestures',
         'clusterfuzz.reproducers.Xvfb.__enter__',
         'clusterfuzz.reproducers.Xvfb.__exit__',
         'clusterfuzz.common.get_resource',
-        'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize'])
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.post_run_symbolize',
+    ])
     self.mock.get_resource.return_value = (
         '/chrome/source/folder/llvm-symbolizer')
     self.mock.wait_execute.return_value = (0, 'lines')
@@ -186,7 +188,9 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             exit_on_error=False,
             timeout=30,
             stdout_transformer=mock.ANY,
-            redirect_stderr_to_stdout=True)
+            redirect_stderr_to_stdout=True,
+            stdin=self.mock.UserStdin.return_value,
+            read_buffer_length=1)
     ])
 
   def test_base_with_env_args(self):
@@ -218,7 +222,9 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
             exit_on_error=False,
             timeout=30,
             stdout_transformer=mock.ANY,
-            redirect_stderr_to_stdout=True)
+            redirect_stderr_to_stdout=True,
+            stdin=self.mock.UserStdin.return_value,
+            read_buffer_length=1)
     ])
 
   def test_chromium(self):
@@ -254,13 +260,15 @@ class ReproduceCrashTest(helpers.ExtendedTestCase):
                 'DISPLAY': ':display',
                 'ASAN_OPTIONS': 'test-asan',
             },
-            redirect_stderr_to_stdout=True)
+            redirect_stderr_to_stdout=True,
+            stdin=self.mock.UserStdin.return_value)
     ])
     self.assert_exact_calls(self.mock.wait_execute, [
         mock.call(
             self.mock.start_execute.return_value, exit_on_error=False,
             timeout=30,
-            stdout_transformer=mock.ANY)
+            stdout_transformer=mock.ANY,
+            read_buffer_length=1)
     ])
     self.assert_exact_calls(self.mock.run_gestures, [mock.call(
         reproducer, self.mock.start_execute.return_value, ':display')])
@@ -271,7 +279,8 @@ class SetupArgsTest(helpers.ExtendedTestCase):
 
   def setUp(self):
     helpers.patch(self, [
-        'cmd_editor.editor.edit'
+        'clusterfuzz.reproducers.update_for_gdb_if_needed',
+        'clusterfuzz.common.edit_if_needed'
     ])
     self.testcase = mock.Mock(
         id=1234, reproduction_args='--repro',
@@ -286,6 +295,11 @@ class SetupArgsTest(helpers.ExtendedTestCase):
     self.provider.get_binary_path.return_value = '/chrome/source/folder/d8'
     self.provider.get_build_directory.return_value = '/chrome/source/folder'
     self.definition = mock.Mock()
+    self.mock.update_for_gdb_if_needed.side_effect = (
+        lambda binary_path, args, timeout, should_enable_gdb:
+        (binary_path, args, timeout))
+    self.mock.edit_if_needed.side_effect = (
+        lambda content, prefix, comment, should_edit: content)
 
   def test_disable_xvfb(self):
     """Test disable xvfb."""
@@ -296,23 +310,28 @@ class SetupArgsTest(helpers.ExtendedTestCase):
             target_args='--test --disable-gl-drawing-for-tests'))
 
     reproducer.setup_args()
-    self.assertEqual('--repro --test %s' % self.testcase_path,
-                     reproducer.args)
+    self.assertEqual('--repro --test %s' % self.testcase_path, reproducer.args)
+    self.mock.update_for_gdb_if_needed.assert_called_once_with(
+        reproducer.binary_path, reproducer.args,
+        reproducer.timeout, reproducer.options.enable_debug)
+    self.mock.edit_if_needed.assert_called_once_with(
+        reproducer.args, prefix=mock.ANY, comment=mock.ANY,
+        should_edit=reproducer.options.edit_mode)
 
   def test_enable_xvfb(self):
     """Test enable xvfb and edit args."""
-    def edit(content, prefix, comment):  # pylint: disable=unused-argument
-      return '--new-argument' + ' ' + content
-    self.mock.edit.side_effect = edit
-
     reproducer = reproducers.LinuxChromeJobReproducer(
         self.definition, self.provider, self.testcase, 'UBSAN',
         libs.make_options(target_args='--test', edit_mode=True))
 
     reproducer.setup_args()
-    self.assertEqual(
-        '--new-argument --repro --test %s' % self.testcase_path,
-        reproducer.args)
+    self.assertEqual('--repro --test %s' % self.testcase_path, reproducer.args)
+    self.mock.update_for_gdb_if_needed.assert_called_once_with(
+        reproducer.binary_path, reproducer.args,
+        reproducer.timeout, reproducer.options.enable_debug)
+    self.mock.edit_if_needed.assert_called_once_with(
+        reproducer.args, prefix=mock.ANY, comment=mock.ANY,
+        should_edit=reproducer.options.edit_mode)
 
 class LinuxChromeJobReproducerTest(helpers.ExtendedTestCase):
   """Tests the extra functions of LinuxUbsanChromeReproducer."""
@@ -354,7 +373,10 @@ class XdotoolCommandTest(helpers.ExtendedTestCase):
   """Tests the xdotool_command method."""
 
   def setUp(self):
-    helpers.patch(self, ['clusterfuzz.common.execute'])
+    helpers.patch(self, [
+        'clusterfuzz.common.execute',
+        'clusterfuzz.common.BlockStdin'
+    ])
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
 
@@ -363,7 +385,9 @@ class XdotoolCommandTest(helpers.ExtendedTestCase):
 
     self.reproducer.xdotool_command('command to run', ':2753')
     self.assert_exact_calls(self.mock.execute, [
-        mock.call('xdotool', 'command to run', '.', env={'DISPLAY': ':2753'})
+        mock.call(
+            'xdotool', 'command to run', '.', env={'DISPLAY': ':2753'},
+            stdin=self.mock.BlockStdin.return_value)
     ])
 
 
@@ -395,7 +419,7 @@ class FindWindowsForProcessTest(helpers.ExtendedTestCase):
 
     result = self.reproducer.find_windows_for_process(1234, ':45434')
     self.assertEqual(result, set(['234', '567', '890', '123', '345']))
-    self.assert_exact_calls(self.mock.sleep, [mock.call(20)])
+    self.assert_exact_calls(self.mock.sleep, [mock.call(30)])
 
 
 class GetProcessIdsTest(helpers.ExtendedTestCase):
@@ -591,6 +615,38 @@ class ReproduceTest(helpers.ExtendedTestCase):
   """Tests the reproduce method within reproducers."""
 
   def setUp(self):
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
+    helpers.patch(self, [
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_debug',
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_normal',
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.pre_build_steps',
+    ])
+    self.mock.reproduce_debug.return_value = True
+    self.mock.reproduce_normal.return_value = True
+
+  def test_normal(self):
+    """Test reproduce normally."""
+    self.reproducer.options = libs.make_options(enable_debug=False)
+    self.reproducer.reproduce(10)
+
+    self.mock.pre_build_steps.assert_called_once_with(self.reproducer)
+    self.mock.reproduce_normal.assert_called_once_with(self.reproducer, 10)
+    self.assertEqual(0, self.mock.reproduce_debug.call_count)
+
+  def test_debug(self):
+    """Test reproduce in debugger."""
+    self.reproducer.options = libs.make_options(enable_debug=True)
+    self.reproducer.reproduce(10)
+
+    self.mock.pre_build_steps.assert_called_once_with(self.reproducer)
+    self.mock.reproduce_debug.assert_called_once_with(self.reproducer)
+    self.assertEqual(0, self.mock.reproduce_normal.call_count)
+
+
+class ReproduceNormalTest(helpers.ExtendedTestCase):
+  """Tests the reproduce_normal method within reproducers."""
+
+  def setUp(self):
     patch_stacktrace_info(self)
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
     helpers.patch(self, [
@@ -615,7 +671,7 @@ class ReproduceTest(helpers.ExtendedTestCase):
         mock.Mock(text=json.dumps(wrong_response))]
 
     with self.assertRaises(common.UnreproducibleError):
-      self.reproducer.reproduce(2)
+      self.reproducer.reproduce_normal(2)
 
   def test_good_stacktrace(self):
     """Tests functionality when the stacktrace matches"""
@@ -629,10 +685,24 @@ class ReproduceTest(helpers.ExtendedTestCase):
         mock.Mock(text=json.dumps(wrong_response)),
         mock.Mock(text=json.dumps(correct_response))]
 
-    result = self.reproducer.reproduce(10)
-    self.assertTrue(result)
+    self.assertTrue(self.reproducer.reproduce_normal(10))
     self.assert_exact_calls(self.mock.reproduce_crash, [
         mock.call(self.reproducer), mock.call(self.reproducer)])
+
+
+class ReproduceDebugTest(helpers.ExtendedTestCase):
+  """Tests the reproduce_debug method."""
+
+  def setUp(self):
+    self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
+    helpers.patch(self, [
+        'clusterfuzz.reproducers.LinuxChromeJobReproducer.reproduce_crash',
+    ])
+
+  def test_debug(self):
+    """Test running debugger."""
+    self.reproducer.reproduce_debug()
+    self.mock.reproduce_crash.assert_called_once_with(self.reproducer)
 
 
 class PostRunSymbolizeTest(helpers.ExtendedTestCase):
@@ -643,6 +713,7 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.common.execute',
         'clusterfuzz.common.get_resource',
+        'clusterfuzz.common.StringStdin',
         'clusterfuzz.reproducers.LinuxChromeJobReproducer.get_stacktrace_info'
     ])
     self.reproducer = create_reproducer(reproducers.LinuxChromeJobReproducer)
@@ -671,11 +742,12 @@ class PostRunSymbolizeTest(helpers.ExtendedTestCase):
         stdout_transformer=mock.ANY,
         capture_output=True,
         exit_on_error=True,
-        input_str='output_lines\0',
+        stdin=self.mock.StringStdin.return_value,
         redirect_stderr_to_stdout=True)
     self.assertIsInstance(
         self.mock.execute.call_args[1]['stdout_transformer'],
         output_transformer.Identity)
+    self.mock.StringStdin.assert_called_once_with('output_lines\0')
     self.assertEqual(result, 'symbolized')
 
 
@@ -866,3 +938,19 @@ class UpdateTestcasePathInLayoutTestTest(helpers.ExtendedTestCase):
             '/source/'))
     with open(new_path) as f:
       self.assertEqual('Some test', f.read())
+
+
+class UpdateForGdbIfNeededTest(helpers.ExtendedTestCase):
+  """Tests update_for_gdb_if_needed."""
+
+  def test_no_update(self):
+    """Test no update."""
+    self.assertEqual(
+        ('b', 'a', 30),
+        reproducers.update_for_gdb_if_needed('b', 'a', 30, False))
+
+  def test_update(self):
+    """Test update."""
+    self.assertEqual(
+        ('gdb', "-ex 'b __sanitizer::Die' -ex run --args b a", None),
+        reproducers.update_for_gdb_if_needed('b', 'a', 30, True))

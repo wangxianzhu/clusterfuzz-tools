@@ -105,7 +105,6 @@ class ExecuteTest(helpers.ExtendedTestCase):
         'clusterfuzz.common.check_binary',
         'clusterfuzz.common.kill',
         'clusterfuzz.common.wait_timeout',
-        'clusterfuzz.common.get_stdin_handler',
         'logging.config.dictConfig',
         'logging.getLogger',
         'os.environ.copy',
@@ -114,7 +113,6 @@ class ExecuteTest(helpers.ExtendedTestCase):
     ])
     self.mock.copy.return_value = {'OS': 'ENVIRON'}
     self.mock.dictConfig.return_value = {}
-    self.mock.get_stdin_handler.return_value = ('input_str', '')
 
     from clusterfuzz import local_logging
     local_logging.start_loggers()
@@ -136,13 +134,12 @@ class ExecuteTest(helpers.ExtendedTestCase):
         print_command=print_cmd,
         print_output=print_out,
         exit_on_error=exit_on_err,
-        input_str='input',
+        stdin=None,
         env={'TEST': 'VALUE'})
 
   def run_popen_assertions(
       self, code, print_cmd=True, print_out=True, exit_on_err=True):
     """Runs the popen command and tests the output."""
-    self.mock.get_stdin_handler.reset_mock()
     self.mock.kill.reset_mock()
     self.mock.Popen.reset_mock()
     self.mock.Popen.return_value = self.build_popen_mock(code)
@@ -168,11 +165,10 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
     self.mock.kill.assert_called_once_with(self.mock.Popen.return_value)
     self.mock.Popen.return_value.communicate.assert_called_once_with()
-    self.mock.get_stdin_handler.assert_called_once_with('input')
     self.mock.Popen.assert_called_once_with(
         'cmd',
         shell=True,
-        stdin='input_str',
+        stdin=None,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd='~/working/directory',
@@ -590,21 +586,58 @@ class GsutilTest(helpers.ExtendedTestCase):
     self.mock.execute.assert_called_once_with('gsutil', 'test', cwd='source')
 
 
-class GetStdinHandlerTest(helpers.ExtendedTestCase):
-  """Tests get_stdin_handler."""
+class StringStdinTest(helpers.ExtendedTestCase):
+  """Tests StringStdin."""
 
   def setUp(self):
     self.setup_fake_filesystem()
 
-  def test_none(self):
-    """Test input=None."""
-    self.assertEqual((None, ''), common.get_stdin_handler(None))
-
   def test_stdin(self):
     """Test input is a string."""
-    stdin, stdin_log = common.get_stdin_handler('some input')
+    stdin = common.StringStdin('some input')
 
-    with open(stdin.name) as f:
+    with open(stdin.stdin.name) as f:
       self.assertEqual('some input', f.read())
-    self.assertEqual('some input', stdin.read())
-    self.assertEqual(' < %s' % stdin.name, stdin_log)
+    self.assertEqual('some input', stdin.get().read())
+    self.assertEqual('cmd < %s' % stdin.stdin.name, stdin.update_cmd_log('cmd'))
+
+
+class UserStdinTest(helpers.ExtendedTestCase):
+  """Tests UserStdin."""
+
+  def test_stdin(self):
+    """Test stdin."""
+    stdin = common.UserStdin()
+    self.assertIsNone(stdin.get())
+    self.assertEqual('cmd', stdin.update_cmd_log('cmd'))
+
+
+class BlockStdinTest(helpers.ExtendedTestCase):
+  """Tests BlockStdin."""
+
+  def test_stdin(self):
+    """Test stdin."""
+    stdin = common.BlockStdin()
+    self.assertEqual(subprocess.PIPE, stdin.get())
+    self.assertEqual('cmd', stdin.update_cmd_log('cmd'))
+
+
+class EditIfNeededTest(helpers.ExtendedTestCase):
+  """Tests edit_if_needed."""
+
+  def setUp(self):
+    helpers.patch(self, ['cmd_editor.editor.edit'])
+
+  def test_not_edit(self):
+    """Test when we shouldn't edit it."""
+    self.assertEqual(
+        'test', common.edit_if_needed('test', 'p', 'c', False))
+    self.assertEqual(0, self.mock.edit.call_count)
+
+  def test_edit(self):
+    """Test editing."""
+    self.mock.edit.return_value = 'test2'
+    self.assertEqual(
+        'test2', common.edit_if_needed('test', 'p', 'c', True))
+
+    self.mock.edit.assert_called_once_with('test', prefix='p', comment='c')

@@ -24,7 +24,6 @@ import urllib
 
 import urlfetch
 
-from cmd_editor import editor
 from clusterfuzz import common
 from clusterfuzz import output_transformer
 
@@ -100,24 +99,17 @@ def get_current_sha(source_dir):
   return current_sha.strip()
 
 
-def setup_debug_symbol_if_needed(gn_args, enable_debug):
+def setup_debug_symbol_if_needed(gn_args, sanitizer, enable_debug):
   """Setup debug symbol if enable_debug is true. See: crbug.com/692620"""
   if not enable_debug:
     return gn_args
 
   gn_args['sanitizer_keep_symbols'] = 'true'
-  gn_args['is_debug'] = 'true'
+  gn_args['symbol_level'] = '2'
+
+  if sanitizer != 'MSAN':
+    gn_args['is_debug'] = 'true'
   return gn_args
-
-
-def edit_if_needed(content, should_edit):
-  """Edit content in an editor if should_edit is true."""
-  if not should_edit:
-    return content
-
-  return editor.edit(
-      content, prefix='edit-args-gn-',
-      comment='Edit args.gn before building.')
 
 
 def install_build_deps_32bit(source_dir):
@@ -216,6 +208,7 @@ class GenericBuilder(BinaryProvider):
     self.gn_args = None
     self.gn_args_options = None
     self.gn_flags = '--check'
+    self.definition = definition
 
   def out_dir_name(self):
     """Returns the correct out dir in which to build the revision.
@@ -277,15 +270,18 @@ class GenericBuilder(BinaryProvider):
   def setup_gn_args(self):
     """Ensures that args.gn is set up properly."""
     # Remove existing gn file from build directory.
+    # TODO(tanin): Refactor the condition to a module function.
     args_gn_path = os.path.join(self.build_directory, 'args.gn')
     if os.path.isfile(args_gn_path):
       os.remove(args_gn_path)
 
     # Create build directory if it does not already exist.
+    # TODO(tanin): Refactor the condition to a module function.
     if not os.path.exists(self.build_directory):
       os.makedirs(self.build_directory)
 
     # If no args.gn file is found, get it from downloaded build.
+    # TODO(tanin): Refactor the condition to a module function.
     if self.gn_args:
       gn_args = self.gn_args
     else:
@@ -298,14 +294,17 @@ class GenericBuilder(BinaryProvider):
     args_hash = self.deserialize_gn_args(gn_args)
     args_hash = self.setup_gn_goma_params(args_hash)
     args_hash = setup_debug_symbol_if_needed(
-        args_hash, self.options.enable_debug)
+        args_hash, self.definition.sanitizer, self.options.enable_debug)
     if self.gn_args_options:
       for k, v in self.gn_args_options.iteritems():
         args_hash[k] = v
 
     # Let users edit the current args.
     content = self.serialize_gn_args(args_hash)
-    content = edit_if_needed(content, self.options.edit_mode)
+    content = common.edit_if_needed(
+        content, prefix='edit-args-gn-',
+        comment='Edit args.gn before building.',
+        should_edit=self.options.edit_mode)
 
     # Write args to file and store.
     with open(args_gn_path, 'w') as f:

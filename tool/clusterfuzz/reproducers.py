@@ -24,7 +24,6 @@ import time
 import psutil
 import xvfbwrapper
 
-from cmd_editor import editor
 from clusterfuzz import common
 from clusterfuzz import output_transformer
 
@@ -151,6 +150,15 @@ def update_testcase_path_in_layout_test(
   return new_testcase_path
 
 
+def update_for_gdb_if_needed(binary_path, args, timeout, should_enable_gdb):
+  """Update binary_path, args, and timeout if gdb is enabled."""
+  if not should_enable_gdb:
+    return binary_path, args, timeout
+
+  args = "-ex 'b __sanitizer::Die' -ex run --args %s %s" % (binary_path, args)
+  return 'gdb', args, None
+
+
 class BaseReproducer(object):
   """The basic reproducer class that all other ones are built on."""
 
@@ -179,6 +187,7 @@ class BaseReproducer(object):
     self.sanitizer = sanitizer
     self.gestures = testcase.gestures
     self.options = options
+    self.timeout = TEST_TIMEOUT
 
     stacktrace_lines = strip_html(
         [l['content'] for l in testcase.stacktrace_lines])
@@ -223,12 +232,16 @@ class BaseReproducer(object):
 
   def reproduce_crash(self):
     """Reproduce the crash."""
+    # read_buffer_length needs to be 1, and stdin needs to be UserStdin.
+    # Otherwise, it wouldn't work well with gdb.
     return common.execute(
         self.binary_path, self.args,
-        os.path.dirname(self.binary_path), env=self.environment,
-        exit_on_error=False, timeout=TEST_TIMEOUT,
+        self.build_directory, env=self.environment,
+        exit_on_error=False, timeout=self.timeout,
         stdout_transformer=output_transformer.Identity(),
-        redirect_stderr_to_stdout=True)
+        redirect_stderr_to_stdout=True,
+        stdin=common.UserStdin(),
+        read_buffer_length=1)
 
   def get_stacktrace_info(self, trace):
     """Post a stacktrace, return (crash_state, crash_type)."""
@@ -245,12 +258,14 @@ class BaseReproducer(object):
   def setup_args(self):
     """Setup args."""
     # Add custom args if any.
+    # TODO(tanin): refactor the condition to its own module function.
     if self.options.target_args:
       self.args += ' %s' % self.options.target_args
 
     # --disable-gl-drawing-for-tests does not draw gl content on screen.
     # When running in regular mode, user would want to see screen, so
     # remove this argument.
+    # TODO(tanin): refactor the condition to its own module function.
     if (self.options.disable_xvfb and
         DISABLE_GL_DRAW_ARG in self.args):
       self.args = self.args.replace(' %s' % DISABLE_GL_DRAW_ARG, '')
@@ -260,23 +275,26 @@ class BaseReproducer(object):
     self.args = self.args.replace('%APP_DIR%', self.build_directory)
 
     # Use %TESTCASE% argument if available. Otherwise append testcase path.
+    # TODO(tanin): refactor the condition to its own module function.
     if '%TESTCASE%' in self.args:
       self.args = self.args.replace('%TESTCASE%', self.testcase_path)
     else:
       self.args += ' %s' % self.testcase_path
 
-    if self.options.edit_mode:
-      self.args = editor.edit(
-          self.args, prefix='edit-args-',
-          comment='Edit arguments before running %s' % self.binary_path)
+    self.binary_path, self.args, self.timeout = update_for_gdb_if_needed(
+        self.binary_path, self.args, self.timeout, self.options.enable_debug)
+    self.args = common.edit_if_needed(
+        self.args, prefix='edit-args-',
+        comment='Edit arguments before running %s' % self.binary_path,
+        should_edit=self.options.edit_mode)
 
-  def reproduce(self, iteration_max):
-    """Reproduces the crash and prints the stacktrace."""
+  def reproduce_debug(self):
+    """Reproduce with debugger."""
+    self.reproduce_crash()
+    return True
 
-    logger.info('Reproducing...')
-
-    self.pre_build_steps()
-
+  def reproduce_normal(self, iteration_max):
+    """Reproduce normally."""
     iterations = 1
     signatures = set()
     while iterations <= iteration_max:
@@ -310,6 +328,18 @@ class BaseReproducer(object):
       time.sleep(3)
 
     raise common.UnreproducibleError(iteration_max, signatures)
+
+  # TODO(tanin): Remove iteration_max and use self.options.iterations.
+  def reproduce(self, iteration_max):
+    """Reproduces the crash and prints the stacktrace."""
+    logger.info('Reproducing...')
+
+    self.pre_build_steps()
+
+    if self.options.enable_debug:
+      return self.reproduce_debug()
+    else:
+      return self.reproduce_normal(iteration_max)
 
 
 class LibfuzzerJobReproducer(BaseReproducer):
@@ -382,7 +412,9 @@ class LinuxChromeJobReproducer(BaseReproducer):
 
   def xdotool_command(self, command, display_name):
     """Run a command, returning its output."""
-    common.execute('xdotool', command, '.', env={'DISPLAY': display_name})
+    common.execute(
+        'xdotool', command, '.', env={'DISPLAY': display_name},
+        stdin=common.BlockStdin())
 
   def find_windows_for_process(self, process_id, display_name):
     """Return visible windows belonging to a process."""
@@ -391,16 +423,16 @@ class LinuxChromeJobReproducer(BaseReproducer):
       return []
 
     logger.info(
-        'Waiting for 20 seconds to ensure all windows appear: '
+        'Waiting for 30 seconds to ensure all windows appear: '
         'pid=%s, display=%s', pids, display_name)
-    time.sleep(20)
+    time.sleep(30)
 
     visible_windows = set()
     for pid in pids:
       _, windows = common.execute(
           'xdotool', 'search --all --pid %s --onlyvisible --name ".*"' % pid,
           '.', env={'DISPLAY': display_name}, exit_on_error=False,
-          print_command=False, print_output=False)
+          print_command=False, print_output=False, stdin=common.BlockStdin())
       for line in windows.splitlines():
         if not line.isdigit():
           continue
@@ -463,7 +495,7 @@ class LinuxChromeJobReproducer(BaseReproducer):
              'CHROMIUM_SRC': self.source_directory},
         capture_output=True, exit_on_error=True,
         stdout_transformer=output_transformer.Identity(),
-        input_str=output + '\0',
+        stdin=common.StringStdin(output + '\0'),
         redirect_stderr_to_stdout=True)
     logger.info(symbolized_out)
     return symbolized_out
@@ -475,15 +507,20 @@ class LinuxChromeJobReproducer(BaseReproducer):
     with Xvfb(self.options.disable_xvfb) as display_name:
       self.environment['DISPLAY'] = display_name
 
+      # stdin needs to be UserStdin. Otherwise, it wouldn't work with gdb.
       process = common.start_execute(
           self.binary_path, self.args,
-          os.path.dirname(self.binary_path), env=self.environment,
+          self.build_directory, env=self.environment,
+          stdin=common.UserStdin(),
           redirect_stderr_to_stdout=True)
 
       if self.gestures:
         self.run_gestures(process, display_name)
 
+      # read_buffer_length needs to be 1. Otherwise, it wouldn't work well with
+      # gdb.
       err, out = common.wait_execute(
-          process, exit_on_error=False, timeout=TEST_TIMEOUT,
-          stdout_transformer=output_transformer.Identity())
+          process, exit_on_error=False, timeout=self.timeout,
+          stdout_transformer=output_transformer.Identity(),
+          read_buffer_length=1)
       return err, self.post_run_symbolize(out)

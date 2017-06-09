@@ -72,8 +72,9 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     """Ensures the JSON is parsed correctly."""
 
     stacktrace_lines = [
-        {'content': '[Environment] TEST_ARGS = first=1:second=2'},
+        {'content': '[Environment] TEST_ARGS = first=1:second = 2'},
         {'content': 'Not an env line'},
+        {'content': '[Environment] This is ignored.'},
         {'content': '[Environment] ASAN_OPTIONS = x=1:symbolize=0'},
         {'content': '[Environment] LSAN_OPTIONS = y=1'},
         {'content': ('Running command: /path/to/binary --random-seed=23 '
@@ -84,7 +85,7 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
         gestures=True)
     self.assertEqual(result.id, '12345')
     self.assertEqual(result.revision, 5)
-    self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second=2',
+    self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second = 2',
                                           'TEST_TWO': 'third=3:fourth=4',
                                           'ASAN_OPTIONS': 'x=1:symbolize=1',
                                           'LSAN_OPTIONS': 'y=1:symbolize=1'})
@@ -97,8 +98,9 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
     """Ensures the JSON is parsed correctly."""
 
     stacktrace_lines = [
-        {'content': '[Environment] TEST_ARGS = first=1:second=2'},
+        {'content': '[Environment] TEST_ARGS = first=1:second = 2'},
         {'content': 'Not an env line'},
+        {'content': '[Environment] This is ignored.'},
         {'content': '[Environment] ASAN_OPTIONS = x=1:symbolize=0'},
         {'content': '[Environment] LSAN_OPTIONS = y=1'},
         {'content': ('Running command: /path/to/binary '
@@ -110,7 +112,7 @@ class TestcaseSetupTest(helpers.ExtendedTestCase):
         gestures=True)
     self.assertEqual(result.id, '12345')
     self.assertEqual(result.revision, 5)
-    self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second=2',
+    self.assertEqual(result.environment, {'TEST_ARGS': 'first=1:second = 2',
                                           'TEST_TWO': 'third=3:fourth=4',
                                           'ASAN_OPTIONS': 'x=1:symbolize=1',
                                           'LSAN_OPTIONS': 'y=1:symbolize=1'})

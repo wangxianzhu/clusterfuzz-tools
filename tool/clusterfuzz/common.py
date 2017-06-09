@@ -532,10 +532,12 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
   # Therefore, we use communicate() to get stderr instead.
   # See: https://github.com/google/clusterfuzz-tools/issues/278
   stdout_data, stderr_data = proc.communicate()
+  stdout_data = stdout_data or ''
+  stderr_data = stderr_data or ''
   kill(proc)
 
-  for (transformer, data) in [(stdout_transformer, stdout_data or ''),
-                              (stderr_transformer, stderr_data or '')]:
+  for (transformer, data) in [(stdout_transformer, stdout_data),
+                              (stderr_transformer, stderr_data)]:
     if capture_output:
       output_chunks.append(data)
 

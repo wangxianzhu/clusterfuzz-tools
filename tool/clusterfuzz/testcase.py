@@ -57,7 +57,11 @@ class Testcase(object):
     for line in stacktrace_lines:
       if '[Environment] ' in line:
         line = line.replace('[Environment] ', '')
-        name, value = line.split(' = ')
+        tokens = line.split(' = ', 1)
+        if len(tokens) != 2:
+          continue
+        name, value = tokens
+
         if '_OPTIONS' in name:
           value = value.replace('symbolize=0', 'symbolize=1')
           if 'symbolize=1' not in value:

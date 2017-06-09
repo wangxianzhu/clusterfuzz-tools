@@ -52,7 +52,7 @@ def execute(argv=None):
       '-j', '--goma-threads', action='store', default=None, type=int,
       help='Manually specify the number of concurrent jobs for a ninja build.')
   reproduce.add_argument(
-      '-i', '--iterations', action='store', default=10, type=int,
+      '-i', '--iterations', action='store', default=3, type=int,
       help='Specify the number of times to attempt reproduction.')
   reproduce.add_argument(
       '-dx', '--disable-xvfb', action='store_true', default=False,

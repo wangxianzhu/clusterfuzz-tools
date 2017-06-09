@@ -1,8 +1,6 @@
 ClusterFuzz tools
 =================================
 
-Status: Early prototype phase
-
 [![CircleCI](https://circleci.com/gh/google/clusterfuzz-tools/tree/master.svg?style=shield)](https://circleci.com/gh/google/clusterfuzz-tools/tree/master)
 [![Coverage Status](https://coveralls.io/repos/github/google/clusterfuzz-tools/badge.svg?branch=master)](https://coveralls.io/github/google/clusterfuzz-tools?branch=master)
 
@@ -49,3 +47,44 @@ Here's the workflow (we think) might be appropriate when fixing a bug:
 2. Make a new branch and make a code change.
 3. Run against the code change with `<binary> reproduce [testcase-id] --current`.
 4. If the crash doesn’t occur anymore, it means your code change fixes the crash.
+
+
+Here are some other useful options:
+
+```
+usage: clusterfuzz reproduce [-h] [-c] [-b {download,chromium,standalone}]
+                                [--disable-goma] [-j GOMA_THREADS]
+                                [-i ITERATIONS] [-dx]
+                                [--target-args TARGET_ARGS] [--edit-mode]
+                                [--disable-gclient] [--enable-debug]
+                                testcase_id
+
+positional arguments:
+  testcase_id           The testcase ID.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c, --current         Use the current tree; On the other hand, without
+                        --current, the Chrome repository will be switched to
+                        the commit specified in the testcase.
+  -b {download,chromium,standalone}, --build {download,chromium,standalone}
+                        Select which type of build to run the testcase
+                        against.
+  --disable-goma        Disable GOMA when building binaries locally.
+  -j GOMA_THREADS, --goma-threads GOMA_THREADS
+                        Manually specify the number of concurrent jobs for a
+                        ninja build.
+  -i ITERATIONS, --iterations ITERATIONS
+                        Specify the number of times to attempt reproduction.
+  -dx, --disable-xvfb   Disable running testcases in a virtual frame buffer.
+  --target-args TARGET_ARGS
+                        Additional arguments for the target (e.g. chrome).
+  --edit-mode           Edit args.gn before building and target arguments
+                        before running.
+  --disable-gclient     Disable running gclient commands (e.g. sync,
+                        runhooks).
+  --enable-debug        Build Chrome with full debug symbols by injecting
+                        `sanitizer_keep_symbols = true` and `is_debug = true`
+                        to args.gn. Ready to debug with GDB.
+
+```

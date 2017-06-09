@@ -40,7 +40,7 @@ class MainTest(unittest.TestCase):
     self.mock.start_loggers.assert_has_calls([mock.call()])
     self.mock.execute.assert_has_calls([
         mock.call(build='chromium', current=False, disable_goma=False,
-                  goma_threads=None, testcase_id='1234', iterations=10,
+                  goma_threads=None, testcase_id='1234', iterations=3,
                   disable_xvfb=False, target_args='', edit_mode=False,
                   disable_gclient=False, enable_debug=False),
         mock.call(build='chromium', current=True, disable_goma=True,

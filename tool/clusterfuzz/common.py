@@ -263,7 +263,12 @@ class BadJobTypeDefinitionError(ExpectedException):
 class UnreproducibleError(ExpectedException):
   """An exception raised when the testcase cannot be reproduced."""
 
-  MESSAGE = 'The testcase cannot be reproduced after trying {count} times.'
+  MESSAGE = (
+      'The testcase cannot be reproduced after trying {count} times.\n'
+      'Here are 2 things you can try:\n'
+      '- Run with the downloaded build by adding `--build download`\n'
+      '- Run with more number of trials by adding `-i 10`, '
+      'which is especially good for gesture-related testcases.')
 
   def __init__(self, count, crash_signatures):
     crash_signatures = [

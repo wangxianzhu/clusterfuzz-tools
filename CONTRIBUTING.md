@@ -71,7 +71,7 @@ We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googl
 
 1. Increment the version number in `tool/clusterfuzz/resources/VERSION`.
 2. Create and merge a pull request to increase the version number.
-3. Run `./pants run butler --release`.
+3. Run `./pants run butler -- release`.
 
 
 Analytics

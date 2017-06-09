@@ -1,7 +1,7 @@
 ---
 
 # Increment the number when modifying the image.
-image_name: chromium-image-1
+image_name: chromium-image-2
 
 project_id: 981641712411
 zone: us-central1-a

@@ -69,7 +69,7 @@ def run_testcase(testcase_id):
   """Attempts to reproduce a testcase."""
   try:
     process.call(
-        '/python-daemon/clusterfuzz reproduce %s' % testcase_id,
+        '%s reproduce %s' % (BINARY_LOCATION, testcase_id),
         cwd=HOME,
         env={
             'CF_QUIET': '1',

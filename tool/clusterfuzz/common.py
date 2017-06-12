@@ -266,7 +266,7 @@ class UnreproducibleError(ExpectedException):
   MESSAGE = (
       'The testcase cannot be reproduced after trying {count} times.\n'
       'Here are 2 things you can try:\n'
-      '- Run with the downloaded build by adding `--build download`\n'
+      '- Run with the downloaded build by adding `--build download`.\n'
       '- Run with more number of trials by adding `-i 10`, '
       'which is especially good for gesture-related testcases.')
 

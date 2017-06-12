@@ -317,7 +317,13 @@ class BaseReproducer(object):
       # The crash signature validation is intentionally forgiving.
       if is_similar(new_signature, self.crash_signature):
         logger.info(common.colorize(
-            'The stacktrace seems similar to the original stacktrace.',
+            'The stacktrace seems similar to the original stacktrace.\n'
+            "Since you've reproduced the crash correctly, there are 2 tricks "
+            'that might help you move faster:\n'
+            '- In case of fixing the crash, you can use `--current` to run on '
+            'tip-of-tree (or, in other words, avoid git-checkout).\n'
+            '- You can save time by using `--disable-gclient` to avoid '
+            '`gclient sync` and `gclient runhooks` in subsequential runs.',
             common.BASH_GREEN_MARKER))
         return True
       else:

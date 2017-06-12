@@ -536,7 +536,7 @@ class GetValidAbsDirTest(helpers.ExtendedTestCase):
     self.assertIsNone(common.get_valid_abs_dir(''))
 
 
-class ColorizeTest(helpers.ExtendedTestCase):
+class StyleTest(helpers.ExtendedTestCase):
   """Test colorize."""
 
   def setUp(self):
@@ -546,13 +546,47 @@ class ColorizeTest(helpers.ExtendedTestCase):
     """Test posix."""
     self.mock.get_os_name.return_value = 'posix'
     self.assertEqual(
-        common.BASH_BLUE_MARKER + 'test' + common.BASH_RESET_MARKER,
-        common.colorize('test', common.BASH_BLUE_MARKER))
+        common.BASH_BLUE_MARKER + 'test' + common.BASH_RESET_COLOR_MARKER,
+        common.style(
+            'test', common.BASH_BLUE_MARKER, common.BASH_RESET_COLOR_MARKER)
+    )
 
   def test_not_posix(self):
     """Test not posix."""
     self.mock.get_os_name.return_value = 'windows'
-    self.assertEqual('test', common.colorize('test', common.BASH_BLUE_MARKER))
+    self.assertEqual(
+        'test',
+        common.style(
+            'test', common.BASH_BLUE_MARKER, common.BASH_RESET_COLOR_MARKER)
+    )
+
+
+class ColorizeTest(helpers.ExtendedTestCase):
+  """Test colorize."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.style'])
+    self.mock.style.return_value = 'style'
+
+  def test_colorize(self):
+    """Test colorize."""
+    self.assertEqual('style', common.colorize('s', common.BASH_BLUE_MARKER))
+    self.mock.style.assert_called_once_with(
+        's', common.BASH_BLUE_MARKER, common.BASH_RESET_COLOR_MARKER)
+
+
+class EmphasizeTest(helpers.ExtendedTestCase):
+  """Test colorize."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.common.style'])
+    self.mock.style.return_value = 'style'
+
+  def test_emphasize(self):
+    """Test emphasize."""
+    self.assertEqual('style', common.emphasize('s'))
+    self.mock.style.assert_called_once_with(
+        's', common.BASH_BOLD_MARKER, common.BASH_RESET_STYLE_MARKER)
 
 
 class GsutilTest(helpers.ExtendedTestCase):

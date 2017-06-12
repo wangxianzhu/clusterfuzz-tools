@@ -34,11 +34,15 @@ from clusterfuzz import local_logging
 from clusterfuzz import output_transformer
 
 
+BASH_BOLD_MARKER = '\033[1m'
+BASH_RESET_STYLE_MARKER = '\033[22m'
+
 BASH_BLUE_MARKER = '\033[36m'
 BASH_GREEN_MARKER = '\033[32m'
 BASH_YELLOW_MARKER = '\033[33m'
 BASH_MAGENTA_MARKER = '\033[35m'
-BASH_RESET_MARKER = '\033[0m'
+BASH_RESET_COLOR_MARKER = '\033[39m'
+
 NO_SUCH_PROCESS_ERRNO = 3
 DEFAULT_READ_BUFFER_LENGTH = 10
 
@@ -100,10 +104,20 @@ def get_os_name():
   return os.name
 
 
+def emphasize(s):
+  """Make the text bolder in the logs."""
+  return style(s, BASH_BOLD_MARKER, BASH_RESET_STYLE_MARKER)
+
+
 def colorize(s, color):
-  """Wrap the string with bash-compatible color."""
+  """Add color to the text in the logs."""
+  return style(s, color, BASH_RESET_COLOR_MARKER)
+
+
+def style(s, marker, reset_char):
+  """Wrap the string with bash-compatible style."""
   if get_os_name() == 'posix':
-    return color + s + BASH_RESET_MARKER
+    return marker + s + reset_char
   else:
     return s
 
@@ -479,7 +493,7 @@ def start_execute(
 
   log = colorize(
       stdin.update_cmd_log(
-          'Running: %s' % ' '.join([env_str, command]).strip()),
+          'Running: %s' % ' '.join([env_str, emphasize(binary), args]).strip()),
       BASH_BLUE_MARKER)
   if print_command:
     logger.info(log)

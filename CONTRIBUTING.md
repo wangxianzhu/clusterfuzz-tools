@@ -77,7 +77,12 @@ We publish our binary to 2 places: Cloud Storage (for public) and X20 (for Googl
 Analytics
 --------------
 
-To see the usage from our users, please see the data in BigQuery. Here are some charts:
+To see the usage from our users, please see [the data in BigQuery](https://bigquery.cloud.google.com/table/clusterfuzz-tools:usage.client_20170612).
+Here are useful links:
 
 - [Usage by users](https://bigquery.cloud.google.com/results/clusterfuzz-tools:bquijob_53154b17_15c69c10d81)
+- [Usage logs excluding
+  CI](https://pantheon.corp.google.com/logs/viewer?project=clusterfuzz-tools&organizationId=433637338589&minLogLevel=0&expandAll=false&resource=project&logName=projects%2Fclusterfuzz-tools%2Flogs%2Fclient&advancedFilter=resource.type%3D%22project%22%0AlogName%3D%22projects%2Fclusterfuzz-tools%2Flogs%2Fclient%22%0AjsonPayload.user!%3D%22CI%22)
+- [CI
+  logs](https://pantheon.corp.google.com/logs/viewer?project=clusterfuzz-tools&organizationId=433637338589&minLogLevel=0&expandAll=false&resource=project&logName=projects%2Fclusterfuzz-tools%2Flogs%2Fci)
 

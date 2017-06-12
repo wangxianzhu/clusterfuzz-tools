@@ -202,17 +202,21 @@ def get_definition(job_type, build_param):
   raise common.JobTypeNotSupportedError(job_type)
 
 
-def maybe_warn_unreproducible(current_testcase):
+def warn_unreproducible_if_needed(current_testcase):
   """Print warning if the testcase is unreproducible."""
+  if current_testcase.gestures:
+    print
+    logger.info(common.colorize(
+        'WARNING: the testcase is using gestures and inherently flaky. '
+        "Therefore, we cannot guarantee that it'll reproduce correctly.",
+        common.BASH_YELLOW_MARKER))
   if not current_testcase.reproducible:
     print
-    logger.info(
-        'WARNING: The testcase %s is marked as unreproducible. Therefore, it '
-        'might not be reproduced correctly here.', current_testcase.id)
-    print
-    # We need to return True to make the method testable because we can't mock
-    # print.
-    return True
+    logger.info(common.colorize(
+        'WARNING: the testcase is marked as unreproducible. Therefore, it '
+        'might not be reproduced.',
+        common.BASH_YELLOW_MARKER))
+
 
 @stackdriver_logging.log
 def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
@@ -240,15 +244,9 @@ def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
   response = get_testcase_info(testcase_id)
   current_testcase = testcase.Testcase(response)
 
-  if 'gestures' in response['testcase']:
-    logger.info(common.colorize(
-        'Warning: the testcase is using gestures and inherently flaky. '
-        "Therefore, we cannot guaranteed that it'll reproduce correctly.",
-        common.BASH_YELLOW_MARKER))
-
   definition = get_definition(current_testcase.job_type, build)
 
-  maybe_warn_unreproducible(current_testcase)
+  warn_unreproducible_if_needed(current_testcase)
 
   if build == 'download':
     if definition.binary_name:
@@ -275,4 +273,4 @@ def execute(testcase_id, current, build, disable_goma, goma_threads, iterations,
   try:
     reproducer.reproduce(iterations)
   finally:
-    maybe_warn_unreproducible(current_testcase)
+    warn_unreproducible_if_needed(current_testcase)

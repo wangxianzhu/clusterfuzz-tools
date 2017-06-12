@@ -25,18 +25,24 @@ from tests import libs
 import helpers
 
 
-class MaybeWarnUnreproducible(helpers.ExtendedTestCase):
-  """Test maybe_warn_unreproducible."""
+class WarnUnreproducibleIfNeeded(helpers.ExtendedTestCase):
+  """Test warn_unreproducible_if_needed."""
+
+  def setUp(self):
+    helpers.patch(self, ['clusterfuzz.commands.reproduce.logger.info'])
 
   def test_warn(self):
     """Test warn."""
-    self.assertTrue(reproduce.maybe_warn_unreproducible(
-        mock.Mock(reproducible=False)))
+    reproduce.warn_unreproducible_if_needed(
+        mock.Mock(reproducible=False, gestures='gestures'))
+
+    self.assertEqual(2, self.mock.info.call_count)
 
   def test_not_warn(self):
     """Test warn."""
-    self.assertIsNone(reproduce.maybe_warn_unreproducible(
-        mock.Mock(reproducible=True)))
+    reproduce.warn_unreproducible_if_needed(
+        mock.Mock(reproducible=True, gestures=None))
+    self.assertEqual(0, self.mock.info.call_count)
 
 
 class ExecuteTest(helpers.ExtendedTestCase):

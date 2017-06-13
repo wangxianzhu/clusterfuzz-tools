@@ -126,12 +126,17 @@ def log(func):
       except BaseException as e:
         send_failure(e, traceback.format_exc(), log_params)
         raise
-    except (KeyboardInterrupt, common.ExpectedException) as e:
+    except KeyboardInterrupt as e:
+      print
+      logger.info(
+          common.colorize('%s', common.BASH_YELLOW_MARKER),
+          e.__class__.__name__)
+    except common.ExpectedException as e:
       print
       logger.info(
           common.colorize('%s: %s', common.BASH_YELLOW_MARKER),
           e.__class__.__name__, e.message)
-      sys.exit(1)
+      sys.exit(e.exit_code)
     finally:
       print ('\nDetailed log of this run can be found in: %s' %
              local_logging.LOG_FILE_PATH)

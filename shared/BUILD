@@ -19,3 +19,8 @@ python_library(
     name='test_libs',
     sources=rglobs('test_libs/*.py')
 )
+
+python_libary(
+    name='error',
+    sources=rglobs('error/*.py')
+)

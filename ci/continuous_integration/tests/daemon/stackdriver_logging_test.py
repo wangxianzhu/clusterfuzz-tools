@@ -60,10 +60,15 @@ class SendRunTest(helpers.ExtendedTestCase):
   """Tests the send_run method."""
 
   def setUp(self):
-    helpers.patch(self, ['daemon.stackdriver_logging.send_log'])
+    helpers.patch(self, [
+        'daemon.stackdriver_logging.send_log',
+        'error.error.get_class_name'
+    ])
+    self.mock.get_class_name.return_value = 'FakeError'
 
-  def _test(self, success, message):
-    stackdriver_logging.send_run(1234, 'sanity', '0.2.2rc3', 'master', success)
+  def _test(self, return_code, message, error, success):
+    stackdriver_logging.send_run(
+        1234, 'sanity', '0.2.2rc3', 'master', return_code)
     self.assert_exact_calls(self.mock.send_log, [
         mock.call(
             params={
@@ -71,15 +76,25 @@ class SendRunTest(helpers.ExtendedTestCase):
                 'type': 'sanity',
                 'version': '0.2.2rc3',
                 'message': message,
-                'release': 'master'
+                'release': 'master',
+                'returnCode': return_code,
+                'error': error
             },
             success=success)
     ])
 
   def test_succeed(self):
     """Test send success log."""
-    self._test(True, '0.2.2rc3 (master) reproduced 1234 successfully (sanity).')
+    self._test(
+        return_code=0,
+        message='0.2.2rc3 (master) reproduced 1234 successfully (sanity).',
+        error='',
+        success=True)
 
   def test_fail(self):
     """Test send failure log."""
-    self._test(False, '0.2.2rc3 (master) failed to reproduce 1234 (sanity).')
+    self._test(
+        return_code=False,
+        message='0.2.2rc3 (master) failed to reproduce 1234 (sanity).',
+        error='FakeError',
+        success=False)

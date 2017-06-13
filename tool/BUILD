@@ -31,6 +31,7 @@ python_library(
         '//3rdparty/python:urlfetch',
         '//3rdparty/python:xvfbwrapper',
         '//cmd-editor:src',
+        '//error:src',
     ],
     resources=rglobs('clusterfuzz/resources/*'),
     compatibility=['>=2.7','<3'],

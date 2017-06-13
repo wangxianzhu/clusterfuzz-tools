@@ -32,6 +32,7 @@ from backports.shutil_get_terminal_size import get_terminal_size
 from cmd_editor import editor
 from clusterfuzz import local_logging
 from clusterfuzz import output_transformer
+from error import error
 
 
 BASH_BOLD_MARKER = '\033[1m'
@@ -131,7 +132,7 @@ def get_binary_name(stacktrace):
       binary_name = os.path.basename(l[0])
       return binary_name
 
-  raise MinimizationNotFinishedError()
+  raise error.MinimizationNotFinishedError()
 
 
 def get_version():
@@ -140,45 +141,13 @@ def get_version():
     return f.read().strip()
 
 
-class ExpectedException(Exception):
-  """A general Exception to extend from."""
-
-  def __init__(self, message, extras=None):
-    super(ExpectedException, self).__init__(message)
-    self.extras = extras
-
-
-class MinimizationNotFinishedError(ExpectedException):
-  """Raise when the minimize_task failed or hasn't finished yet. When the
-    minimization is not finished, we won't find 'Running command: ' in the
-    stacktrace."""
-
-  MESSAGE = (
-      "The testcase hasn't been minimized yet or cannot be minimized.\n"
-      'If the testcase is new, please wait for a few more hours.\n'
-      "If we can't minimize the testcase, it means the testcase is "
-      'unreproducible and, thus, not supported by this tool.')
-
-  def __init__(self):
-    super(MinimizationNotFinishedError, self).__init__(
-        MinimizationNotFinishedError.MESSAGE)
-
-
-class SanitizerNotProvidedError(ExpectedException):
-  """An error to notify when a sanitizer isn't passed to a Definition"""
-
-  def __init__(self):
-    message = 'A sanitizer must be provided with each Definition.'
-    super(SanitizerNotProvidedError, self).__init__(message)
-
-
 class Definition(object):
   """Holds all the necessary information to initialize a job's builder."""
 
   def __init__(self, builder, source_var, reproducer, binary_name,
                sanitizer, target, require_user_data_dir):
     if not sanitizer:
-      raise SanitizerNotProvidedError()
+      raise error.SanitizerNotProvidedError()
     self.builder = builder
     self.source_var = source_var
     self.binary_name = binary_name
@@ -186,152 +155,6 @@ class Definition(object):
     self.reproducer = reproducer
     self.target = target
     self.require_user_data_dir = require_user_data_dir
-
-
-class ClusterfuzzAuthError(ExpectedException):
-  """An exception to deal with Clusterfuzz Authentication errors.
-
-  Makes the response dict available for inspection later on when
-  the exception is dealt with."""
-
-  def __init__(self, response):
-
-    message = 'Error authenticating with Clusterfuzz\n%s' % str(response)
-    super(ClusterfuzzAuthError, self).__init__(message)
-
-    self.response = response
-
-class PermissionsTooPermissiveError(ExpectedException):
-  """An exception to deal with file permissions errors.
-
-  Stores the filename and the current permissions.."""
-
-  def __init__(self, filename, current_permissions):
-    message_tuple = (filename,
-                     str(current_permissions),
-                     filename)
-    message = ('File permissions too permissive to open %s\n'
-               'Current permissions: %s\nExpected user access only'
-               '\nYou can run "chmod 600 %s" to fix this issue'
-               % message_tuple)
-
-    super(PermissionsTooPermissiveError, self).__init__(message)
-    self.filename = filename
-    self.current_permissions = current_permissions
-
-
-class GomaNotInstalledError(ExpectedException):
-  """An exception to tell people GOMA isn not installed."""
-
-  def __init__(self):
-    message = ('Either goma is not installed, or $GOMA_DIR is not set.'
-               ' Please set up goma before continuing. '
-               'See go/ma to learn more.\n\n'
-               "If you wouldn't like to use goma, "
-               'please re-run with --disable-goma.')
-    super(GomaNotInstalledError, self).__init__(message)
-
-
-class JobTypeNotSupportedError(ExpectedException):
-  """An exception raised when user tries to run an unsupported build type."""
-
-  def __init__(self, job_type):
-    message = 'The job %s is not yet supported by clusterfuzz tools.' % job_type
-    super(JobTypeNotSupportedError, self).__init__(message)
-
-
-class NotInstalledError(ExpectedException):
-  """An exception raised to tell the user to install the required binary."""
-
-  MESSAGE = (
-      '{binary} is not found. Please install it or ensure the path is '
-      'correct.\n'
-      'Most of the time you can install it with `apt-get install {binary}`.')
-
-  def __init__(self, binary):
-    super(NotInstalledError, self).__init__(
-        NotInstalledError.MESSAGE.format(binary=binary))
-
-
-class GsutilNotInstalledError(ExpectedException):
-  """An exception raised to tell the user to install the required binary."""
-
-  MESSAGE = (
-      'gsutil is not installed. Please install it. See:'
-      'https://cloud.google.com/storage/docs/gsutil_install')
-
-  def __init__(self):
-    super(GsutilNotInstalledError, self).__init__(
-        GsutilNotInstalledError.MESSAGE)
-
-
-class BadJobTypeDefinitionError(ExpectedException):
-  """An exception raised when a job type description is malformed."""
-
-  def __init__(self, job_type):
-    message = ('The definition for the %s job type is incorrectly formatted or'
-               ' missing crucial information.' % job_type)
-    super(BadJobTypeDefinitionError, self).__init__(message)
-
-
-class UnreproducibleError(ExpectedException):
-  """An exception raised when the testcase cannot be reproduced."""
-
-  MESSAGE = (
-      'The testcase cannot be reproduced after trying {count} times.\n'
-      'Here are 2 things you can try:\n'
-      '- Run with the downloaded build by adding `--build download`.\n'
-      '- Run with more number of trials by adding `-i 10`, '
-      'which is especially good for gesture-related testcases.')
-
-  def __init__(self, count, crash_signatures):
-    crash_signatures = [
-        {'type': s.crash_type, 'state': s.crash_state_lines,
-         'output': s.output[:100000]}
-        for s in list(crash_signatures)[:10]
-    ]
-    super(UnreproducibleError, self).__init__(
-        message=UnreproducibleError.MESSAGE.format(count=count),
-        extras={'signatures': crash_signatures})
-
-
-class DirtyRepoError(ExpectedException):
-  """An exception raised when the repo is dirty. Therefore, we cannot checkout
-    to a wanted sha."""
-
-  def __init__(self, source_dir):
-    super(DirtyRepoError, self).__init__(
-        "We can't run the checkout command because %s has "
-        'uncommitted changes.\n '
-        'please commit or stash these changes and re-run this tool.' %
-        source_dir)
-
-
-class CommandFailedError(ExpectedException):
-  """An exception raised when the command doesn't return 0."""
-
-  MESSAGE = '`{cmd}` failed with the return code {returncode}.'
-
-  def __init__(self, command, returncode, stderr):
-    super(CommandFailedError, self).__init__(
-        CommandFailedError.MESSAGE.format(cmd=command, returncode=returncode),
-        extras={'stderr': stderr[:100000]})
-
-
-class KillProcessFailedError(ExpectedException):
-  """An exception raised when the process cannot be killed."""
-
-  def __init__(self, command, pid):
-    super(KillProcessFailedError, self).__init__(
-        '`%s` (pid=%s) cannot be killed.' % (command, pid))
-
-
-class UserRespondingNoError(ExpectedException):
-  """An exception raised when the user decides not to proceed."""
-
-  def __init__(self, question):
-    super(UserRespondingNoError, self).__init__(
-        'User responding "no" to "%s".' % question)
 
 
 def store_auth_header(auth_header):
@@ -354,7 +177,7 @@ def get_stored_auth_header():
   can_other_access = bool(os.stat(AUTH_HEADER_FILE).st_mode & 0007)
 
   if can_group_access or can_other_access:
-    raise PermissionsTooPermissiveError(
+    raise error.PermissionsTooPermissiveError(
         AUTH_HEADER_FILE,
         oct(os.stat(AUTH_HEADER_FILE).st_mode & 0777))
 
@@ -393,7 +216,7 @@ def kill(proc):
       # Wait for any shutdown stacktrace to be dumped.
       time.sleep(3)
 
-    raise KillProcessFailedError(proc.args, proc.pid)
+    raise error.KillProcessFailedError(proc.args, proc.pid)
   except OSError as e:
     if e.errno != NO_SUCH_PROCESS_ERRNO:
       raise
@@ -412,7 +235,7 @@ def check_binary(binary, cwd):
   try:
     subprocess.check_output(['which', binary], cwd=cwd)
   except subprocess.CalledProcessError:
-    raise NotInstalledError(binary)
+    raise error.NotInstalledError(binary)
 
 
 class Stdin(object):
@@ -570,7 +393,7 @@ def wait_execute(proc, exit_on_error, capture_output=True, print_output=True,
     logger.debug('| Return code is non-zero (%d).', proc.returncode)
     if exit_on_error:
       logger.debug('| Exit.')
-      raise CommandFailedError(proc.args, proc.returncode, stderr_data)
+      raise error.CommandFailedError(proc.args, proc.returncode, stderr_data)
   return proc.returncode, ''.join(output_chunks)
 
 
@@ -596,7 +419,7 @@ def execute(binary, args, cwd, print_command=True, print_output=True,
 def check_confirm(question):
   """Exits the program if the answer is negative, does nothing otherwise."""
   if not confirm(question):
-    raise UserRespondingNoError(question)
+    raise error.UserRespondingNoError(question)
 
 
 def confirm(question, default='y'):
@@ -683,5 +506,5 @@ def gsutil(*args, **kwargs):
   """Run gsutil and raise an elaborated exception if gsutil doesn't exist."""
   try:
     return execute('gsutil', *args, **kwargs)
-  except NotInstalledError:
-    raise GsutilNotInstalledError()
+  except error.NotInstalledError:
+    raise error.GsutilNotInstalledError()

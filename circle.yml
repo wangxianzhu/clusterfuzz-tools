@@ -11,6 +11,10 @@ test:
     - ./pants test.pytest --coverage=1 tool:test
     - ./pants run shared:coveralls -- --output=coverage_tool.json
 
+    - ./pants run error:pylint
+    - ./pants test.pytest --coverage=1 error:test
+    - ./pants run shared:coveralls -- --merge=coverage_tool.json --output=coverage_tool.json
+
     - ./pants run ci/continuous_integration:pylint
     - ./pants binary ci/continuous_integration:daemon
     - ./pants test.pytest --coverage=1 ci/continuous_integration:test

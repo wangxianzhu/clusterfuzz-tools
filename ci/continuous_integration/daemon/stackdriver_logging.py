@@ -4,6 +4,7 @@ import json
 
 from httplib2 import Http
 from oauth2client.service_account import ServiceAccountCredentials
+from error import error
 
 
 def send_log(params, success):
@@ -33,13 +34,19 @@ def send_log(params, success):
       body=json.dumps(structure))
 
 
-def send_run(testcase_id, testcase_type, version, release, success):
+def send_run(testcase_id, testcase_type, version, release, return_code):
+  """Send log to Stackdriver."""
+  error_name = ''
+  success = return_code == 0
+
   if success:
     message = '%s (%s) reproduced %s successfully (%s).' % (
         version, release, testcase_id, testcase_type)
   else:
-    message = '%s (%s) failed to reproduce %s (%s).' % (
-        version, release, testcase_id, testcase_type)
+    error_name = error.get_class_name(return_code)
+    message = (
+        '%s (%s) failed to reproduce %s (%s, %s).' %
+        (version, release, testcase_id, testcase_type, error_name))
 
   send_log(
       params={
@@ -47,6 +54,8 @@ def send_run(testcase_id, testcase_type, version, release, success):
           'type': testcase_type, # Sanity check or pulled testcase
           'version': version,
           'message': message,
-          'release': release
+          'release': release,
+          'returnCode': return_code,
+          'error': error_name
       },
       success=success)

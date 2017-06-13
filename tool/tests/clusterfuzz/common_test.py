@@ -22,6 +22,7 @@ import stat
 import mock
 
 from clusterfuzz import common
+from error import error
 from test_libs import helpers
 
 
@@ -149,11 +150,11 @@ class ExecuteTest(helpers.ExtendedTestCase):
     will_exit = exit_on_err and code != 0
 
     if will_exit:
-      with self.assertRaises(common.CommandFailedError) as cm:
+      with self.assertRaises(error.CommandFailedError) as cm:
         self.run_execute(print_cmd, print_out, exit_on_err)
 
       self.assertEqual(
-          common.CommandFailedError.MESSAGE.format(
+          error.CommandFailedError.MESSAGE.format(
               cmd='cmd', returncode='1', stderr=self.stderr),
           cm.exception.message)
     else:
@@ -197,15 +198,15 @@ class ExecuteTest(helpers.ExtendedTestCase):
 
   def test_check_binary_fail(self):
     """Test check_binary fail."""
-    self.mock.check_binary.side_effect = common.NotInstalledError('cmd')
+    self.mock.check_binary.side_effect = error.NotInstalledError('cmd')
 
-    with self.assertRaises(common.NotInstalledError) as cm:
+    with self.assertRaises(error.NotInstalledError) as cm:
       common.execute('cmd', 'aaa', '~/working/directory')
 
     self.assert_exact_calls(
         self.mock.check_binary, [mock.call('cmd', '~/working/directory')])
     self.assertEqual(
-        common.NotInstalledError.MESSAGE.format(binary='cmd'),
+        error.NotInstalledError.MESSAGE.format(binary='cmd'),
         cm.exception.message)
 
 
@@ -223,12 +224,12 @@ class CheckBinaryTest(helpers.ExtendedTestCase):
   def test_invalid(self):
     """Test an invalid binary."""
     self.mock.check_output.side_effect = subprocess.CalledProcessError(1, '')
-    with self.assertRaises(common.NotInstalledError) as cm:
+    with self.assertRaises(error.NotInstalledError) as cm:
       common.check_binary('test', 'cwd')
 
     self.mock.check_output.assert_called_once_with(['which', 'test'], cwd='cwd')
     self.assertEqual(
-        common.NotInstalledError.MESSAGE.format(binary='test'),
+        error.NotInstalledError.MESSAGE.format(binary='test'),
         cm.exception.message)
 
 
@@ -279,7 +280,7 @@ class GetStoredAuthHeaderTest(helpers.ExtendedTestCase):
     self.fs.CreateFile(common.AUTH_HEADER_FILE)
     os.chmod(common.AUTH_HEADER_FILE, stat.S_IWGRP)
 
-    with self.assertRaises(common.PermissionsTooPermissiveError) as ex:
+    with self.assertRaises(error.PermissionsTooPermissiveError) as ex:
       result = common.get_stored_auth_header()
       self.assertEqual(result, None)
     self.assertIn(
@@ -309,7 +310,7 @@ class CheckConfirmTest(helpers.ExtendedTestCase):
 
   def test_answer_no(self):
     self.mock.confirm.return_value = False
-    with self.assertRaises(common.UserRespondingNoError):
+    with self.assertRaises(error.UserRespondingNoError):
       common.check_confirm('Question?')
     self.assert_exact_calls(self.mock.confirm, [mock.call('Question?')])
 
@@ -351,7 +352,7 @@ class GetBinaryNameTest(helpers.ExtendedTestCase):
 
   def test_no_command(self):
     """Raise an exception when there's no command."""
-    with self.assertRaises(common.MinimizationNotFinishedError):
+    with self.assertRaises(error.MinimizationNotFinishedError):
       common.get_binary_name([
           {'content': 'aaa'}
       ])
@@ -361,7 +362,7 @@ class DefinitionTest(helpers.ExtendedTestCase):
   """Tests the Definition class."""
 
   def test_no_sanitizer(self):
-    with self.assertRaises(common.SanitizerNotProvidedError):
+    with self.assertRaises(error.SanitizerNotProvidedError):
       common.Definition(
           builder='builder', source_var='CHROME_SRC', reproducer='reproducer',
           binary_name=None, sanitizer=None, target=None,
@@ -434,7 +435,7 @@ class KillTest(helpers.ExtendedTestCase):
     """Test failing to kill."""
     self.mock.killpg.side_effect = [None, None, None, None]
 
-    with self.assertRaises(common.KillProcessFailedError) as cm:
+    with self.assertRaises(error.KillProcessFailedError) as cm:
       common.kill(self.proc)
 
     self.assertEqual(
@@ -449,9 +450,9 @@ class KillTest(helpers.ExtendedTestCase):
 
   def test_other_error(self):
     """Test raising other OSError."""
-    error = OSError()
-    error.errno = 4
-    self.mock.killpg.side_effect = error
+    err = OSError()
+    err.errno = 4
+    self.mock.killpg.side_effect = err
 
     with self.assertRaises(OSError) as cm:
       common.kill(self.proc)
@@ -604,8 +605,8 @@ class GsutilTest(helpers.ExtendedTestCase):
 
   def test_fail(self):
     """Test failing with NotInstalledError."""
-    self.mock.execute.side_effect = common.NotInstalledError('gsutil')
-    with self.assertRaises(common.GsutilNotInstalledError):
+    self.mock.execute.side_effect = error.NotInstalledError('gsutil')
+    with self.assertRaises(error.GsutilNotInstalledError):
       common.gsutil('test', cwd='source')
 
     self.mock.execute.assert_called_once_with('gsutil', 'test', cwd='source')

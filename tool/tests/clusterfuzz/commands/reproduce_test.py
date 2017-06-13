@@ -21,6 +21,7 @@ from clusterfuzz import common
 from clusterfuzz import binary_providers
 from clusterfuzz import reproducers
 from clusterfuzz.commands import reproduce
+from error import error
 from tests import libs
 from test_libs import helpers
 
@@ -302,7 +303,7 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         text=json.dumps(response_dict),
         headers=response_headers)
 
-    with self.assertRaises(common.ClusterfuzzAuthError) as cm:
+    with self.assertRaises(error.ClusterfuzzAuthError) as cm:
       reproduce.get_testcase_info(999)
     self.assertIn('Invalid verification code (12345)', cm.exception.message)
     self.assert_exact_calls(self.mock.post, [
@@ -332,7 +333,7 @@ class GetTestcaseInfoTest(helpers.ExtendedTestCase):
         text=json.dumps(response_dict),
         headers=response_headers)
 
-    with self.assertRaises(common.ClusterfuzzAuthError) as cm:
+    with self.assertRaises(error.ClusterfuzzAuthError) as cm:
       reproduce.get_testcase_info(999)
     self.assertIn('404', cm.exception.message)
     self.assert_exact_calls(self.mock.post, [
@@ -378,7 +379,7 @@ class EnsureGomaTest(helpers.ExtendedTestCase):
   def test_goma_not_installed(self):
     """Tests what happens when GOMA is not installed."""
 
-    with self.assertRaises(common.GomaNotInstalledError) as ex:
+    with self.assertRaises(error.GomaNotInstalledError) as ex:
       reproduce.ensure_goma()
       self.assertTrue('goma is not installed' in ex.message)
 
@@ -457,7 +458,7 @@ class GetDefinitionTest(helpers.ExtendedTestCase):
     result = reproduce.get_definition('libfuzzer_chrome_msan', 'download')
     self.assertEqual(result.builder, binary_providers.ChromiumBuilder)
 
-    with self.assertRaises(common.JobTypeNotSupportedError):
+    with self.assertRaises(error.JobTypeNotSupportedError):
       result = reproduce.get_definition('fuzzlibber_nasm', 'download')
 
   def test_build_param(self):
@@ -466,7 +467,7 @@ class GetDefinitionTest(helpers.ExtendedTestCase):
     result = reproduce.get_definition('libfuzzer_chrome_msan', 'chromium')
     self.assertEqual(result.builder, binary_providers.ChromiumBuilder)
 
-    with self.assertRaises(common.JobTypeNotSupportedError):
+    with self.assertRaises(error.JobTypeNotSupportedError):
       result = reproduce.get_definition('fuzzlibber_nasm', 'chromium')
 
 
@@ -479,7 +480,7 @@ class GetSupportedJobsTest(helpers.ExtendedTestCase):
         'clusterfuzz.commands.reproduce.build_definition'])
     self.mock.build_definition.side_effect = KeyError
 
-    with self.assertRaises(common.BadJobTypeDefinitionError):
+    with self.assertRaises(error.BadJobTypeDefinitionError):
       reproduce.get_supported_jobs()
 
   def test_get(self):

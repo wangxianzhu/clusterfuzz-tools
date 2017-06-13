@@ -18,8 +18,8 @@ import json
 import time
 import mock
 
-from clusterfuzz import common
 from clusterfuzz import stackdriver_logging
+from error import error
 from test_libs import helpers
 
 
@@ -181,6 +181,24 @@ class LogTest(helpers.ExtendedTestCase):
         self.exception, mock.ANY,
         {'command': 'stackdriver_logging_test', 'param': 'yes'})
 
+  def test_expected_exception(self):
+    """Test raising an ExpectedException."""
+    self.exception = error.GomaNotInstalledError()
+
+    @stackdriver_logging.log
+    def raise_expected_exception(param):  # pylint: disable=unused-argument
+      raise self.exception
+
+    with self.assertRaises(SystemExit) as cm:
+      raise_expected_exception(param='yes')
+
+    self.assertEqual(error.GomaNotInstalledError.EXIT_CODE, cm.exception.code)
+    self.mock.send_start.assert_called_once_with(
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+    self.mock.send_failure.assert_called_once_with(
+        self.exception, mock.ANY,
+        {'command': 'stackdriver_logging_test', 'param': 'yes'})
+
   def test_success(self):
     """Test succeeding."""
     not_raise(param='yes')
@@ -219,7 +237,7 @@ class SendSuccessFailureTest(helpers.ExtendedTestCase):
 
   def test_send_failure(self):
     """Test send failure."""
-    exception = common.ExpectedException('message', extras={'a': 'b'})
+    exception = error.ExpectedException('message', 20, extras={'a': 'b'})
     stackdriver_logging.send_failure(exception, 'trace', {'test': 'yes'})
     self.mock.send_log.assert_called_once_with(
         {'test': 'yes', 'exception': 'ExpectedException', 'success': False,

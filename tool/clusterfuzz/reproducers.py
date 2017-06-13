@@ -26,6 +26,8 @@ import xvfbwrapper
 
 from clusterfuzz import common
 from clusterfuzz import output_transformer
+from error import error
+
 
 DISABLE_GL_DRAW_ARG = '--disable-gl-drawing-for-tests'
 DEFAULT_GESTURE_TIME = 5
@@ -333,7 +335,7 @@ class BaseReproducer(object):
       iterations += 1
       time.sleep(3)
 
-    raise common.UnreproducibleError(iteration_max, signatures)
+    raise error.UnreproducibleError(iteration_max, signatures)
 
   # TODO(tanin): Remove iteration_max and use self.options.iterations.
   def reproduce(self, iteration_max):
@@ -381,7 +383,7 @@ class Xvfb(object):
                                        env={'DISPLAY': display_name})
     except OSError, e:
       if str(e) == '[Errno 2] No such file or directory':
-        raise common.NotInstalledError('blackbox')
+        raise error.NotInstalledError('blackbox')
       raise
 
     time.sleep(3)

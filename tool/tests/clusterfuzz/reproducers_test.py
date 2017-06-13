@@ -20,6 +20,7 @@ import mock
 from clusterfuzz import common
 from clusterfuzz import output_transformer
 from clusterfuzz import reproducers
+from error import error
 from tests import libs
 from test_libs import helpers
 
@@ -553,7 +554,7 @@ class XvfbTest(helpers.ExtendedTestCase):
     self.mock.Xvfb.return_value = mock.Mock(xvfb_cmd=['not_display',
                                                       ':display'])
 
-    with self.assertRaises(common.NotInstalledError):
+    with self.assertRaises(error.NotInstalledError):
       with reproducers.Xvfb(False) as display_name:
         self.assertNotEqual(display_name, ':display')
 
@@ -671,7 +672,7 @@ class ReproduceNormalTest(helpers.ExtendedTestCase):
         mock.Mock(text=json.dumps(wrong_response)),
         mock.Mock(text=json.dumps(wrong_response))]
 
-    with self.assertRaises(common.UnreproducibleError):
+    with self.assertRaises(error.UnreproducibleError):
       self.reproducer.reproduce_normal(2)
 
   def test_good_stacktrace(self):

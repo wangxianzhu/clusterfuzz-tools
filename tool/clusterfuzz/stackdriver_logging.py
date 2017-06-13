@@ -26,6 +26,8 @@ from clusterfuzz import common
 from clusterfuzz import local_logging
 from httplib2 import Http
 from oauth2client.service_account import ServiceAccountCredentials
+from error import error
+
 
 SESSION_ID = ':'.join([os.environ.get('USER'),
                        str(time.time()),
@@ -100,7 +102,7 @@ def send_failure(exception, stacktrace, params):
   params = params.copy()
   params['exception'] = exception.__class__.__name__
 
-  if isinstance(exception, common.ExpectedException) and exception.extras:
+  if isinstance(exception, error.ExpectedException) and exception.extras:
     params['extras'] = exception.extras
 
   params['success'] = False
@@ -126,12 +128,18 @@ def log(func):
       except BaseException as e:
         send_failure(e, traceback.format_exc(), log_params)
         raise
-    except (KeyboardInterrupt, common.ExpectedException) as e:
+    except KeyboardInterrupt as e:
+      print
+      logger.info(
+          common.colorize('%s', common.BASH_YELLOW_MARKER),
+          e.__class__.__name__)
+      sys.exit(1)
+    except error.ExpectedException as e:
       print
       logger.info(
           common.colorize('%s: %s', common.BASH_YELLOW_MARKER),
           e.__class__.__name__, e.message)
-      sys.exit(1)
+      sys.exit(e.exit_code)
     finally:
       print ('\nDetailed log of this run can be found in: %s' %
              local_logging.LOG_FILE_PATH)

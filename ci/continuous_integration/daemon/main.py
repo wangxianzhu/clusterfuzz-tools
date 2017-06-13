@@ -68,7 +68,7 @@ def build_command(args):
 def run_testcase(testcase_id):
   """Attempts to reproduce a testcase."""
   try:
-    process.call(
+    return process.call(
         '%s reproduce %s' % (BINARY_LOCATION, testcase_id),
         cwd=HOME,
         env={
@@ -79,12 +79,10 @@ def run_testcase(testcase_id):
             'PATH': '%s:%s' % (os.environ['PATH'], DEPOT_TOOLS)
         }
     )
-    success = True
-  except subprocess.CalledProcessError:
-    success = False
-
-  TESTCASE_CACHE[testcase_id] = success
-  return success
+  except subprocess.CalledProcessError as e:
+    return e.returncode
+  finally:
+    TESTCASE_CACHE[testcase_id] = True
 
 
 def update_auth_header():

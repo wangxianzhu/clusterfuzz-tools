@@ -19,6 +19,7 @@ import logging
 
 from clusterfuzz import common
 
+
 CLUSTERFUZZ_TESTCASE_URL = (
     'https://%s/v2/testcase-detail/download-testcase?id=%s' %
     (common.DOMAIN_NAME, '%s'))

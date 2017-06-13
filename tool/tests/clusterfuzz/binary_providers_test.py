@@ -20,6 +20,7 @@ import mock
 from clusterfuzz import binary_providers
 from clusterfuzz import common
 from clusterfuzz import output_transformer
+from error import error
 from tests import libs
 from test_libs import helpers
 
@@ -398,7 +399,7 @@ class CheckoutSourceByShaTest(helpers.ExtendedTestCase):
     """Tests when the correct git sha is not already checked out."""
     self.mock.get_current_sha.return_value = 'aaa'
     self.mock.is_repo_dirty.return_value = True
-    with self.assertRaises(common.DirtyRepoError):
+    with self.assertRaises(error.DirtyRepoError):
       self.builder.checkout_source_by_sha()
 
     self.mock.get_current_sha.assert_called_once_with(self.chrome_source)

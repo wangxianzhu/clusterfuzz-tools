@@ -27,6 +27,7 @@ from clusterfuzz import stackdriver_logging
 from clusterfuzz import testcase
 from clusterfuzz import binary_providers
 from clusterfuzz import reproducers
+from error import error
 
 
 CLUSTERFUZZ_AUTH_HEADER = 'x-clusterfuzz-authorization'
@@ -99,7 +100,7 @@ def send_request(url, data):
       break
 
   if response.status_code != 200:
-    raise common.ClusterfuzzAuthError(response.text)
+    raise error.ClusterfuzzAuthError(response.text)
 
   common.store_auth_header(response.headers[CLUSTERFUZZ_AUTH_HEADER])
   return response
@@ -119,7 +120,7 @@ def ensure_goma():
 
   goma_dir = os.environ.get('GOMA_DIR', GOMA_DIR)
   if not os.path.isfile(os.path.join(goma_dir, 'goma_ctl.py')):
-    raise common.GomaNotInstalledError()
+    raise error.GomaNotInstalledError()
 
   common.execute('python', 'goma_ctl.py ensure_start', goma_dir)
   return goma_dir
@@ -185,7 +186,7 @@ def get_supported_jobs():
         to_return[build_type][job_type] = build_definition(
             job_definition, job_types_yaml['presets'])
       except KeyError:
-        raise common.BadJobTypeDefinitionError(
+        raise error.BadJobTypeDefinitionError(
             '%s %s' % (build_type, job_type))
 
   return to_return
@@ -199,7 +200,7 @@ def get_definition(job_type, build_param):
     for i in ['chromium', 'standalone']:
       if job_type in supported_jobs[i]:
         return supported_jobs[i][job_type]
-  raise common.JobTypeNotSupportedError(job_type)
+  raise error.JobTypeNotSupportedError(job_type)
 
 
 def warn_unreproducible_if_needed(current_testcase):

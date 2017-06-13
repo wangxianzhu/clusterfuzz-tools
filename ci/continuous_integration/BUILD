@@ -13,7 +13,8 @@ python_library(
     dependencies=[
         '//3rdparty/python:pyyaml',
         '//3rdparty/python:httplib2',
-        '//3rdparty/python:oauth2client'
+        '//3rdparty/python:oauth2client',
+        '//error:src'
     ],
     resources=['daemon/sanity_checks.yml'],
     compatibility=['>=2.7', '<3']

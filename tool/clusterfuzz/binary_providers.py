@@ -26,6 +26,7 @@ import urlfetch
 
 from clusterfuzz import common
 from clusterfuzz import output_transformer
+from error import error
 
 
 CHECKOUT_MESSAGE = (
@@ -236,7 +237,7 @@ class GenericBuilder(BinaryProvider):
         source_dir=self.source_directory))
 
     if is_repo_dirty(self.source_directory):
-      raise common.DirtyRepoError(self.source_directory)
+      raise error.DirtyRepoError(self.source_directory)
 
     ensure_sha(self.git_sha, self.source_directory)
     common.execute(binary, args, self.source_directory)

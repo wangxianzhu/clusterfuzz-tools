@@ -59,7 +59,7 @@ logger = logging.getLogger('clusterfuzz')
 Options = namedlist.namedlist(
     'Options',
     ['testcase_id', 'current', 'build', 'disable_goma', 'goma_threads',
-     'iterations', 'disable_xvfb', 'target_args', 'edit_mode',
+     'goma_load', 'iterations', 'disable_xvfb', 'target_args', 'edit_mode',
      'disable_gclient', 'enable_debug', 'goma_dir']
 )
 

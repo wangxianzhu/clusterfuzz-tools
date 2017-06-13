@@ -261,10 +261,12 @@ class BuildTargetTest(helpers.ExtendedTestCase):
   def setUp(self):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.V8Builder.get_goma_cores',
+        'clusterfuzz.binary_providers.V8Builder.get_goma_load',
         'clusterfuzz.binary_providers.V8Builder.setup_gn_args',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.common.execute'])
     self.mock.get_goma_cores.return_value = 120
+    self.mock.get_goma_load.return_value = 8
 
   def test_correct_calls(self):
     """Tests the correct checks and commands are run to build."""
@@ -287,7 +289,7 @@ class BuildTargetTest(helpers.ExtendedTestCase):
         mock.call(
             'ninja',
             ("-w 'dupbuild=err' -C /chrome/source/out/clusterfuzz_54321 "
-             '-j 120 -l 15 d8'),
+             '-j 120 -l 8 d8'),
             chrome_source,
             capture_output=False,
             stdout_transformer=mock.ANY)
@@ -550,9 +552,11 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
         'clusterfuzz.binary_providers.PdfiumBuilder.setup_gn_args',
         'clusterfuzz.common.execute',
         'clusterfuzz.binary_providers.PdfiumBuilder.get_goma_cores',
+        'clusterfuzz.binary_providers.PdfiumBuilder.get_goma_load',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.binary_providers.get_pdfium_sha'])
     self.mock.get_goma_cores.return_value = 120
+    self.mock.get_goma_load.return_value = 8
     self.mock.sha_from_revision.return_value = 'chrome_sha'
     testcase = mock.Mock(id=1234, build_url='', revision=54321)
     self.mock_os_environment({'V8_SRC': '/chrome/source/dir'})
@@ -571,7 +575,7 @@ class PdfiumBuildTargetTest(helpers.ExtendedTestCase):
         mock.call('gclient', 'sync', '/source/dir'),
         mock.call(
             'ninja',
-            "-w 'dupbuild=err' -C /build/dir -j 120 -l 15 pdfium_test",
+            "-w 'dupbuild=err' -C /build/dir -j 120 -l 8 pdfium_test",
             '/source/dir',
             capture_output=False,
             stdout_transformer=mock.ANY)
@@ -588,6 +592,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
     helpers.patch(self, [
         'clusterfuzz.binary_providers.ChromiumBuilder.get_build_directory',
         'clusterfuzz.binary_providers.ChromiumBuilder.get_goma_cores',
+        'clusterfuzz.binary_providers.ChromiumBuilder.get_goma_load',
         'clusterfuzz.binary_providers.ChromiumBuilder.setup_gn_args',
         'clusterfuzz.binary_providers.sha_from_revision',
         'clusterfuzz.common.execute',
@@ -602,6 +607,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
         self.testcase, self.definition, libs.make_options())
     self.builder.build_directory = '/chrome/src/out/clusterfuzz_builds'
     self.mock.get_goma_cores.return_value = 120
+    self.mock.get_goma_load.return_value = 8
 
   def test_no_binary_name(self):
     """Test the functionality when no binary name is provided."""
@@ -630,7 +636,7 @@ class ChromiumBuilderTest(helpers.ExtendedTestCase):
         mock.call(
             'ninja',
             ("-w 'dupbuild=err' -C /chrome/src/out/clusterfuzz_builds "
-             '-j 120 -l 15 target'),
+             '-j 120 -l 8 target'),
             '/chrome/src',
             capture_output=False,
             stdout_transformer=mock.ANY)
@@ -803,12 +809,20 @@ class GetGomaCoresTest(helpers.ExtendedTestCase):
         libs.make_options(goma_threads=500, goma_dir='dir'))
     self.assertEqual(self.builder.get_goma_cores(), 500)
 
+  def test_specifying_goma_load(self):
+    """Ensures that if load are manually specified, they are used."""
+    self.builder = binary_providers.ChromiumBuilder(
+        self.testcase, self.definition,
+        libs.make_options(goma_load=100, goma_dir='dir'))
+    self.assertEqual(self.builder.get_goma_load(), 100)
+
   def test_not_specifying(self):
     """Test not specifying goma threads."""
     self.builder = binary_providers.ChromiumBuilder(
         self.testcase, self.definition,
-        libs.make_options(goma_threads=None, goma_dir='dir'))
+        libs.make_options(goma_threads=None, goma_load=None, goma_dir='dir'))
     self.assertEqual(self.builder.get_goma_cores(), 3200)
+    self.assertEqual(self.builder.get_goma_load(), 128)
 
 
 class ShaExistsTest(helpers.ExtendedTestCase):

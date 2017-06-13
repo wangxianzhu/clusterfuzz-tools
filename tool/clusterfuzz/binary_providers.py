@@ -330,6 +330,12 @@ class GenericBuilder(BinaryProvider):
       cpu_count = multiprocessing.cpu_count()
       return 50 * cpu_count if self.options.goma_dir else (3 * cpu_count) / 4
 
+  def get_goma_load(self):
+    """Choose the correct amount of GOMA load for a build."""
+    if self.options.goma_load:
+      return self.options.goma_load
+    return multiprocessing.cpu_count() * 2
+
   def build_target(self):
     """Build the correct revision in the source directory."""
     if not self.options.disable_gclient:
@@ -338,11 +344,12 @@ class GenericBuilder(BinaryProvider):
     self.pre_build_steps()
     self.setup_gn_args()
     goma_cores = self.get_goma_cores()
+    goma_load = self.get_goma_load()
 
     common.execute(
         'ninja',
-        "-w 'dupbuild=err' -C %s -j %i -l 15 %s" % (
-            self.build_directory, goma_cores, self.target),
+        "-w 'dupbuild=err' -C %s -j %i -l %i %s" % (
+            self.build_directory, goma_cores, goma_load, self.target),
         self.source_directory, capture_output=False,
         stdout_transformer=output_transformer.Ninja())
 

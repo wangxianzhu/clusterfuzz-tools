@@ -22,7 +22,7 @@ import stat
 import mock
 
 from clusterfuzz import common
-import helpers
+from test_libs import helpers
 
 
 class GetVersionTest(helpers.ExtendedTestCase):

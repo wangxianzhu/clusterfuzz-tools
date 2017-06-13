@@ -18,9 +18,10 @@ import json
 import time
 import mock
 
-import helpers
 from clusterfuzz import common
 from clusterfuzz import stackdriver_logging
+from test_libs import helpers
+
 
 class TestSendLog(helpers.ExtendedTestCase):
   """Tests the send_log method to ensure all params are sent."""

@@ -15,8 +15,8 @@
 
 import subprocess
 
-import helpers
 from cmd_editor import editor
+from test_libs import helpers
 
 
 class GetFullPathTest(helpers.ExtendedTestCase):

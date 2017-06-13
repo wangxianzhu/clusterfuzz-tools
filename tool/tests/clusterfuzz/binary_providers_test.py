@@ -17,11 +17,11 @@ import os
 import json
 import mock
 
-import helpers
 from clusterfuzz import binary_providers
 from clusterfuzz import common
 from clusterfuzz import output_transformer
 from tests import libs
+from test_libs import helpers
 
 
 class BuildRevisionToShaUrlTest(helpers.ExtendedTestCase):

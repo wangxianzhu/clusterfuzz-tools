@@ -15,9 +15,9 @@ python_library(
 
 python_binary(
     name='pylint',
-    entry_point='pylint_cli:main',
+    entry_point='pylint_cli.main:main',
     dependencies=[
-        '//shared:pylint_cli',
+        '//shared:pylint',
         ':src'
     ],
     zip_safe=False

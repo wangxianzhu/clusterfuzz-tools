@@ -1,9 +1,9 @@
 """Test output_transformer."""
 
 import StringIO
-import helpers
 
 from clusterfuzz import output_transformer
+from test_libs import helpers
 
 
 class HiddenTest(helpers.ExtendedTestCase):

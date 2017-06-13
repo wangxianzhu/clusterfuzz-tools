@@ -22,7 +22,7 @@ from clusterfuzz import binary_providers
 from clusterfuzz import reproducers
 from clusterfuzz.commands import reproduce
 from tests import libs
-import helpers
+from test_libs import helpers
 
 
 class WarnUnreproducibleIfNeeded(helpers.ExtendedTestCase):

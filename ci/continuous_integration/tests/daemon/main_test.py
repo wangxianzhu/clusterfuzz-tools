@@ -21,7 +21,7 @@ import yaml
 import mock
 
 from daemon import main
-import helpers
+from test_libs import helpers
 
 
 class MainTest(helpers.ExtendedTestCase):

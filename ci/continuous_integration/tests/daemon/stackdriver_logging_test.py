@@ -17,7 +17,7 @@ import json
 import mock
 
 from daemon import stackdriver_logging
-import helpers
+from test_libs import helpers
 
 
 class SendLogTest(helpers.ExtendedTestCase):

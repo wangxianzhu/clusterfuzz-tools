@@ -20,7 +20,7 @@ import subprocess
 import mock
 
 from daemon import process
-import helpers
+from test_libs import helpers
 
 
 class CallTest(helpers.ExtendedTestCase):

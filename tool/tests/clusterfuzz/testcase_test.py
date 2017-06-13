@@ -16,9 +16,10 @@
 import os
 import mock
 
-import helpers
 from clusterfuzz import common
 from clusterfuzz import testcase
+from test_libs import helpers
+
 
 def build_base_testcase(stacktrace_lines=None, revision=None, build_url=None,
                         window_arg='', minimized_args='', extension='.js',

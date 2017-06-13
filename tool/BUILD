@@ -43,16 +43,16 @@ python_library(
     compatibility=['>=2.7','<3'],
     dependencies=[
         ':src',
-        '//shared',
+        '//shared:test_libs',
     ]
 )
 
 
 python_binary(
     name='pylint',
-    entry_point='pylint_cli:main',
+    entry_point='pylint_cli.main:main',
     dependencies=[
-        '//shared:pylint_cli',
+        '//shared:pylint',
         ':all-src-for-pylint'
     ],
     zip_safe=False
@@ -66,7 +66,7 @@ python_tests(
     compatibility=['>=2.7','<3'],
     dependencies=[
         ':src',
-        '//shared',
+        '//shared:test_libs',
         '//3rdparty/python:pyfakefs',
         '//3rdparty/python:mock'
     ]

@@ -17,11 +17,12 @@ import os
 import json
 import mock
 
-import helpers
 from clusterfuzz import common
 from clusterfuzz import output_transformer
 from clusterfuzz import reproducers
 from tests import libs
+from test_libs import helpers
+
 
 def patch_stacktrace_info(obj):
   """Patches get_stacktrace_info for initializing a Reproducer."""

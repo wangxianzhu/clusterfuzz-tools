@@ -22,9 +22,12 @@ def main():
   pylintrc_path = os.path.join(basedir, '.pylintrc')
   print 'Pylintrc: %s' % pylintrc_path
 
+  rootdir = os.path.join(basedir, '..')
+
   exit_code = 0
-  for root, dirnames, filenames in os.walk(basedir):
+  for root, dirnames, filenames in os.walk(rootdir):
     filenames = [f for f in filenames if not f.startswith('.')]
+    # In PEX, the 3rdparty libraries are placed under `.deps`.
     dirnames[:] = [d for d in dirnames if not d.startswith('.')]
     for filename in filenames:
       if not filename.endswith('.py') or filename == '__main__.py':

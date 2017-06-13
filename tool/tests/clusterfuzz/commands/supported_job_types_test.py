@@ -17,7 +17,8 @@ import mock
 import yaml
 
 from clusterfuzz.commands import supported_job_types
-import helpers
+from test_libs import helpers
+
 
 class ExecuteTest(helpers.ExtendedTestCase):
   """Tests the printing of supported job types."""

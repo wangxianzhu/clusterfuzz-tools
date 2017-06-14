@@ -29,6 +29,7 @@ For Goobuntu:
 
 1. Run `prodaccess`.
 2. Run `/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz reproduce -h`.
+3. Run the release candidate version `/google/data/ro/teams/clusterfuzz-tools/releases/clusterfuzz-rc reproduce -h`. The release candidate version normally has newer features and updates.
 
 For others:
 

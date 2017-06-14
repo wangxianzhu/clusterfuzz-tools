@@ -229,7 +229,3 @@ def main():
     for testcase in load_new_testcases():
       reset_and_run_testcase(testcase.id, testcase.job_type, release)
       time.sleep(SLEEP_TIME)
-
-
-if __name__ == '__main__':
-  main()

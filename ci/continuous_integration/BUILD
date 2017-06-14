@@ -14,7 +14,9 @@ python_library(
         '//3rdparty/python:pyyaml',
         '//3rdparty/python:httplib2',
         '//3rdparty/python:oauth2client',
-        '//error:src'
+        '//3rdparty/python:requests',
+        '//3rdparty/python:py-lru-cache',
+        '//error:src',
     ],
     resources=['daemon/sanity_checks.yml'],
     compatibility=['>=2.7', '<3']
@@ -50,7 +52,5 @@ python_tests(
         '//shared:test_libs',
         '//3rdparty/python:pyfakefs',
         '//3rdparty/python:mock',
-        '//3rdparty/python:py-lru-cache',
-        '//3rdparty/python:requests'
     ]
 )

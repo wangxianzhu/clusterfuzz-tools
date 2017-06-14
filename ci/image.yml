@@ -82,12 +82,7 @@
       pip: name={{item}} state=latest
       with_items:
         - pip
-        - oauth2client
-        - httplib2
-        - pyyaml
         - crcmod
-        - requests[security]
-        - py_lru_cache
 
 - name: Setup Chrome
   hosts: instances

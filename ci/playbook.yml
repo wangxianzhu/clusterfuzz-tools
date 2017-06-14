@@ -44,6 +44,25 @@
         state: present
         regexp: 'RELEASE="([a-z])\w+"'
         line: 'RELEASE="{{ release }}"'
+    - name: Set python unbuffered environment variable
+      lineinfile:
+        dest: /etc/environment
+        state: present
+        regexp: 'PYTHONUNBUFFERED="1"'
+        line: 'PYTHONUNBUFFERED="1"'
+
+
+- name: Prepare the daemon binary
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Build the daemon binary
+      shell: ./pants binary ci/continuous_integration:daemon
+      args:
+        chdir: ../
+        executable: /bin/bash
+
 
 - name: Setup python-daemon (runit service, folder, log folder, and service)
   hosts: instances
@@ -79,7 +98,7 @@
       with_items:
         - {'src': 'python_daemon/run', 'dest': '/etc/sv/python-daemon/run'}
         - {'src': 'python_daemon/log_run', 'dest': '/etc/sv/python-daemon/log/run'}
-        - {'src': 'continuous_integration/daemon', 'dest': '/python-daemon'}
+        - {'src': '../dist/daemon.pex', 'dest': '/python-daemon'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/clusterfuzz-tools-ci-credentials.json', 'dest': '/python-daemon/service-account-credentials.json'}
         - {'src': '/auto/FuzzInfrastructure/clusterfuzz-tools/goma', 'dest': '/home/clusterfuzz'}
     - copy:

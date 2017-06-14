@@ -436,11 +436,13 @@ def confirm(question, default='y'):
     accepts += ['']
     defaults = defaults.replace(default, default.upper())
 
-  answer = raw_input(colorize(
-      '%s %s: ' % (question, defaults), BASH_MAGENTA_MARKER)).lower().strip()
+  answer = raw_input(emphasize(colorize(
+      '%s %s: ' % (question, defaults), BASH_MAGENTA_MARKER))).lower().strip()
   while not answer in accepts:
-    answer = raw_input(colorize(
-        'Please type either "y" or "n": ', BASH_MAGENTA_MARKER)).lower().strip()
+    answer = raw_input(
+        emphasize(colorize(
+            'Please type either "y" or "n": ', BASH_MAGENTA_MARKER))
+    ).lower().strip()
 
   if answer == 'y' or (answer == '' and default == 'y'):
     return True
@@ -452,7 +454,8 @@ def ask(question, error_message, validate_fn):
 
   answer = ''
   while not validate_fn(answer):
-    answer = raw_input('%s: ' % question)
+    answer = raw_input(emphasize(colorize(
+        '%s: ' % question, BASH_MAGENTA_MARKER)))
     question = error_message
   return answer
 

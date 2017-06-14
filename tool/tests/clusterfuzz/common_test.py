@@ -55,7 +55,8 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertFalse(common.confirm('A question'))
     self.assertTrue(common.confirm('A question'))
 
-    msg = common.colorize('A question [Y/n]: ', common.BASH_MAGENTA_MARKER)
+    msg = common.emphasize(common.colorize(
+        'A question [Y/n]: ', common.BASH_MAGENTA_MARKER))
     self.mock.raw_input.assert_has_calls([mock.call(msg)] * 3)
     self.assert_n_calls(3, [self.mock.raw_input])
 
@@ -68,7 +69,8 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertFalse(common.confirm('A question', default='n'))
     self.assertFalse(common.confirm('A question', default='n'))
 
-    msg = common.colorize('A question [y/N]: ', common.BASH_MAGENTA_MARKER)
+    msg = common.emphasize(common.colorize(
+        'A question [y/N]: ', common.BASH_MAGENTA_MARKER))
     self.mock.raw_input.assert_has_calls([mock.call(msg)] * 3)
     self.assert_n_calls(3, [self.mock.raw_input])
 
@@ -81,9 +83,10 @@ class ConfirmTest(helpers.ExtendedTestCase):
     self.assertFalse(common.confirm('A question', default=None))
     self.assertFalse(common.confirm('A question', default=None))
 
-    msg = common.colorize('A question [y/n]: ', common.BASH_MAGENTA_MARKER)
-    another_msg = common.colorize(
-        'Please type either "y" or "n": ', common.BASH_MAGENTA_MARKER)
+    msg = common.emphasize(common.colorize(
+        'A question [y/n]: ', common.BASH_MAGENTA_MARKER))
+    another_msg = common.emphasize(common.colorize(
+        'Please type either "y" or "n": ', common.BASH_MAGENTA_MARKER))
     self.mock.raw_input.assert_has_calls(
         [mock.call(msg)] * 3 + [mock.call(another_msg)])
     self.assert_n_calls(4, [self.mock.raw_input])
@@ -333,8 +336,11 @@ class AskTest(helpers.ExtendedTestCase):
     result = common.ask(question, error_message, validate_fn)
     self.assert_n_calls(4, [self.mock.raw_input])
     self.mock.raw_input.assert_has_calls([
-        mock.call('Initial Question: '),
-        mock.call('Please answer correctly: ')])
+        mock.call(common.emphasize(common.colorize(
+            'Initial Question: ', common.BASH_MAGENTA_MARKER))),
+        mock.call(common.emphasize(common.colorize(
+            'Please answer correctly: ', common.BASH_MAGENTA_MARKER)))
+    ])
     self.assertEqual(result, 'correct')
 
 

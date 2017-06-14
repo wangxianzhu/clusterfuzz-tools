@@ -70,7 +70,8 @@ class RunTestcaseTest(helpers.ExtendedTestCase):
 
   def test_succeed(self):
     """Ensures testcases are run properly."""
-    self.assertTrue(main.run_testcase(1234))
+    self.mock.call.return_value = (0, None)
+    self.assertEqual(0, main.run_testcase(1234))
 
     self.assert_exact_calls(self.mock.call, [
         mock.call(
@@ -148,7 +149,7 @@ class GetBinaryVersionTest(helpers.ExtendedTestCase):
         'chromium': ['chrome_job', 'libfuzzer_job'],
         'standalone': ['pdf_job', 'v8_job'],
         'Version': '0.2.2rc11'})
-    self.mock.call.return_value = self.result
+    self.mock.call.return_value = (0, self.result)
 
   def test_get(self):
     result = main.get_binary_version()
@@ -164,7 +165,7 @@ class GetSupportedJobtypesTest(helpers.ExtendedTestCase):
         'chromium': ['chrome_job', 'libfuzzer_job'],
         'standalone': ['pdf_job', 'v8_job'],
         'Version': '0.2.2rc11'})
-    self.mock.call.return_value = self.result
+    self.mock.call.return_value = (0, self.result)
 
   def test_get_supported_jobtypes(self):
     """Tests get_supported_jobtypes."""
@@ -277,7 +278,7 @@ class BuildMasterAndGetVersionTest(helpers.ExtendedTestCase):
 
   def test_run(self):
     """Tests checking out & building from master."""
-    self.mock.call.return_value = 'version'
+    self.mock.call.return_value = (0, 'version')
     self.assertEqual('version', main.build_master_and_get_version())
 
     self.assert_exact_calls(self.mock.call, [

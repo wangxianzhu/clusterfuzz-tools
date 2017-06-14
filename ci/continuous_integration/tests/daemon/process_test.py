@@ -44,7 +44,7 @@ class CallTest(helpers.ExtendedTestCase):
     self.popen.returncode = 0
     self.popen.communicate.return_value = ('Test', None)
     self.assertEqual(
-        'Test',
+        (0, 'Test'),
         process.call('test', cwd='path', env={'NEW': '2'}, capture=True))
 
     self.mock.Popen.assert_called_once_with(
@@ -58,7 +58,8 @@ class CallTest(helpers.ExtendedTestCase):
     """Test not capture."""
     self.popen.returncode = 0
     self.popen.communicate.return_value = (None, None)
-    self.assertIsNone(
+    self.assertEqual(
+        (0, None),
         process.call('test', cwd='path', env={'NEW': '2'}, capture=False))
 
     self.mock.Popen.assert_called_once_with(

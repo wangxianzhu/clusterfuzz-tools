@@ -27,7 +27,7 @@ def call(cmd, cwd='.', env=None, capture=False):
       raise subprocess.CalledProcessError(
           returncode=proc.returncode, cmd=cmd, output=out)
 
-    return out
+    return proc.returncode, out
 
 
 class Popen(object):

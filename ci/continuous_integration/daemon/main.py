@@ -80,7 +80,7 @@ def run_testcase(testcase_id):
             'GOMA_GCE_SERVICE_ACCOUNT': 'default',
             'PATH': '%s:%s' % (os.environ['PATH'], DEPOT_TOOLS)
         }
-    )
+    )[0]
   except subprocess.CalledProcessError as e:
     return e.returncode
   finally:
@@ -102,13 +102,13 @@ def update_auth_header():
 
 def get_binary_version():
   """Returns the version of the binary."""
-  out = process.call(build_command('supported_job_types'), capture=True)
+  _, out = process.call(build_command('supported_job_types'), capture=True)
   return yaml.load(out)['Version']
 
 
 def get_supported_jobtypes():
   """Returns a hash of supported job types."""
-  out = process.call(build_command('supported_job_types'), capture=True)
+  _, out = process.call(build_command('supported_job_types'), capture=True)
   result = yaml.load(out)
   result.pop('Version', None)
   return result
@@ -177,7 +177,7 @@ def build_master_and_get_version():
   # The full SHA is too long and unpleasant to show in logs. So, we use the
   # first 7 characters of the SHA instead.
   return process.call(
-      'git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE).strip()[:7]
+      'git rev-parse HEAD', capture=True, cwd=TOOL_SOURCE)[1].strip()[:7]
 
 
 def prepare_binary_and_get_version(release):

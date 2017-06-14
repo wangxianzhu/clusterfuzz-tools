@@ -231,13 +231,17 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
     os.makedirs(main.CHROMIUM_OUT)
     os.makedirs(main.CLUSTERFUZZ_CACHE_DIR)
 
-    helpers.patch(self, ['daemon.process.call',
-                         'daemon.stackdriver_logging.send_run',
-                         'daemon.main.update_auth_header',
-                         'daemon.main.run_testcase',
-                         'daemon.main.prepare_binary_and_get_version'])
+    helpers.patch(self, [
+        'daemon.process.call',
+        'daemon.stackdriver_logging.send_run',
+        'daemon.main.update_auth_header',
+        'daemon.main.run_testcase',
+        'daemon.main.prepare_binary_and_get_version',
+        'daemon.main.read_logs',
+    ])
     self.mock.prepare_binary_and_get_version.return_value = '0.2.2rc10'
     self.mock.run_testcase.return_value = 'run_testcase'
+    self.mock.read_logs.return_value = 'some logs'
 
   def test_reset_run_testcase(self):
     """Tests resetting a testcase properly prior to running."""
@@ -250,7 +254,9 @@ class ResetAndRunTestcaseTest(helpers.ExtendedTestCase):
 
     self.assert_exact_calls(self.mock.update_auth_header, [mock.call()])
     self.assert_exact_calls(self.mock.send_run, [
-        mock.call(1234, 'sanity', '0.2.2rc10', 'master', 'run_testcase')])
+        mock.call(1234, 'sanity', '0.2.2rc10', 'master', 'run_testcase',
+                  'some logs')
+    ])
     self.assert_exact_calls(
         self.mock.prepare_binary_and_get_version, [mock.call('master')])
     self.assert_exact_calls(self.mock.call, [
@@ -342,3 +348,23 @@ class PrepareBinaryAndGetVersionTest(helpers.ExtendedTestCase):
         'vbinary', main.prepare_binary_and_get_version('release'))
     self.assertEqual(
         'vbinary', main.prepare_binary_and_get_version('release-candidate'))
+
+
+class ReadLogsTest(helpers.ExtendedTestCase):
+  """Test read_logs."""
+
+  def setUp(self):
+    self.setup_fake_filesystem()
+
+  def test_small_file(self):
+    """Test small file."""
+    self.fs.CreateFile(main.CLUSTERFUZZ_LOG_PATH, contents='some logs')
+    self.assertIn('some logs', main.read_logs())
+
+  def test_large_file(self):
+    """Test small file."""
+    self.fs.CreateFile(
+        main.CLUSTERFUZZ_LOG_PATH,
+        contents='a' * (main.PREVIEW_LOG_BYTE_COUNT + 10))
+    self.assertIn('a' * main.PREVIEW_LOG_BYTE_COUNT, main.read_logs())
+    self.assertNotIn('a' * (main.PREVIEW_LOG_BYTE_COUNT + 10), main.read_logs())

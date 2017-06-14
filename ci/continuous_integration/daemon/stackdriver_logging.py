@@ -34,7 +34,7 @@ def send_log(params, success):
       body=json.dumps(structure))
 
 
-def send_run(testcase_id, testcase_type, version, release, return_code):
+def send_run(testcase_id, testcase_type, version, release, return_code, logs):
   """Send log to Stackdriver."""
   error_name = ''
   success = return_code == 0
@@ -56,6 +56,8 @@ def send_run(testcase_id, testcase_type, version, release, return_code):
           'message': message,
           'release': release,
           'returnCode': return_code,
-          'error': error_name
+          'error': error_name,
+          # Only write logs when failing to save space.
+          'logs': '' if success else logs
       },
       success=success)

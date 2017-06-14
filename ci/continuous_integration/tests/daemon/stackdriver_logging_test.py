@@ -66,9 +66,9 @@ class SendRunTest(helpers.ExtendedTestCase):
     ])
     self.mock.get_class_name.return_value = 'FakeError'
 
-  def _test(self, return_code, message, error, success):
+  def _test(self, return_code, message, error, success, expected_logs, logs):
     stackdriver_logging.send_run(
-        1234, 'sanity', '0.2.2rc3', 'master', return_code)
+        1234, 'sanity', '0.2.2rc3', 'master', return_code, logs)
     self.assert_exact_calls(self.mock.send_log, [
         mock.call(
             params={
@@ -78,7 +78,8 @@ class SendRunTest(helpers.ExtendedTestCase):
                 'message': message,
                 'release': 'master',
                 'returnCode': return_code,
-                'error': error
+                'error': error,
+                'logs': expected_logs
             },
             success=success)
     ])
@@ -89,7 +90,9 @@ class SendRunTest(helpers.ExtendedTestCase):
         return_code=0,
         message='0.2.2rc3 (master) reproduced 1234 successfully (sanity).',
         error='',
-        success=True)
+        success=True,
+        expected_logs='',
+        logs='logs')
     self.assertEqual(0, self.mock.get_class_name.call_count)
 
   def test_fail(self):
@@ -99,5 +102,7 @@ class SendRunTest(helpers.ExtendedTestCase):
         message=(
             '0.2.2rc3 (master) failed to reproduce 1234 (sanity, FakeError).'),
         error='FakeError',
-        success=False)
+        success=False,
+        expected_logs='logs',
+        logs='logs')
     self.mock.get_class_name.assert_called_once_with(10)

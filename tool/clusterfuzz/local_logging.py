@@ -18,6 +18,7 @@ import logging
 from logging import config
 import sys
 
+
 CLUSTERFUZZ_DIR = os.path.expanduser(os.path.join('~', '.clusterfuzz'))
 LOG_DIR = os.path.join(CLUSTERFUZZ_DIR, 'logs')
 LOG_FILE_PATH = os.path.join(LOG_DIR, 'output.log')
@@ -36,7 +37,7 @@ logging_config = dict(
                  'filename': LOG_FILE_PATH,
                  'formatter': 'timestamp',
                  'maxBytes': 10485760,
-                 'backupCount': 5,
+                 'backupCount': 10,
                  'level': logging.DEBUG}},
     loggers={
         'clusterfuzz': {'handlers': ['console', 'file'],
@@ -44,16 +45,21 @@ logging_config = dict(
 logger = None
 current_chunk = []
 
+
 def start_loggers():
   global logger
   if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
   config.dictConfig(logging_config)
   logger = logging.getLogger('clusterfuzz')
+  # Force rolling a log file; each log file represents a single run.
+  for handler in logger.handlers:
+    if isinstance(handler, logging.handlers.RotatingFileHandler):
+      handler.doRollover()
+
 
 def send_output(output_chunk):
   """Send a chunk of command line output to a file."""
-
   global current_chunk
   for x in output_chunk:
     if x == '\n':
